@@ -4,7 +4,7 @@ OpenWrt firmware for the Xiaomi BE7000 (board RC06, Qualcomm IPQ9554), tuned to 
 
 MiWRT stands on the work of the [OpenWrt](https://openwrt.org) project and of Timofey Maykov, whose Beam WRT firmware for the BE7000 is where MiWRT began. Everyone else whose work is in it is listed under [Credits](#credits-and-licence).
 
-Current version: **2.0.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in [Releases](https://github.com/iroham/MiWRT/releases), checksums in `sha256sums.txt`, what changed in [the release notes](docs/release-notes/v2.0.0.md).
+Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in [Releases](https://github.com/iroham/MiWRT/releases), checksums in `sha256sums.txt`, what changed in [the release notes](docs/release-notes/v2.1.0.md).
 
 ## Contents
 
@@ -44,7 +44,7 @@ Current version: **2.0.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 - AmneziaWG and the GRE, L2TP, PPTP, IPIP, VXLAN, 6in4, 6rd, 6to4, DS-Lite, MAP, 464XLAT, relayd, bonding, SSTP, OpenConnect, vpnc, OpenFortiVPN and MBIM/NCM modem pages are in the feed. After a package adds a network protocol, LuCI offers the network restart it needs.
 - A "State (MiWRT)" LED trigger: any LED can show whether a process runs, an address answers or a command succeeds.
 - Shipped in the image: `curl` with HTTP/2, `sqm-scripts` (cake) with its page, `nlbwmon` (per-device traffic), `banip` (IP block lists), `umdns` (mDNS) and `tcpdump-mini`.
-- To install scripts the firmware reports itself as OpenWrt 25.12.6, so they do not refuse the version; "MiWRT 2.0.0" is in the description, the banner, Overview and the app.
+- To install scripts the firmware reports itself as OpenWrt 25.12.6, so they do not refuse the version; "MiWRT 2.1.0" is in the description, the banner, Overview and the app.
 
 ## First-time setup
 

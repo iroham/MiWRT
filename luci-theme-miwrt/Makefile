@@ -12,7 +12,7 @@ PKG_LICENSE:=Apache-2.0
 # browsers fetch the new CSS after an upgrade. Without it the version comes
 # from git, which this copied-in package does not have, and stays 0 forever.
 # Bump it with every change to the theme.
-PKG_VERSION:=2.0.0
+PKG_VERSION:=2.1.0
 
 LUCI_TITLE:=MiWRT Theme (sidebar layout, light and dark)
 LUCI_DEPENDS:=+luci-base
