@@ -78,7 +78,7 @@ export function save_private(path, obj) {
 	system([ 'chmod', '600', t ]);
 	writefile(t, sprintf('%J', obj));
 	rename(t, path);
-}
+};
 
 const MAX_DEVICES = 600;
 
@@ -101,7 +101,7 @@ export function locked(fn) {
 	if (f) { f.lock('u'); f.close(); }
 	if (err) die(err);
 	return out;
-}
+};
 
 function read_trim(path) {
 	return trim(readfile(path) ?? '');
@@ -113,7 +113,7 @@ export function run(cmd) {
 	let out = p.read('all') ?? '';
 	p.close();
 	return out;
-}
+};
 
 /* How notifications leave the router: 'direct' (this router holds an Apple push key and talks to Apple itself),
    'relay' (a relay holds the key), or null (neither is set up). */
@@ -301,7 +301,7 @@ function collect(conn) {
 
 // ---------- talking to a linked ad blocker (used by the device list and the protection screens) ----------
 
-function ag_call(cfg, path, payload) {
+export function ag_call(cfg, path, payload) {
 	if (!cfg || !match(cfg.url ?? '', /^https?:\/\/[A-Za-z0-9.-]+(:[0-9]{1,5})?$/)) return { code: 0, error: 'No ad blocker is linked.' };
 	let id = hexenc(open('/dev/urandom', 'r').read(6));
 	let errf = `${RUN}/ag-${id}.err`, bodyf = null;
@@ -321,7 +321,7 @@ function ag_call(cfg, path, payload) {
 	let data = null;
 	if (match(out, /^\s*[\[{]/)) { try { data = json(out); } catch (e) {} }
 	return { code: 200, data, text: out };
-}
+};
 
 /* One device's exemption from ad blocking: a client entry in AdGuard Home, keyed by its address. */
 function adblock_client(mac, ip, label) {
@@ -360,7 +360,7 @@ export function schedule_active(sc, lt) {
 	let today = lt.wday, yesterday = lt.wday == 1 ? 7 : lt.wday - 1;   // 1 = Monday .. 7 = Sunday
 	if (from < to) return (today in sc.days) && now >= from && now < to;
 	return ((today in sc.days) && now >= from) || ((yesterday in sc.days) && now < to);   // runs past midnight
-}
+};
 
 /* mac -> reason, for every device that must not reach the internet right now */
 function block_reasons(db, now) {
@@ -998,16 +998,25 @@ function ag() {
 	return load(ADBLOCK, null);
 }
 
+/* Is AdGuard Home answering at cfg.url with that login? { version, protection_enabled } or { error }. */
+export function ag_status(cfg) {
+	let r = ag_call(cfg, '/control/status');
+	if (r.code != 200) return { error: r.error };
+	if (!r.data || !('protection_enabled' in r.data)) return { error: 'Something answers at that address, but it is not AdGuard Home.' };
+	return { version: r.data.version, protection_enabled: !!r.data.protection_enabled };
+};
+
 export function protection_connect(b) {
 	let url = replace(trim(b.url ?? ''), /\/+$/, '');
 	if (!match(url, /^https?:\/\//)) url = 'http://' + url;
 	if (!match(url, /^https?:\/\/[A-Za-z0-9.-]+(:[0-9]{1,5})?$/)) return 'That address does not look right. Use something like 192.168.1.2 or 192.168.1.2:3000.';
 	if (type(b.username) != 'string' || !length(b.username) || type(b.password) != 'string') return 'Enter the ad blocker\'s user name and password.';
 	if (match(b.username, /[:\n\r]/) || match(b.password, /[\n\r]/)) return 'The user name or password contains characters that cannot be used.';
-	let cfg = { provider: 'adguard', url, username: b.username, password: b.password };
+	let cfg = { provider: 'adguard', where: 'network', url, username: b.username, password: b.password };
 	let r = ag_call(cfg, '/control/status');
 	if (r.code != 200) return r.error;
 	if (!r.data || !('protection_enabled' in r.data)) return 'Something answers at that address, but it is not AdGuard Home.';
+	if (ag()?.where == 'router') return 'AdGuard Home runs on this router. Remove it first.';
 	save_private(ADBLOCK, cfg);
 	unlink(RUN + '/protection.json');
 	add_alert('dns', 'Ad blocker linked', `AdGuard Home ${r.data.version ?? ''} at ${replace(url, /^https?:\/\//, '')}.`, 'info');
@@ -1015,8 +1024,66 @@ export function protection_connect(b) {
 };
 
 export function protection_disconnect() {
+	if (ag()?.where == 'router') return protection_remove();
 	unlink(ADBLOCK);
 	unlink(RUN + '/protection.json');
+	return null;
+};
+
+// ---------- AdGuard Home on the router itself (/usr/libexec/miwrt-adguard does the work) ----------
+
+const AG_TOOL = '/usr/libexec/miwrt-adguard';
+
+/* Can AdGuard Home be installed here? null when it can, else why not ('memory', 'storage', 'mode', 'installed'). */
+function ag_install_blocker() {
+	let c = cursor();
+	if (c.get('network', 'lan', 'proto') == 'dhcp') return 'mode';
+	let mem = connect().call('system', 'info')?.memory?.total ?? 0;
+	if (mem && mem < 400 * 1048576) return 'memory';
+	let out = run('df -k /overlay 2>/dev/null');
+	let m = match(out, /\n\S+\s+[0-9]+\s+[0-9]+\s+([0-9]+)\s/);
+	if (!access('/usr/bin/AdGuardHome') && (!m || +m[1] < 32 * 1024)) return 'storage';
+	return null;
+}
+
+function ag_job() {
+	return load(RUN + '/adguard-job.json', null);
+}
+
+function ag_job_running() {
+	let j = ag_job();
+	return j?.state == 'running' && time() - (j.time ?? 0) < 900;
+}
+
+/* Installs AdGuard Home on the router and links it. Runs in the background; GET /v1/protection shows
+   the progress under "install". The password is the one for AdGuard Home's own web page (user admin). */
+export function protection_install(b) {
+	if (ag()) return 'An ad blocker is already linked. Unlink it first.';
+	if (ag_job_running()) return null;
+	let why = ag_install_blocker();
+	if (why == 'mode') return 'This router is an access point. AdGuard Home on the router needs the router mode.';
+	if (why == 'memory') return 'This router does not have enough memory for AdGuard Home.';
+	if (why == 'storage') return 'There is not enough room for AdGuard Home. Join the spare slot under System, Slots, or keep the settings on a USB disk, then try again.';
+	let pw = b?.password;
+	if (type(pw) != 'string' || length(pw) < 8 || length(pw) > 128 || match(pw, /[[:cntrl:]]/)) return 'Choose a password of at least 8 characters for AdGuard Home.';
+	mkdir(RUN);
+	let f = RUN + '/adguard-pass';
+	writefile(f, '');
+	system([ 'chmod', '600', f ]);
+	writefile(f, pw);
+	save(RUN + '/adguard-job.json', { state: 'running', step: 'internet', time: time() });
+	system(`(${AG_TOOL} install ${f}) >/dev/null 2>&1 </dev/null &`);
+	return null;
+};
+
+/* Stops and removes AdGuard Home from the router; the router answers DNS itself again. */
+export function protection_remove() {
+	if (ag()?.where != 'router' && !access('/usr/bin/AdGuardHome')) return 'AdGuard Home is not installed on this router.';
+	if (ag_job_running()) return 'AdGuard Home is still being set up. Try again in a minute.';
+	save(RUN + '/adguard-job.json', { state: 'running', step: 'remove', time: time() });
+	system(`(${AG_TOOL} remove) >/dev/null 2>&1 </dev/null &`);
+	unlink(RUN + '/protection.json');
+	return null;
 };
 
 function flat(rows, n) {
@@ -1031,7 +1098,7 @@ export function names_by_ip() {
 	for (let mac, d in load(DEVICES, {}))
 		if (d.ip) by[d.ip] = d.custom_name ?? d.name ?? d.vendor ?? d.ip;
 	return by;
-}
+};
 
 function protection_changed() {
 	unlink(RUN + '/protection.json');
@@ -1039,9 +1106,13 @@ function protection_changed() {
 
 function protection_fresh() {
 	let cfg = ag();
-	if (!cfg) return { configured: false };
+	if (!cfg) {
+		let why = ag_install_blocker();
+		return { configured: false, can_install: why == null, install_blocker: why, install: ag_job() };
+	}
 	let st = ag_call(cfg, '/control/status');
-	let base = { configured: true, provider: 'AdGuard Home', address: replace(cfg.url, /^https?:\/\//, '') };
+	let base = { configured: true, provider: 'AdGuard Home', where: cfg.where ?? 'network', install: ag_job(),
+		address: cfg.where == 'router' ? 'This router' : replace(cfg.url, /^https?:\/\//, '') };
 	if (st.code != 200 || !st.data) return { ...base, error: st.error ?? 'The ad blocker gave an answer the router did not understand.' };
 	let stats = ag_call(cfg, '/control/stats').data ?? {};
 	let total = stats.num_dns_queries ?? 0, blocked = stats.num_blocked_filtering ?? 0, by = names_by_ip();
@@ -1055,7 +1126,8 @@ function protection_fresh() {
 /* The overview is asked for by every open app every few seconds; the ad blocker is only asked every 15 s. */
 export function protection() {
 	let st = stat(RUN + '/protection.json');
-	if (st && time() - st.mtime < 15) return load(RUN + '/protection.json', { configured: false });
+	// while an install or removal runs, every answer is fresh so the app sees each step
+	if (st && time() - st.mtime < 15 && !ag_job_running()) return load(RUN + '/protection.json', { configured: false });
 	let out = protection_fresh();
 	save(RUN + '/protection.json', out);
 	return out;

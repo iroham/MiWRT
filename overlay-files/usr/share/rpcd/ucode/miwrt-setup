@@ -1,0 +1,37 @@
+'use strict';
+
+// The setup assistant's calls (view miwrt-setup/wizard). The work is in /usr/share/ucode/miwrt/setup.uc.
+
+import * as setup from 'miwrt.setup';
+
+return {
+	'miwrt-setup': {
+		status: {
+			call: function() {
+				return setup.status();
+			}
+		},
+		job: {
+			call: function() {
+				return setup.job();
+			}
+		},
+		adguard_test: {
+			args: { url: '', username: '', password: '' },
+			call: function(req) {
+				return setup.adguard_test(req.args);
+			}
+		},
+		apply: {
+			args: { config: {} },
+			call: function(req) {
+				return setup.apply(req.args.config);
+			}
+		},
+		skip: {
+			call: function() {
+				return setup.finish();
+			}
+		}
+	}
+};

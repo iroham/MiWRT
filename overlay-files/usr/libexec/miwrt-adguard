@@ -1,0 +1,216 @@
+#!/usr/bin/ucode
+// AdGuard Home on the router itself.
+//
+//   miwrt-adguard install <password-file>   install, set up, link to the app (the file is removed)
+//   miwrt-adguard remove                    stop it, remove it, the router answers DNS again
+//   miwrt-adguard boot                      at boot, before dnsmasq: if AdGuard Home is gone, put
+//                                           DNS back on dnsmasq so the network keeps working
+//   miwrt-adguard check                     the same while running, after every apk transaction
+//                                           (etc/apk/commit_hooks.d/miwrt-adguard)
+//
+// AdGuard Home answers DNS on port 53 for every network of the router; dnsmasq moves to port 54 and
+// keeps DHCP and the local names (AdGuard Home asks it for *.lan and for reverse lookups). DHCP tells
+// the devices to use the router as before. Progress goes to /tmp/miwrt/adguard-job.json.
+'use strict';
+
+import { readfile, writefile, unlink, access, mkdir } from 'fs';
+import { cursor } from 'uci';
+import * as hub from 'miwrt.hub';
+
+const RUN = '/tmp/miwrt';
+const ETC = '/etc/miwrt';
+const JOB = RUN + '/adguard-job.json';
+const LOG = RUN + '/adguard-install.log';
+const ADBLOCK = ETC + '/adblock.json';
+const STATE = ETC + '/adguard-dns.json';
+const WEB = 'http://127.0.0.1:3000';
+const USER = 'admin';
+const BIN = '/usr/bin/AdGuardHome';
+const NETS = [ 'lan', 'guest', 'iot' ];
+
+function step(state, name, error) {
+	hub.save(JOB, { state, step: name, error, time: time() });
+}
+
+function sh(cmd) {
+	return system(cmd) == 0;
+}
+
+function retry(fn, tries, pause) {
+	for (let i = 0; i < tries; i++) {
+		if (fn()) return true;
+		system(`sleep ${pause}`);
+	}
+	return false;
+}
+
+function fetch_json(path, payload) {
+	let f = null, cmd = `uclient-fetch -q -T 5 -O - '${WEB}${path}'`;
+	if (payload != null) {
+		f = RUN + '/adguard-req.json';
+		writefile(f, '');
+		system([ 'chmod', '600', f ]);
+		writefile(f, sprintf('%J', payload));
+		cmd = `uclient-fetch -q -T 10 -O - --header='Content-Type: application/json' --post-file=${f} '${WEB}${path}'`;
+	}
+	let out = hub.run(`${cmd} 2>/dev/null; echo "__RC:$?"`);
+	if (f) unlink(f);
+	let m = match(out, /__RC:([0-9]+)\s*$/);
+	return { ok: m && m[1] == '0', text: replace(out, /__RC:[0-9]+\s*$/, '') };
+}
+
+function dnsmasq_sid(c) {
+	let sid = null;
+	c.foreach('dhcp', 'dnsmasq', s => { sid = s['.name']; return false; });
+	return sid;
+}
+
+function list_of(v) {
+	return type(v) == 'array' ? v : (v != null ? [ v ] : []);
+}
+
+/* dnsmasq to port 54; every network that gets addresses from the router is told the router is its DNS
+   server (dnsmasq does that by itself only while it is on port 53). What changed is written down. */
+function dns_to_adguard() {
+	let c = cursor(), dm = dnsmasq_sid(c);
+	if (!dm) return 'The router has no dnsmasq settings.';
+	let st = { port: c.get('dhcp', dm, 'port'), added: [] };
+	c.set('dhcp', dm, 'port', '54');
+	for (let net in NETS) {
+		if (c.get('dhcp', net) != 'dhcp' || c.get('dhcp', net, 'ignore') == '1') continue;
+		let ip = split(list_of(c.get('network', net, 'ipaddr'))[0] ?? '', '/')[0];
+		if (!match(ip, /^[0-9.]+$/)) continue;
+		let opts = list_of(c.get('dhcp', net, 'dhcp_option'));
+		if (length(filter(opts, o => match(o, /^6,/)))) continue;   // a DNS server set by hand stays
+		push(opts, '6,' + ip);
+		c.set('dhcp', net, 'dhcp_option', opts);
+		push(st.added, { net, option: '6,' + ip });
+	}
+	c.commit('dhcp');
+	hub.save(STATE, st);
+	sh('/etc/init.d/dnsmasq restart >/dev/null 2>&1');
+	return null;
+}
+
+function dns_back_to_dnsmasq() {
+	let st = hub.load(STATE, null);
+	let c = cursor(), dm = dnsmasq_sid(c);
+	if (dm) {
+		if (st?.port) c.set('dhcp', dm, 'port', st.port);
+		else if (c.get('dhcp', dm, 'port') == '54') c.delete('dhcp', dm, 'port');
+		for (let a in (st?.added ?? [])) {
+			let opts = filter(list_of(c.get('dhcp', a.net, 'dhcp_option')), o => o != a.option);
+			if (length(opts)) c.set('dhcp', a.net, 'dhcp_option', opts);
+			else c.delete('dhcp', a.net, 'dhcp_option');
+		}
+		c.commit('dhcp');
+	}
+	unlink(STATE);
+}
+
+function stop_adguard() {
+	sh('/etc/init.d/adguardhome stop >/dev/null 2>&1');
+	sh('/etc/init.d/adguardhome disable >/dev/null 2>&1');
+}
+
+function uninstall() {
+	stop_adguard();
+	sh(`apk del adguardhome >>${LOG} 2>&1`);
+	sh('rm -rf /etc/adguardhome /var/lib/adguardhome');
+}
+
+function install(passfile) {
+	mkdir(RUN);
+	let pw = readfile(passfile ?? '') ?? '';
+	if (passfile) unlink(passfile);
+	if (length(pw) < 8) return step('failed', 'start', 'No password was given for AdGuard Home.');
+	let ag = hub.load(ADBLOCK, null);
+	if (ag && ag.where != 'router') return step('failed', 'start', 'Another ad blocker is linked. Unlink it first.');
+	writefile(LOG, '');
+
+	// right after the setup assistant the internet connection may still be coming up (PPPoE takes a while)
+	step('running', 'internet');
+	if (!access(BIN) && !retry(() => sh(`apk update >>${LOG} 2>&1`), 24, 5))
+		return step('failed', 'internet', 'The router could not reach the package feed, so it cannot download AdGuard Home. Try again once the internet works.');
+
+	step('running', 'download');
+	if (!access(BIN)) {
+		if (!sh(`apk add adguardhome >>${LOG} 2>&1`) || !access(BIN)) {
+			sh(`apk del adguardhome >>${LOG} 2>&1`);
+			return step('failed', 'download', 'The router could not install AdGuard Home. Check that there is free space (System, Software) and try again.');
+		}
+	}
+	// a fresh start without a config file: AdGuard Home waits for its first-run setup on port 3000
+	sh('rm -f /etc/adguardhome/adguardhome.yaml');
+	sh('/etc/init.d/adguardhome enable >/dev/null 2>&1');
+	sh('/etc/init.d/adguardhome restart >/dev/null 2>&1');
+
+	step('running', 'start');
+	if (!retry(() => fetch_json('/control/install/get_addresses').ok, 30, 2)) {
+		uninstall();
+		return step('failed', 'start', 'AdGuard Home did not start. It was removed again; DNS stays with the router.');
+	}
+
+	step('running', 'configure');
+	let e = dns_to_adguard();
+	if (e) { dns_back_to_dnsmasq(); sh('/etc/init.d/dnsmasq restart >/dev/null 2>&1'); uninstall(); return step('failed', 'configure', e); }
+	let r = fetch_json('/control/install/configure', {
+		web: { ip: '0.0.0.0', port: 3000 }, dns: { ip: '0.0.0.0', port: 53 }, username: USER, password: pw });
+	let cfg = { provider: 'adguard', where: 'router', url: WEB, username: USER, password: pw };
+	let up = r.ok && retry(() => hub.ag_status(cfg).version != null, 30, 2);
+	if (!up) {
+		dns_back_to_dnsmasq();
+		sh('/etc/init.d/dnsmasq restart >/dev/null 2>&1');
+		uninstall();
+		return step('failed', 'configure', 'AdGuard Home could not take over DNS. It was removed again; DNS stays with the router.');
+	}
+
+	// local names and reverse lookups from dnsmasq; everything else from AdGuard Home's own upstreams
+	let info = hub.ag_call(cfg, '/control/dns_info');
+	let ups = filter(info.data?.upstream_dns ?? [], u => !match(u, /127\.0\.0\.1:54/));
+	if (!length(ups)) ups = [ 'https://dns10.quad9.net/dns-query' ];
+	push(ups, '[/lan/]127.0.0.1:54');
+	hub.ag_call(cfg, '/control/dns_config', { upstream_dns: ups, local_ptr_upstreams: [ '127.0.0.1:54' ], use_private_ptr_resolvers: true });
+
+	hub.save_private(ADBLOCK, cfg);
+	unlink(RUN + '/protection.json');
+	hub.add_alert('dns', 'AdGuard Home installed', 'It now answers DNS for the whole network. Sign in to its own page at port 3000 as admin.', 'info');
+	step('done', 'done');
+}
+
+function remove() {
+	stop_adguard();
+	dns_back_to_dnsmasq();
+	sh('/etc/init.d/dnsmasq restart >/dev/null 2>&1');
+	sh(`apk del adguardhome >>${LOG} 2>&1`);
+	sh('rm -rf /etc/adguardhome /var/lib/adguardhome');
+	if (hub.load(ADBLOCK, null)?.where == 'router') unlink(ADBLOCK);
+	unlink(RUN + '/protection.json');
+	hub.add_alert('dns', 'AdGuard Home removed', 'The router answers DNS itself again.', 'info');
+	step('done', 'removed');
+}
+
+/* At boot, before dnsmasq starts: DNS must not point at an AdGuard Home that is no longer there. */
+function boot() {
+	if (!access(STATE) || access(BIN)) return;
+	dns_back_to_dnsmasq();
+	if (hub.load(ADBLOCK, null)?.where == 'router') unlink(ADBLOCK);
+	hub.add_alert('dns', 'AdGuard Home is gone', 'It is no longer installed, so the router answers DNS itself again.', 'warning');
+}
+
+/* After an apk transaction: AdGuard Home removed by hand while it answered DNS. */
+function check() {
+	if (!access(STATE) || access(BIN)) return;
+	boot();
+	sh('/etc/init.d/dnsmasq restart >/dev/null 2>&1');
+}
+
+let cmd = ARGV[0];
+if (cmd == 'install') install(ARGV[1]);
+else if (cmd == 'remove') remove();
+else if (cmd == 'boot') boot();
+else if (cmd == 'check') check();
+else {
+	warn('usage: miwrt-adguard install <password-file> | remove | boot | check\n');
+	exit(1);
+}

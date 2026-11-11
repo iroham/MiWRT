@@ -50,8 +50,10 @@ Step 3. Write OpenWrt and point the bootloader at it
   formatted and the Wi-Fi defaults are applied about half a minute in.
 
 Step 4. First contact
-  - By cable: the router is 192.168.1.1, user root, no password. Set one under
-    System, Administration (the app pairs with that password).
+  - By cable: the router is 192.168.1.1, user root, no password. Signing in
+    opens the setup assistant: region, internet, Wi-Fi, guest and smart-home
+    networks, and a root password (the app pairs with that password). Skipped,
+    set the password under System, Administration.
   - By Wi-Fi: both bands come up as "MiWRT" with this router's serial number
     (on the label) as the password. If the serial could not be read the
     password is miwrt-ac2100 and the system log says so. Change it.

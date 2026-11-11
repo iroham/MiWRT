@@ -9,6 +9,7 @@ Current version: **2.0.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 ## Contents
 
 - [What MiWRT does](#what-miwrt-does)
+- [First-time setup](#first-time-setup)
 - [Wi-Fi tuning](#wi-fi-tuning)
 - [Safe updates](#safe-updates)
 - [The app service](#the-app-service)
@@ -44,6 +45,35 @@ Current version: **2.0.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 - A "State (MiWRT)" LED trigger: any LED can show whether a process runs, an address answers or a command succeeds.
 - Shipped in the image: `curl` with HTTP/2, `sqm-scripts` (cake) with its page, `nlbwmon` (per-device traffic), `banip` (IP block lists), `umdns` (mDNS) and `tcpdump-mini`.
 - To install scripts the firmware reports itself as OpenWrt 25.12.6, so they do not refuse the version; "MiWRT 2.0.0" is in the description, the banner, Overview and the app.
+
+## First-time setup
+
+A router set up from scratch opens a setup assistant in the web interface instead of the usual status page. The sign-in page says to leave the password empty the first time. The assistant walks through:
+
+1. **Language and region**: English, Russian or Chinese; the country (it decides which Wi-Fi channels and power are allowed) and the time zone, both guessed from the browser.
+2. **How the router connects**: as the main router (address from the provider, a fixed address, or PPPoE with a user name and an optional VLAN), or as an access point behind another router (address from the main router, or a fixed one).
+3. **Wi-Fi**: the network name and password (with a generator and a strength meter), one name for all bands or a separate 5 GHz name, and the security level.
+4. **Guest Wi-Fi**: a separate network for visitors, kept away from your own devices.
+5. **Smart-home network**: a separate network for plugs, cameras and other IoT devices, with or without internet.
+6. **Ad blocking**: AdGuard Home on this router, one that already runs elsewhere on the network (checked before you go on), or none. A router that cannot run it says why.
+7. **Router password**: for the web interface and SSH; it must differ from the Wi-Fi passwords.
+8. **Review**: everything on one page, each part with a Change link.
+
+Guest and smart-home networks are left out for an access point. The settings are applied in one go; the page follows the restart and says where to find the router afterwards (an access point gets a new address from the main router). The last page has a QR code for the MiWRT app and one that joins the new Wi-Fi.
+
+- Only fresh installs see it: no root password yet, and no Wi-Fi set up by MiWRT before (`/etc/.be7000_secure_defaults` on the BE7000, `/etc/.miwrt_wifi_defaults` on the AC2100). A router updated with its settings kept, or one that came from another OpenWrt build with a password, opens as usual. The state is `miwrt.setup.state` (`pending` or `done`).
+- "Skip setup" leaves everything as it is and opens the usual interface. To see the assistant again: `uci set miwrt.setup.state=pending && uci commit miwrt && rm -f /tmp/luci-indexcache*`.
+- Before applying, the settings are saved to `/etc/miwrt/setup-backup.tar.gz`. An access point that gets no address from the main router within two minutes puts them back and stays reachable at its old address.
+- The page works on a phone and from the keyboard, follows the light or dark mode, and remembers what was entered if the browser reloads (passwords excepted).
+
+### AdGuard Home on the router
+
+AdGuard Home can run on the router itself (from the setup assistant or the app's Protection tab), or anywhere else on the network, linked by its address and login. On the router (`/usr/libexec/miwrt-adguard`):
+
+- It is installed from the package feed and answers DNS on port 53 for every network of the router. dnsmasq moves to port 54 and keeps handing out addresses and local names: AdGuard Home asks it for `*.lan` and for reverse lookups. DHCP keeps telling devices to use the router.
+- Its own page is at port 3000 of the router, user name `admin`, with the password chosen in the assistant or the app.
+- It needs 400 MB of memory and 32 MB free for settings (join the spare slot under System, Slots for room), and the router mode. The BE7000 has both; the AC2100 does not, so there it can only be linked.
+- It stays through MiWRT updates like any package you added. Removing it from the app puts DNS back on dnsmasq. So does removing the package by hand under System, Software (an apk hook notices at once), and a router that boots without it does the same before dnsmasq starts, so the network keeps working.
 
 ## Wi-Fi tuning
 
@@ -126,7 +156,7 @@ A small service on the router that a phone app talks to. Nothing else is needed 
 | Notifications | off by default, per alert type, one switch in the app. Alert text is encrypted on the router with a key only the phone has; the relay and Apple carry it without being able to read it |
 | Address service guard | if dnsmasq (addresses for devices, lookups sent to the router) stops, the next 30 s pass starts it again and raises an alert. The service's own reloads of dnsmasq are done one at a time by that pass |
 | Wi-Fi recovery | if a Wi-Fi core crashes and stays down for about 90 s, the router restarts itself: not in the first 10 minutes after boot, at most three times a day |
-| Ad blocker link | links an AdGuard Home on the network: on, off, pause, statistics, recent activity, allow or block a site, block lists, ad blocking off for a single device |
+| Ad blocker | installs AdGuard Home on the router, or links one that runs elsewhere on the network: on, off, pause, statistics, recent activity, allow or block a site, block lists, ad blocking off for a single device |
 | IoT watch | with an ad blocker linked: the sites each device on a separate network (IoT, guest) looks up, grouped by main name. After a device's first day, a site it never used before raises an alert |
 | Speed shaping | switch SQM (cake) on or off and set the download and upload limits |
 | Checks | connection test, speed test from the router (download and upload), Wi-Fi channel check, blocked threats (banIP), protection overview, weekly summary, 48 hours of health samples |
@@ -151,7 +181,7 @@ Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start` and `P
 | `POST /v1/settings` | `approve_new`, `watchdog`, `night`, `push` |
 | `GET /v1/wifi`, `/v1/wifi/secret?id=`, `/v1/wifi/check`; `POST /v1/wifi/<id>` | Wi-Fi: `ssid`, `key`, `enabled`, `schedule` (`enabled`, `from`, `to`, `days`) |
 | `GET`/`POST /v1/guest` | guest Wi-Fi |
-| `GET /v1/protection`, `/v1/protection/lists`, `/v1/protection/log`, `/v1/protection/check`; `POST /v1/protection/connect`, `disconnect`, `pause`, `lists`, `rules` | ad blocker link |
+| `GET /v1/protection`, `/v1/protection/lists`, `/v1/protection/log`, `/v1/protection/check`; `POST /v1/protection/connect`, `disconnect`, `install` (`password`), `remove`, `pause`, `lists`, `rules` | ad blocker. `GET /v1/protection` has `where` (`router` or `network`) once linked; before that `can_install` and `install_blocker` (`memory`, `storage`, `mode`); `install` is the last install or removal on the router (`state`, `step`, `error`) |
 | `GET /v1/usage`, `/v1/week`, `/v1/history`, `/v1/threats`, `/v1/overview`, `/v1/diagnose`, `/v1/firmware`, `/v1/speedtests`, `/v1/iotwatch`; `POST /v1/speedtest`, `/v1/firmware/install` | insight, firmware |
 | `GET`/`POST /v1/shaping` | speed shaping: `enabled`, `down_kbit`, `up_kbit` |
 | `GET /v1/phones`; `POST /v1/phones/revoke` | paired phones |

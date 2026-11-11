@@ -1,0 +1,16 @@
+{
+	"luci-app-miwrt-setup": {
+		"description": "MiWRT setup assistant",
+		"read": {
+			"ubus": {
+				"miwrt-setup": [ "status", "job" ]
+			},
+			"uci": [ "miwrt" ]
+		},
+		"write": {
+			"ubus": {
+				"miwrt-setup": [ "adguard_test", "apply", "skip" ]
+			}
+		}
+	}
+}

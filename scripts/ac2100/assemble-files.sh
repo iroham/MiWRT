@@ -67,6 +67,17 @@ take overlay-files/usr/libexec/be7000-banner                                    
 take overlay-files/etc/init.d/be7000-banner                                      etc/init.d/be7000-banner
 take overlay-files/etc/rc.d/S96be7000-banner                                     etc/rc.d/S96be7000-banner
 
+# --- the setup assistant a fresh install opens with (AdGuard Home on the router itself is
+#     BE7000 only: it needs more memory than this router has, and the assistant says so) ---
+take overlay-files/etc/uci-defaults/98-miwrt-setup                              etc/uci-defaults/98-miwrt-setup
+take overlay-files/usr/share/ucode/miwrt/setup.uc                               usr/share/ucode/miwrt/setup.uc
+take overlay-files/usr/libexec/miwrt-setup-apply                                usr/libexec/miwrt-setup-apply
+take overlay-files/usr/share/rpcd/ucode/miwrt-setup                             usr/share/rpcd/ucode/miwrt-setup
+take overlay-files/usr/share/rpcd/acl.d/luci-app-miwrt-setup.json               usr/share/rpcd/acl.d/luci-app-miwrt-setup.json
+take overlay-files/usr/share/luci/menu.d/luci-app-miwrt-setup.json              usr/share/luci/menu.d/luci-app-miwrt-setup.json
+take overlay-files/www/luci-static/resources/view/miwrt-setup                   www/luci-static/resources/view/miwrt-setup
+take overlay-files/www/luci-static/resources/miwrt-setup                        www/luci-static/resources/miwrt-setup
+
 # --- the LuCI translations of every MiWRT page (the sources are Russian) ---
 for l in en zh-cn; do
 	take overlay-files/usr/lib/lua/luci/i18n/be7000.$l.lmo usr/lib/lua/luci/i18n/be7000.$l.lmo
@@ -109,7 +120,7 @@ mkdir -p "$OUT/etc"
 } > "$OUT/etc/miwrt-release"
 
 # the shared scripts expect to be executable and the app's state directory to be private
-chmod 755 "$OUT"/etc/init.d/* "$OUT"/etc/uci-defaults/* "$OUT"/usr/sbin/* "$OUT"/www/cgi-bin/miwrt "$OUT"/usr/libexec/be7000-* "$OUT"/etc/apk/commit_hooks.d/*
+chmod 755 "$OUT"/etc/init.d/* "$OUT"/etc/uci-defaults/* "$OUT"/usr/sbin/* "$OUT"/www/cgi-bin/miwrt "$OUT"/usr/libexec/be7000-* "$OUT"/usr/libexec/miwrt-setup-apply "$OUT"/etc/apk/commit_hooks.d/*
 chmod 700 "$OUT/etc/miwrt"
 
 echo "assembled $(find "$OUT" -type f | wc -l) files and $(find "$OUT" -type l | wc -l) links into $OUT"

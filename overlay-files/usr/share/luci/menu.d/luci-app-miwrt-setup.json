@@ -1,0 +1,12 @@
+{
+	"admin/setup": {
+		"action": {
+			"type": "view",
+			"path": "miwrt-setup/wizard"
+		},
+		"depends": {
+			"acl": [ "luci-app-miwrt-setup" ],
+			"uci": { "miwrt": { "setup": { "state": "pending" } } }
+		}
+	}
+}

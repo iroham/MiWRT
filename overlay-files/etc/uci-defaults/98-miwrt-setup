@@ -1,0 +1,16 @@
+#!/bin/sh
+# The setup assistant in the web interface is shown once, on a router set up from scratch: no root
+# password yet and no Wi-Fi set up by MiWRT before. A router that kept its settings through an update,
+# or came from another OpenWrt build with a password, opens as usual.
+[ "$(uci -q get miwrt.setup)" = setup ] && exit 0
+[ -f /etc/config/miwrt ] || touch /etc/config/miwrt
+state=done
+if [ ! -e /etc/.be7000_secure_defaults ] && [ ! -e /etc/.miwrt_wifi_defaults ] && ! grep -q '^root:[^:!*]' /etc/shadow; then
+	state=pending
+fi
+uci -q batch <<-EOT
+	set miwrt.setup=setup
+	set miwrt.setup.state='$state'
+	commit miwrt
+EOT
+exit 0

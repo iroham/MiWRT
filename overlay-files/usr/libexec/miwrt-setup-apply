@@ -1,0 +1,60 @@
+#!/bin/sh
+# Runs a few seconds after the setup assistant saved its settings (see miwrt/setup.uc): restarts what
+# changed, checks that an access point got an address from the main router (and puts the old settings
+# back if it did not), then installs AdGuard Home if that was chosen.
+# Progress for the wizard page: /tmp/miwrt/setup-job.json
+
+JOB=/tmp/miwrt/setup-job.json
+BACKUP=/etc/miwrt/setup-backup.tar.gz
+
+mode=$(jsonfilter -i "$JOB" -e '@.mode' 2>/dev/null)
+ap_proto=$(jsonfilter -i "$JOB" -e '@.ap_proto' 2>/dev/null)
+adguard=$(jsonfilter -i "$JOB" -e '@.adguard' 2>/dev/null)
+[ "$adguard" = true ] || adguard=false
+address=
+
+put() {
+	printf '{"state":"%s","step":"%s","mode":"%s","ap_proto":"%s","adguard":%s,"address":"%s","error":"%s","time":%s}\n' \
+		"$1" "$2" "$mode" "$ap_proto" "$adguard" "$address" "$3" "$(date +%s)" > "$JOB.tmp" && mv "$JOB.tmp" "$JOB"
+}
+
+restart_all() {
+	/etc/init.d/system reload >/dev/null 2>&1
+	/etc/init.d/network reload >/dev/null 2>&1
+	sleep 3
+	/etc/init.d/firewall reload >/dev/null 2>&1
+	/etc/init.d/dnsmasq restart >/dev/null 2>&1
+	/etc/init.d/odhcpd restart >/dev/null 2>&1
+}
+
+put running network
+restart_all
+logger -t miwrt-setup "settings from the setup assistant applied ($mode)"
+
+if [ "$mode" = ap ]; then
+	put running address
+	i=0
+	while [ $i -lt 60 ]; do
+		address=$(ubus call network.interface.lan status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
+		[ -n "$address" ] && break
+		i=$((i + 1)); sleep 2
+	done
+	if [ -z "$address" ]; then
+		# no main router answered: back to the settings from before, so the router stays reachable
+		put running restore
+		tar -xzf "$BACKUP" -C / 2>/dev/null
+		uci -q set miwrt.setup.state=pending && uci -q commit miwrt
+		rm -f /tmp/luci-indexcache*
+		restart_all
+		logger -t miwrt-setup "access point got no address from the main router, previous settings restored"
+		put failed address "No main router gave this router an address. Check that the cable from your main router is in the WAN port. The settings from before are back."
+		exit 1
+	fi
+fi
+
+if [ "$adguard" = true ]; then
+	put running adguard
+	/usr/libexec/miwrt-adguard install /tmp/miwrt/adguard-pass
+fi
+
+put done done

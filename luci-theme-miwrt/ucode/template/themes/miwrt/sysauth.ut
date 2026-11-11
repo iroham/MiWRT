@@ -4,8 +4,17 @@
 -#}
 
 {%
+	import { getspnam } from 'luci.core';
+
 	const board = ubus.call('system', 'board') ?? {};
 	const art = match(board.model ?? '', /AC2100/i) ? 'ac2100' : 'be7000';
+
+	// a router without a password yet: say how to get in (the setup assistant opens after signing in)
+	const fresh = getspnam('root')?.pwdp === '';
+	const fresh_text = {
+		ru: 'Новый роутер: оставьте пароль пустым и нажмите «Войти». Затем откроется мастер настройки.',
+		zh_cn: '新路由器：密码留空并点击“登录”，随后将打开设置向导。'
+	}[dispatcher.lang] ?? 'New router: leave the password empty and press Log in. The setup assistant opens next.';
 -%}
 
 {% include('header', { blank_page: true }) %}
@@ -20,6 +29,10 @@
 
 			<h1>{{ striptags(board.hostname ?? '') }}</h1>
 			<p class="mw-login-lede">{{ _('Please enter your username and password.') }}</p>
+
+			{% if (fresh && !fuser): %}
+			<div class="alert-message notice" role="status">{{ fresh_text }}</div>
+			{% endif %}
 
 			{% if (auth_message): %}
 			<div class="alert-message{% if (auth_plugin): %} warning{% endif %}" role="alert">{{ auth_message }}</div>

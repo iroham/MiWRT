@@ -1,0 +1,8 @@
+#!/bin/sh
+# apk runs this before and after every transaction. After one that removed
+# AdGuard Home while it answered DNS, DNS goes back to dnsmasq at once
+# (see /usr/libexec/miwrt-adguard).
+[ "$1" = post-commit ] || exit 0
+[ -n "$IPKG_INSTROOT" ] && exit 0
+[ -x /usr/libexec/miwrt-adguard ] && /usr/libexec/miwrt-adguard check
+exit 0

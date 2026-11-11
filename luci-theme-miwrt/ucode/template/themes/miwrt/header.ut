@@ -10,6 +10,13 @@
 	const hostname = striptags(boardinfo.hostname ?? '?');
 	const model = striptags(boardinfo.model ?? '');
 
+	// a router set up from scratch opens the setup assistant instead of the overview, until it is done
+	// or skipped (the menu entry only exists while miwrt.setup.state is "pending")
+	const page = join('/', ctx.path ?? []);
+	const on_setup = (page == 'admin/setup');
+	const setup_url = (!blank_page && (page == 'admin' || page == 'admin/status/overview') && dispatcher.lookup('admin/setup')?.node?.satisfied)
+		? dispatcher.build_url('admin/setup') : null;
+
 	http.prepare_content('text/html; charset=UTF-8');
 -%}
 
@@ -21,6 +28,9 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 		<meta name="darkreader-lock">
 		<meta name="color-scheme" content="light dark">
+		{% if (setup_url): %}
+		<script>location.replace('{{ setup_url }}');</script>
+		{% endif %}
 		<script>
 			(function() {
 				var root = document.documentElement, pref = 'auto', mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -85,7 +95,7 @@
 				</header>
 
 				<div id="maincontent" class="container" tabindex="-1">
-					{% if (getuid() == 0 && getspnam('root')?.pwdp === ''): %}
+					{% if (!on_setup && getuid() == 0 && getspnam('root')?.pwdp === ''): %}
 						<div class="alert-message warning">
 							<h4>{{ _('No password set!') }}</h4>
 							<p>{{ _('There is no password set on this router. Please configure a root password to protect the web interface.') }}</p>

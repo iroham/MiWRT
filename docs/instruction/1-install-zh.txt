@@ -70,7 +70,7 @@ ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa root@192.
 
 如果用网线连不上路由器，换一个 LAN 口试试，或者用 Wi-Fi 连接。
 
-在浏览器里打开路由器地址，https 也可以。马上设置 root 密码。如果 Wi-Fi 还是默认密码，到 网络, 无线 页面里改掉。
+在浏览器里打开路由器地址，https 也可以。用 root 登录，密码留空：会打开设置向导，依次设置地区、上网方式、Wi-Fi、访客网络和智能家居网络、广告拦截以及 root 密码。从原厂固件导入的设置已经填好。如果跳过向导，请马上到 系统, 管理权 页面设置 root 密码；如果 Wi-Fi 还是默认密码，到 网络, 无线 页面里改掉。
 
 成功启动后，固件会在引导程序里锁定自己的槽位。之后断电就不会再回到原厂固件了。要回去，可以用 系统, 槽位 页面上的按钮或者回滚脚本，详见 3-rollback-and-problems-zh.txt。
 

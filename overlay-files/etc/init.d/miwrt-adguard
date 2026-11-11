@@ -1,0 +1,13 @@
+#!/bin/sh /etc/rc.common
+# Before dnsmasq starts: if AdGuard Home was answering DNS on this router and is no longer installed,
+# DNS goes back to dnsmasq (see /usr/libexec/miwrt-adguard).
+
+START=18
+
+boot() {
+	[ -x /usr/libexec/miwrt-adguard ] && /usr/libexec/miwrt-adguard boot
+}
+
+start() {
+	:
+}

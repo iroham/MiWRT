@@ -70,7 +70,7 @@ If the router is at 192.168.1.1 and the computer did not get an address by itsel
 
 If the router does not answer over the cable, try another LAN port or connect over Wi-Fi.
 
-Open the router address in a browser, https works too. Set the root password right away. If Wi-Fi still has the default password, change it on Network, Wireless.
+Open the router address in a browser, https works too. Sign in as root with an empty password: the setup assistant opens and walks through the region, the internet connection, Wi-Fi, guest and smart-home networks, ad blocking and a root password. What was taken from the factory firmware is already filled in. If you skip the assistant, set the root password on System, Administration right away, and if Wi-Fi still has the default password, change it on Network, Wireless.
 
 After a successful boot the firmware locks its slot in the bootloader. Cutting the power no longer takes you back to the factory firmware. For that there is a button on System, Slots and the rollback script, see 3-rollback-and-problems-en.txt.
 

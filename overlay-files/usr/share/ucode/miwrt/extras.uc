@@ -11,13 +11,13 @@ const RUN = '/tmp/miwrt';
 const BANDS = { '2g': '2.4 GHz', '5g': '5 GHz', '6g': '6 GHz' };
 const NET_LABEL = { lan: 'Main', iot: 'IoT', guest: 'Guest' };
 
-function valid_ssid(s) {
+export function valid_ssid(s) {
 	return type(s) == 'string' && length(s) >= 1 && length(s) <= 32 && !match(s, /[[:cntrl:]]/);
-}
+};
 
-function valid_key(k) {
+export function valid_key(k) {
 	return type(k) == 'string' && length(k) >= 8 && length(k) <= 63 && match(k, /^[ -~]+$/) != null;
-}
+};
 
 function sid_ok(c, sid) {
 	return type(sid) == 'string' && match(sid, /^[A-Za-z0-9_]{1,40}$/) && c.get('wireless', sid) == 'wifi-iface';
@@ -101,19 +101,29 @@ export function wifi_update(sid, b) {
 
 // ---------- guest Wi-Fi ----------
 
-function random_key() {
+export function random_key() {
 	// 12 characters without look-alikes
 	let abc = 'abcdefghjkmnpqrstuvwxyz23456789', raw = hexenc(hub.random_bytes(12)), out = '';
 	for (let i = 0; i < 12; i++) out += substr(abc, int(substr(raw, i * 2, 2), 16) % length(abc), 1);
 	return out;
+};
+
+/* A free 192.168.N.0/24 for a network of its own, N from..to: not in use on any interface that is up,
+   and not the address of any interface in the settings (one that is not up yet included). */
+function free_subnet(conn, c, from, to) {
+	let used = {};
+	let mark = a => { if (type(a) == 'string') used[join('.', slice(split(split(a, '/')[0], '.'), 0, 3))] = true; };
+	for (let i in (conn.call('network.interface', 'dump')?.interface ?? []))
+		for (let a in (i['ipv4-address'] ?? [])) mark(a.address);
+	c.foreach('network', 'interface', s => {
+		for (let a in (type(s.ipaddr) == 'array' ? s.ipaddr : [ s.ipaddr ])) mark(a);
+	});
+	for (let n = from; n <= to; n++) if (!used[`192.168.${n}`]) return `192.168.${n}`;
+	return null;
 }
 
-function guest_subnet(conn) {
-	let used = {};
-	for (let i in (conn.call('network.interface', 'dump')?.interface ?? []))
-		for (let a in (i['ipv4-address'] ?? [])) used[join('.', slice(split(a.address, '.'), 0, 3))] = true;
-	for (let n = 50; n < 60; n++) if (!used[`192.168.${n}`]) return `192.168.${n}`;
-	return null;
+function guest_subnet(conn, c) {
+	return free_subnet(conn, c ?? cursor(), 50, 59);
 }
 
 export function guest_status() {
@@ -126,8 +136,8 @@ export function guest_status() {
 
 /* Creates the guest network the first time: its own bridge, addresses and firewall zone.
    Guests reach the internet and nothing in the house, and cannot see each other. */
-function guest_create(c, conn, ssid, key) {
-	let net = guest_subnet(conn);
+export function guest_create(c, conn, ssid, key) {
+	let net = guest_subnet(conn, c);
 	if (!net) return 'No free address range for a guest network.';
 	c.set('network', 'miwrt_br_guest', 'device');
 	c.set('network', 'miwrt_br_guest', 'name', 'br-guest');
@@ -181,7 +191,82 @@ function guest_create(c, conn, ssid, key) {
 	});
 	if (!n) return 'This router has no Wi-Fi radio to put a guest network on.';
 	return null;
-}
+};
+
+// ---------- IoT Wi-Fi ----------
+
+export function iot_status() {
+	let c = cursor(), ifaces = [];
+	c.foreach('wireless', 'wifi-iface', w => { if (w.network == 'iot' && match(w['.name'], /^miwrt_iot_/)) push(ifaces, w); });
+	return { exists: c.get('network', 'iot') == 'interface', ours: length(ifaces) > 0,
+		ssid: ifaces[0]?.ssid, key: ifaces[0]?.key, internet: c.get('firewall', 'miwrt_iot_wan') == 'forwarding' };
+};
+
+/* A network for smart-home devices: its own bridge, addresses and firewall zone, on 2.4 GHz (or on
+   every band). The devices reach the internet (unless that is turned off) and the router's DHCP and
+   DNS; the main network can reach them, so phones and hubs can still control them, but they cannot
+   start a connection into the main network. WPA2 only: many of these devices cannot join WPA3. */
+export function iot_create(c, conn, o) {
+	let net = free_subnet(conn, c, 60, 69);
+	if (!net) return 'No free address range for an IoT network.';
+	c.set('network', 'miwrt_br_iot', 'device');
+	c.set('network', 'miwrt_br_iot', 'name', 'br-iot');
+	c.set('network', 'miwrt_br_iot', 'type', 'bridge');
+	c.set('network', 'miwrt_br_iot', 'bridge_empty', '1');
+	c.set('network', 'iot', 'interface');
+	c.set('network', 'iot', 'proto', 'static');
+	c.set('network', 'iot', 'device', 'br-iot');
+	c.set('network', 'iot', 'ipaddr', net + '.1/24');
+
+	c.set('dhcp', 'iot', 'dhcp');
+	c.set('dhcp', 'iot', 'interface', 'iot');
+	c.set('dhcp', 'iot', 'start', '10');
+	c.set('dhcp', 'iot', 'limit', '200');
+	c.set('dhcp', 'iot', 'leasetime', '12h');
+	c.set('dhcp', 'iot', 'dhcpv4', 'server');
+
+	c.set('firewall', 'miwrt_iot', 'zone');
+	c.set('firewall', 'miwrt_iot', 'name', 'iot');
+	c.set('firewall', 'miwrt_iot', 'network', [ 'iot' ]);
+	c.set('firewall', 'miwrt_iot', 'input', 'REJECT');
+	c.set('firewall', 'miwrt_iot', 'output', 'ACCEPT');
+	c.set('firewall', 'miwrt_iot', 'forward', 'REJECT');
+	c.set('firewall', 'miwrt_lan_iot', 'forwarding');
+	c.set('firewall', 'miwrt_lan_iot', 'src', 'lan');
+	c.set('firewall', 'miwrt_lan_iot', 'dest', 'iot');
+	if (o.internet) {
+		c.set('firewall', 'miwrt_iot_wan', 'forwarding');
+		c.set('firewall', 'miwrt_iot_wan', 'src', 'iot');
+		c.set('firewall', 'miwrt_iot_wan', 'dest', 'wan');
+	}
+	for (let r in [ [ 'dhcp', 'udp', '67' ], [ 'dns', 'tcp udp', '53' ] ]) {
+		let sid = 'miwrt_iot_' + r[0];
+		c.set('firewall', sid, 'rule');
+		c.set('firewall', sid, 'name', 'IoT: ' + uc(r[0]));
+		c.set('firewall', sid, 'src', 'iot');
+		c.set('firewall', sid, 'proto', r[1]);
+		c.set('firewall', sid, 'dest_port', r[2]);
+		c.set('firewall', sid, 'target', 'ACCEPT');
+	}
+
+	let n = 0;
+	c.foreach('wireless', 'wifi-device', r => {
+		if (!o.all_bands && r.band != '2g') return;
+		let sid = 'miwrt_iot_' + r['.name'];
+		if (!match(sid, /^[A-Za-z0-9_]+$/)) return;
+		c.set('wireless', sid, 'wifi-iface');
+		c.set('wireless', sid, 'device', r['.name']);
+		c.set('wireless', sid, 'mode', 'ap');
+		c.set('wireless', sid, 'network', 'iot');
+		c.set('wireless', sid, 'ssid', o.ssid);
+		c.set('wireless', sid, 'encryption', 'psk2');
+		c.set('wireless', sid, 'key', o.key);
+		c.set('wireless', sid, 'disabled', '0');
+		n++;
+	});
+	if (!n) return o.all_bands ? 'This router has no Wi-Fi radio to put an IoT network on.' : 'This router has no 2.4 GHz radio for an IoT network.';
+	return null;
+};
 
 export function guest_set(b) {
 	return hub.locked(() => {

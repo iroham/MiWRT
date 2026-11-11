@@ -111,7 +111,9 @@ function main() {
 			reply(err ? 400 : 200, err ? { error: err } : { ok: true });
 		}
 		if (path == '/v1/protection/connect') done(hub.protection_connect(body()));
-		if (path == '/v1/protection/disconnect') { hub.protection_disconnect(); done(null); }
+		if (path == '/v1/protection/disconnect') done(hub.protection_disconnect());
+		if (path == '/v1/protection/install') done(hub.protection_install(body()));
+		if (path == '/v1/protection/remove') done(hub.protection_remove());
 		if (path == '/v1/protection/pause') done(hub.protection_pause(body().minutes));
 		if (path == '/v1/protection/lists') done(hub.protection_list_action(body()));
 		if (path == '/v1/protection/rules') done(hub.protection_rule_action(body()));
