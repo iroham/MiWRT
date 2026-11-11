@@ -1,0 +1,1303 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Благодарности"
+msgstr "Credits"
+
+msgid "Накопитель"
+msgstr "Storage"
+
+msgid "Docker: стеки"
+msgstr "Docker: stacks"
+
+msgid "Обновление сборки"
+msgstr "Build update"
+
+msgid "%.1f МБ"
+msgstr "%.1f MB"
+
+msgid "%.1f ГБ"
+msgstr "%.1f GB"
+
+msgid "%d МБ"
+msgstr "%d MB"
+
+msgid "Перенести /overlay на %s"
+msgstr "Move /overlay to %s"
+
+msgid "Диск будет отформатирован, всё его содержимое пропадёт."
+msgstr "The disk will be formatted, everything on it will be lost."
+
+msgid "Текущие настройки и установленные пакеты переедут на него. Изменение вступит в силу после перезагрузки."
+msgstr "The current settings and installed packages move to it. The change takes effect after a reboot."
+
+msgid "Отмена"
+msgstr "Cancel"
+
+msgid "Переношу"
+msgstr "Moving"
+
+msgid "Форматирование и копирование, это может занять минуту"
+msgstr "Formatting and copying, this can take a minute"
+
+msgid "Готово. Перезагрузите роутер, чтобы /overlay переехал."
+msgstr "Done. Reboot the router to move /overlay."
+
+msgid "Не получилось"
+msgstr "Failed"
+
+msgid "Форматировать и перенести"
+msgstr "Format and move"
+
+msgid "Вернуть /overlay на внутреннюю флешку"
+msgstr "Move /overlay back to the internal flash"
+
+msgid "Данные на диске останутся, но использоваться перестанут. Изменение вступит в силу после перезагрузки."
+msgstr "The data on the disk stays but is no longer used. The change takes effect after a reboot."
+
+msgid "Готово. Перезагрузите роутер."
+msgstr "Done. Reboot the router."
+
+msgid "Вернуть"
+msgstr "Move back"
+
+msgid "Накопители не найдены. Вставьте диск в порт USB и обновите страницу."
+msgstr "No disks found. Plug a disk into the USB port and reload the page."
+
+msgid "Устройство"
+msgstr "Device"
+
+msgid "Размер"
+msgstr "Size"
+
+msgid "Модель"
+msgstr "Model"
+
+msgid "используется"
+msgstr "in use"
+
+msgid "Перенести сюда"
+msgstr "Move here"
+
+msgid "Всё, что роутер помнит между перезагрузками, лежит в /overlay. Это настройки, установленные пакеты и списки. Встроенного места немного, поэтому его можно перенести на USB-диск."
+msgstr "Everything the router keeps across reboots lives in /overlay. That is settings, installed packages and lists. The built-in space is small, so it can be moved to a USB disk."
+
+msgid "Сейчас"
+msgstr "Now"
+
+msgid "Раздел"
+msgstr "Partition"
+
+msgid "Всего"
+msgstr "Total"
+
+msgid "Свободно"
+msgstr "Free"
+
+msgid "Вернуть на внутреннюю флешку"
+msgstr "Back to the internal flash"
+
+msgid "Доступные диски"
+msgstr "Available disks"
+
+msgid "Выполняется"
+msgstr "Running"
+
+msgid "Готово"
+msgstr "Done"
+
+msgid "Новый стек"
+msgstr "New stack"
+
+msgid "Стек %s"
+msgstr "Stack %s"
+
+msgid "Имя (латиница, цифры, дефис): "
+msgstr "Name (Latin letters, digits, hyphen): "
+
+msgid "Файл docker-compose.yml"
+msgstr "docker-compose.yml file"
+
+msgid "Имя может содержать только латиницу, цифры, дефис и подчёркивание"
+msgstr "The name may contain only Latin letters, digits, hyphen and underscore"
+
+msgid "Сохраняю"
+msgstr "Saving"
+
+msgid "Сохранить"
+msgstr "Save"
+
+msgid "Проверьте имя"
+msgstr "Check the name"
+
+msgid "Не получилось сохранить"
+msgstr "Could not save"
+
+msgid "Запускаю"
+msgstr "Starting"
+
+msgid "Сохранить и запустить"
+msgstr "Save and start"
+
+msgid "Docker не установлен. Поставьте его командой be7000-docker setup, она сама найдёт диск и положит данные туда, а не в 19 МБ внутренней памяти."
+msgstr "Docker is not installed. Install it with be7000-docker setup, it finds a disk by itself and keeps the data there instead of the 19 MB of internal memory."
+
+msgid "Docker установлен, но служба не отвечает. Проверьте /etc/init.d/dockerd status"
+msgstr "Docker is installed but the service does not answer. Check /etc/init.d/dockerd status"
+
+msgid "Docker %s работает. Контейнеры, образы, сети и тома по отдельности живут в разделе Сервисы, Dockerman."
+msgstr "Docker %s is running. Containers, images, networks and volumes one by one are under Services, Dockerman."
+
+msgid "Стек"
+msgstr "Stack"
+
+msgid "Состояние"
+msgstr "State"
+
+msgid "Пока ни одного стека. Возьмите готовый ниже или создайте свой."
+msgstr "No stacks yet. Take a ready-made one below or create your own."
+
+msgid "остановлен"
+msgstr "stopped"
+
+msgid "Запустить"
+msgstr "Start"
+
+msgid "Останавливаю"
+msgstr "Stopping"
+
+msgid "Остановить"
+msgstr "Stop"
+
+msgid "Обновляю образы"
+msgstr "Updating images"
+
+msgid "Обновить"
+msgstr "Update"
+
+msgid "Читаю журнал"
+msgstr "Reading the log"
+
+msgid "Журнал"
+msgstr "Log"
+
+msgid "Править"
+msgstr "Edit"
+
+msgid "Удалить стек %s вместе с его томами?"
+msgstr "Delete stack %s together with its volumes?"
+
+msgid "Удаляю"
+msgstr "Deleting"
+
+msgid "Удалить"
+msgstr "Delete"
+
+msgid "Готовый стек"
+msgstr "Ready-made stack"
+
+msgid "Что это"
+msgstr "What it is"
+
+msgid "Посмотреть и изменить"
+msgstr "View and edit"
+
+msgid "Разворачиваю %s"
+msgstr "Deploying %s"
+
+msgid "Развернуть"
+msgstr "Deploy"
+
+msgid "Мои стеки"
+msgstr "My stacks"
+
+msgid "Создать стек"
+msgstr "Create a stack"
+
+msgid "Готовые"
+msgstr "Ready-made"
+
+msgid "Обслуживание"
+msgstr "Maintenance"
+
+msgid "Считаю занятое место"
+msgstr "Counting used space"
+
+msgid "Сколько занято"
+msgstr "Space used"
+
+msgid "Чищу"
+msgstr "Cleaning"
+
+msgid "Убрать мусор"
+msgstr "Clean up"
+
+msgid "Удалить все образы, которые не используются запущенными контейнерами?"
+msgstr "Delete all images not used by running containers?"
+
+msgid "Чищу образы"
+msgstr "Cleaning images"
+
+msgid "Удалить лишние образы"
+msgstr "Delete unused images"
+
+msgid "Удалить тома, которые ни к чему не подключены? Данные в них пропадут."
+msgstr "Delete volumes not attached to anything? Their data will be lost."
+
+msgid "Чищу тома"
+msgstr "Cleaning volumes"
+
+msgid "Удалить неподключённые тома"
+msgstr "Delete unattached volumes"
+
+msgid "Полное управление докером в отдельном веб-интерфейсе, порт 9443"
+msgstr "Full Docker management in its own web interface, port 9443"
+
+msgid "Блокировка рекламы и свой DNS, веб-интерфейс на 3000"
+msgstr "Ad blocking and your own DNS, web interface on 3000"
+
+msgid "Мониторинг доступности сервисов, порт 3001"
+msgstr "Uptime monitoring of services, port 3001"
+
+msgid "Свой менеджер паролей, совместим с клиентами Bitwarden, порт 8080"
+msgstr "Your own password manager, works with Bitwarden clients, port 8080"
+
+msgid "Торрент-клиент с веб-интерфейсом на 8081, качает в /mnt"
+msgstr "Torrent client with a web interface on 8081, downloads to /mnt"
+
+msgid "Обратный прокси с сертификатами по кнопке, панель на 81"
+msgstr "Reverse proxy with one-click certificates, panel on 81"
+
+msgid "Умный дом, работает в сети хоста"
+msgstr "Smart home, runs in the host network"
+
+msgid "Сам обновляет запущенные контейнеры до свежих образов"
+msgstr "Updates running containers to fresh images by itself"
+
+msgid "не удалось проверить"
+msgstr "check failed"
+
+msgid "Поставить %s поверх %s? Настройки сохранятся, роутер перезагрузится, связь пропадёт на пару минут."
+msgstr "Install %s over %s? Settings are kept, the router reboots, the connection drops for a couple of minutes."
+
+msgid "Обновление"
+msgstr "Update"
+
+msgid "Скачиваю образ и проверяю сумму. Не выключайте роутер."
+msgstr "Downloading the image and checking its checksum. Do not power off the router."
+
+msgid "не удалось скачать образ"
+msgstr "could not download the image"
+
+msgid "Роутер перезагружается в новую версию. Страница обновится сама."
+msgstr "The router is rebooting into the new version. The page reloads by itself."
+
+msgid "Установлено"
+msgstr "Installed"
+
+msgid "собрано %s"
+msgstr "built %s"
+
+msgid "Последняя на GitHub"
+msgstr "Latest on GitHub"
+
+msgid "образ %s"
+msgstr "image %s"
+
+msgid "ещё не проверяли"
+msgstr "not checked yet"
+
+msgid "Нажмите \"Проверить\", страница спросит GitHub, есть ли версия новее."
+msgstr "Press \"Check\" and the page asks GitHub whether there is a newer version."
+
+msgid "Есть обновление. Ставится обычным sysupgrade с сохранением настроек, образ проверяется по контрольной сумме из релиза."
+msgstr "An update is available. It installs with a regular sysupgrade that keeps settings, the image is checked against the checksum from the release."
+
+msgid "Стоит последняя версия."
+msgstr "The latest version is installed."
+
+msgid "Проверить"
+msgstr "Check"
+
+msgid "Скачать и установить %s"
+msgstr "Download and install %s"
+
+msgid "Что в %s"
+msgstr "What is in %s"
+
+msgid "Проверка новых версий этой сборки на GitHub и установка без ручной загрузки файлов. Модули ядра и пакеты фида после обновления подхватываются под новое ядро сами."
+msgstr "Checks GitHub for new versions of this build and installs them without downloading files by hand. Kernel modules and feed packages are picked up for the new kernel by themselves after the update."
+
+msgid "Слоты"
+msgstr "Slots"
+
+msgid "Заводская прошивка Xiaomi"
+msgstr "Xiaomi factory firmware"
+
+msgid "MiWRT или другой OpenWrt"
+msgstr "MiWRT or another OpenWrt"
+
+msgid "Тестовая сборка MiWRT"
+msgstr "MiWRT test build"
+
+msgid "Пусто"
+msgstr "Empty"
+
+msgid "Не удалось определить"
+msgstr "Could not tell"
+
+msgid "Содержимое не проверялось."
+msgstr "Not looked into yet."
+
+msgid "Посмотреть, что там"
+msgstr "See what is there"
+
+msgid "Слот %d"
+msgstr "Slot %d"
+
+msgid "работает сейчас"
+msgstr "running now"
+
+msgid "загружается по умолчанию"
+msgstr "boots by default"
+
+msgid "Сделать основным и перезагрузить"
+msgstr "Make it the one that boots and reboot"
+
+msgid "Роутер загрузит заводскую прошивку, и она сама станет основной. Настройки MiWRT останутся на месте."
+msgstr "The router boots the factory firmware, and it makes itself the one that boots. The MiWRT settings stay where they are."
+
+msgid "Вернуться на MiWRT из стока можно так. Если в стоке включён SSH, выполните"
+msgstr "To come back to MiWRT from stock, with SSH enabled on stock, run"
+
+msgid "Или поставьте MiWRT заново скриптом из архива релиза, настройки сохранятся."
+msgstr "Or install MiWRT again with the script from the release archive, the settings are kept."
+
+msgid "Роутер загрузит %s из слота %d, и эта прошивка станет основной."
+msgstr "The router boots %s from slot %d, and that firmware becomes the one that boots."
+
+msgid "прошивку"
+msgstr "the firmware"
+
+msgid "Вернуться можно на этой же странице той прошивки."
+msgstr "You can come back from the same page of that firmware."
+
+msgid "Сделать слот %d основным?"
+msgstr "Make slot %d the one that boots?"
+
+msgid "Переключаю слот"
+msgstr "Switching the slot"
+
+msgid "Закрыть"
+msgstr "Close"
+
+msgid "Перезагрузка"
+msgstr "Rebooting"
+
+msgid "Роутер перезагружается в слот %d. Эта страница больше не ответит."
+msgstr "The router reboots into slot %d. This page will not answer any more."
+
+msgid "Переключить и перезагрузить"
+msgstr "Switch and reboot"
+
+msgid "Не удалось определить текущий слот."
+msgstr "Could not tell the running slot."
+
+msgid "На флеше два слота для прошивки. Загрузчик запускает один из них, а второй ждёт. Обычно во втором лежит заводская прошивка, и на неё можно вернуться в любой момент. Прошивка, которая загрузилась, сама делает свой слот основным."
+msgstr "The flash has two firmware slots. The bootloader starts one of them and the other one waits. Usually the other one holds the factory firmware, and you can go back to it at any time. The firmware that boots makes its own slot the main one."
+
+msgid "Флаги загрузчика"
+msgstr "Bootloader flags"
+
+msgid "Не удалось применить"
+msgstr "Could not apply"
+
+msgid "Выключить"
+msgstr "Turn off"
+
+msgid "Включить"
+msgstr "Turn on"
+
+msgid "Аппаратная разгрузка"
+msgstr "Hardware offload"
+
+msgid "Маршрутизацию и NAT может выполнять сетевой процессор PPE вместо основного процессора. Функция проверена и работает, по умолчанию выключена. Если после включения что-то перестало работать, выключите её здесь."
+msgstr "Routing and NAT can be done by the PPE network engine instead of the main CPU. The feature is tested and works, and it is off by default. If something stops working after you turn it on, turn it off here."
+
+msgid "В этой сборке нет драйвера PPE с поддержкой разгрузки."
+msgstr "This build has no PPE driver with offload support."
+
+msgid "NAT и маршрутизация"
+msgstr "NAT and routing"
+
+msgid "включено"
+msgstr "on"
+
+msgid "Соединения между локальной сетью и интернетом после первых пакетов ведёт PPE. Работает для PPPoE, DHCP и статического адреса. Клиентам Wi-Fi пакеты всё равно проходят через процессор один раз, заметный выигрыш у проводных клиентов."
+msgstr "After the first packets, connections between the LAN and the internet are carried by the PPE. Works with PPPoE, DHCP and a static address. For Wi-Fi clients packets still pass the CPU once, the visible gain is for wired clients."
+
+msgid "Соединений через PPE сейчас %d"
+msgstr "Connections through the PPE now %d"
+
+msgid "Применяется сразу."
+msgstr "Applies at once."
+
+msgid "Мост LAN-портов"
+msgstr "LAN port bridge"
+
+msgid "работает"
+msgstr "active"
+
+msgid "нужна перезагрузка"
+msgstr "reboot needed"
+
+msgid "Трафик между проводными LAN-портами коммутирует PPE, не задействуя процессор. Wi-Fi остаётся в программном мосте."
+msgstr "Traffic between the wired LAN ports is switched by the PPE without the CPU. Wi-Fi stays in the software bridge."
+
+msgid "Изменение применится после перезагрузки роутера."
+msgstr "The change applies after the router reboots."
+
+msgid "Применяется после перезагрузки."
+msgstr "Applies after a reboot."
+
+msgid "Как это устроено"
+msgstr "How it works"
+
+msgid "Что такое PPE"
+msgstr "What the PPE is"
+
+msgid "В процессоре IPQ9554 кроме ядер ARM есть отдельный сетевой блок PPE (packet processing engine). Он умеет сам коммутировать кадры между портами и маршрутизировать пакеты с NAT по таблице соединений, не нагружая основной процессор. Заводская прошивка Xiaomi им пользуется, в обычном OpenWrt он до сих пор простаивает."
+msgstr "Besides the ARM cores, the IPQ9554 has a separate network block, the PPE (packet processing engine). It can switch frames between ports and route packets with NAT from a connection table on its own, without loading the main CPU. The Xiaomi factory firmware uses it, in regular OpenWrt it still sits idle."
+
+msgid "Поддержка разгрузки в MiWRT построена на открытой работе для OpenWrt и наших исправлениях к ней. Она ещё не принята в основной OpenWrt."
+msgstr "Offload support in MiWRT is built on open work for OpenWrt plus our fixes to it. It is not in mainline OpenWrt yet."
+
+msgid "Первые пакеты каждого соединения, как обычно, проходят межсетевой экран на процессоре. Когда соединение установлено, ядро записывает его в таблицу PPE, и дальше PPE пересылает его пакеты сам, с подменой адресов и портов. Это обычная функция OpenWrt, она называется аппаратной разгрузкой потоков (flow offloading). Включить её здесь то же самое, что поставить галку в настройках межсетевого экрана."
+msgstr "The first packets of every connection pass the firewall on the CPU as usual. Once the connection is established, the kernel writes it into the PPE table, and from then on the PPE forwards its packets itself, rewriting addresses and ports. This is a regular OpenWrt feature called hardware flow offloading. Turning it on here is the same as ticking the box in the firewall settings."
+
+msgid "Что разгружается"
+msgstr "What is offloaded"
+
+msgid "IPv4 с NAT и IPv6"
+msgstr "IPv4 with NAT and IPv6"
+
+msgid "TCP и UDP"
+msgstr "TCP and UDP"
+
+msgid "подключение к провайдеру через PPPoE, DHCP или статический адрес"
+msgstr "an uplink over PPPoE, DHCP or a static address"
+
+msgid "провайдерский VLAN на WAN"
+msgstr "an ISP VLAN on the WAN"
+
+msgid "Что остаётся на процессоре"
+msgstr "What stays on the CPU"
+
+msgid "первые пакеты каждого соединения и всё, что межсетевой экран не пропустил"
+msgstr "the first packets of every connection and everything the firewall did not let through"
+
+msgid "клиенты Wi-Fi. PPE находит соединение и делает NAT, но передать пакет в радиомодуль напрямую не может, поэтому пакет один раз проходит через процессор"
+msgstr "Wi-Fi clients. The PPE finds the connection and does the NAT, but it cannot hand the packet to the radio directly, so the packet passes the CPU once"
+
+msgid "туннели и VPN на самом роутере (WireGuard, AmneziaWG, OpenVPN, L2TP)"
+msgstr "tunnels and VPNs on the router itself (WireGuard, AmneziaWG, OpenVPN, L2TP)"
+
+msgid "трафик самого роутера"
+msgstr "traffic of the router itself"
+
+msgid "Когда включено, PPE сам пересылает кадры между проводными портами LAN, изучает MAC-адреса и VLAN, а процессор видит только широковещательный трафик и адреса, которых PPE не знает. Имеет смысл, если между устройствами на кабеле ходит много трафика, например к NAS. Wi-Fi-интерфейсы остаются в программном мосте."
+msgstr "When on, the PPE forwards frames between the wired LAN ports itself and learns MAC addresses and VLANs, and the CPU sees only broadcasts and addresses the PPE does not know. It makes sense when wired devices exchange a lot of traffic, for example with a NAS. Wi-Fi interfaces stay in the software bridge."
+
+msgid "Выключатель задаётся при загрузке драйвера, поэтому изменение применяется после перезагрузки роутера."
+msgstr "The switch is read when the driver loads, so a change applies after the router reboots."
+
+msgid "С чем не дружит"
+msgstr "What does not mix with it"
+
+msgid "SQM и другие ограничители скорости. Разгруженные соединения идут мимо очередей, и ограничение перестаёт работать. Используйте что-то одно, SQM или разгрузку."
+msgstr "SQM and other rate limiters. Offloaded connections bypass the queues and the limit stops working. Use one or the other, SQM or offload."
+
+msgid "Счётчики трафика по соединениям, например nlbwmon. Пакеты, которые переслал PPE, в них не попадают или попадают с опозданием."
+msgstr "Per-connection traffic counters such as nlbwmon. Packets forwarded by the PPE are missing from them or show up late."
+
+msgid "Правила межсетевого экрана, добавленные после установки соединения, не действуют на уже разгруженные соединения до их завершения."
+msgstr "Firewall rules added after a connection is established do not apply to already offloaded connections until they end."
+
+msgid "Несколько деревьев связующего дерева (MSTP) мостом PPE не поддерживаются, работает одно общее."
+msgstr "Multiple spanning trees (MSTP) are not supported by the PPE bridge, only one common tree works."
+
+msgid "Как проверить, что работает"
+msgstr "How to check it works"
+
+msgid "Когда NAT включён, в карточке выше видно, сколько соединений идёт через PPE. В консоли то же самое показывает команда ниже."
+msgstr "With NAT on, the card above shows how many connections go through the PPE. In the console the command below shows the same."
+
+msgid "При большой загрузке с проводного клиента нагрузка процессора (Статус, Обзор) должна остаться низкой."
+msgstr "During a big download from a wired client the CPU load (Status, Overview) should stay low."
+
+msgid "Если что-то пошло не так"
+msgstr "If something goes wrong"
+
+msgid "Выключите разгрузку на этой странице. NAT выключается сразу, мост после перезагрузки. Если страница не открывается, выполните в консоли команды ниже."
+msgstr "Turn offload off on this page. NAT turns off at once, the bridge after a reboot. If the page does not open, run the commands below in the console."
+
+msgid "Напишите о проблеме в тему MiWRT на 4PDA или в issues на GitHub и приложите вывод этой команды."
+msgstr "Report the problem in the MiWRT topic on 4PDA or in GitHub issues, with the output of this command."
+
+msgid "Что такое слоты"
+msgstr "What slots are"
+
+msgid "На флеше роутера два раздела для прошивки, слот 0 (rootfs) и слот 1 (rootfs_1). В каждом лежит своё ядро и своя система. Xiaomi сделала так для безопасных обновлений. Новая версия пишется в свободный слот, а если она не загрузится, роутер вернётся на старую."
+msgstr "The router flash has two firmware partitions, slot 0 (rootfs) and slot 1 (rootfs_1). Each holds its own kernel and system. Xiaomi did this for safe updates. A new version is written to the free slot, and if it does not boot, the router goes back to the old one."
+
+msgid "MiWRT при установке из стока занимает один слот, заводская прошивка остаётся во втором. Поэтому вернуться на сток можно без прошивки и без программатора, простым переключением."
+msgstr "When installed from stock, MiWRT takes one slot and the factory firmware stays in the other. So you can go back to stock without flashing and without a programmer, with a plain switch."
+
+msgid "Настройки хранятся отдельно от слотов. У MiWRT они на разделе данных и общие для любой сборки MiWRT в любом слоте. Сток хранит свои настройки в зашифрованном виде там же, MiWRT их не трогает."
+msgstr "Settings are kept apart from the slots. MiWRT keeps them on the data partition, shared by any MiWRT build in either slot. Stock keeps its own settings encrypted in the same place, MiWRT does not touch them."
+
+msgid "Как загрузчик выбирает слот"
+msgstr "How the bootloader picks a slot"
+
+msgid "Загрузчик запускает слот, записанный в flag_last_success."
+msgstr "The bootloader starts the slot written in flag_last_success."
+
+msgid "Каждая прошивка, которая загрузилась до конца, сама записывает туда свой слот и сбрасывает счётчик неудачных попыток. И MiWRT, и сток делают это при каждой загрузке."
+msgstr "Every firmware that boots completely writes its own slot there and resets the failed attempt counter. Both MiWRT and stock do this on every boot."
+
+msgid "Если слот не загружается, загрузчик считает попытки. После шести неудачных подряд на седьмом включении он сам берёт другой слот."
+msgstr "If a slot does not boot, the bootloader counts the attempts. After six failed ones in a row it takes the other slot on the seventh power-on."
+
+msgid "Для обновлений есть разовая попытка. Загрузчик один раз пробует второй слот, и если прошивка там не подтвердила загрузку, при следующем включении он вернётся на прежний слот."
+msgstr "For updates there is a one-shot try. The bootloader tries the other slot once, and if the firmware there did not confirm its boot, the next power-on goes back to the previous slot."
+
+msgid "Что делает кнопка переключения"
+msgstr "What the switch button does"
+
+msgid "Кнопка \"Посмотреть, что там\" подключает второй слот только на чтение и показывает, какая прошивка в нём лежит. Переключить можно только на слот, где лежит прошивка, которая загрузится."
+msgstr "The \"See what is there\" button attaches the other slot read-only and shows which firmware it holds. You can only switch to a slot with firmware that will boot."
+
+msgid "Кнопка \"Сделать основным и перезагрузить\" записывает второй слот в flag_last_success, сбрасывает счётчики и перезагружает роутер. Переключение действует насовсем. Загрузившаяся прошивка сама закрепит свой слот, и роутер не вернётся обратно, пока вы не переключите его снова уже из той прошивки."
+msgstr "The \"Make it the main one and reboot\" button writes the other slot into flag_last_success, resets the counters and reboots the router. The switch is for good. The firmware that boots locks its own slot, and the router does not come back until you switch again from that firmware."
+
+msgid "При переходе на сток страница проверяет, есть ли у стока сохранённые настройки. Если нет, сток при первой загрузке заполнит их заводскими значениями, как после сброса."
+msgstr "When switching to stock the page checks whether stock has saved settings. If not, stock fills them with factory values on its first boot, as after a reset."
+
+msgid "Как вернуться обратно"
+msgstr "How to come back"
+
+msgid "Из другой сборки MiWRT откройте в ней эту же страницу и переключите слот."
+msgstr "From another MiWRT build, open this same page there and switch the slot."
+
+msgid "Из заводской прошивки, если в ней включён SSH, выполните команды ниже."
+msgstr "From the factory firmware with SSH on, run the commands below."
+
+msgid "Из заводской прошивки без SSH установите MiWRT заново скриптом из архива релиза, как в первый раз. Настройки MiWRT сохранятся."
+msgstr "From the factory firmware without SSH, install MiWRT again with the script from the release archive, as the first time. MiWRT settings are kept."
+
+msgid "Если роутер не загружается совсем, выключите и включите питание семь раз подряд, каждый раз давая ему полминуты. На седьмой раз загрузчик сам возьмёт другой слот."
+msgstr "If the router does not boot at all, power it off and on seven times in a row, giving it half a minute each time. On the seventh time the bootloader takes the other slot itself."
+
+msgid "flag_last_success показывает, какой слот загружается, 0 или 1."
+msgstr "flag_last_success shows which slot boots, 0 or 1."
+
+msgid "flag_ota_reboot равен 1, когда следующая загрузка будет разовой попыткой второго слота."
+msgstr "flag_ota_reboot is 1 when the next boot is a one-shot try of the other slot."
+
+msgid "flag_boot_success подтверждает разовую попытку."
+msgstr "flag_boot_success confirms the one-shot try."
+
+msgid "flag_try_sys1_failed и flag_try_sys2_failed считают неудачные попытки слота 0 и слота 1. Когда счётчик больше пяти, загрузчик уходит на другой слот."
+msgstr "flag_try_sys1_failed and flag_try_sys2_failed count failed attempts of slot 0 and slot 1. When a counter is above five, the bootloader moves to the other slot."
+
+msgid "flag_format_overlay равен 1, когда заводская прошивка при следующей загрузке заполнит свои настройки значениями по умолчанию."
+msgstr "flag_format_overlay is 1 when the factory firmware fills its settings with defaults on its next boot."
+
+msgid "Чего не делать"
+msgstr "What not to do"
+
+msgid "Не записывайте прошивку в слот %d, из которого роутер сейчас работает."
+msgstr "Do not write firmware into slot %d, the one the router runs from now."
+
+msgid "Не стирайте разделы art, bdata и загрузчика. В них калибровка радио, MAC-адреса и серийный номер именно этого роутера, заменить их нечем."
+msgstr "Do not erase the art, bdata and bootloader partitions. They hold the radio calibration, MAC addresses and serial number of this very router, and nothing can replace them."
+
+msgid "Не меняйте флаги вручную, если не уверены. С неверным значением роутер может не загружаться семь включений подряд."
+msgstr "Do not change the flags by hand unless you are sure. With a wrong value the router may fail to boot for seven power-ons in a row."
+
+msgid "Не удалось начать установку"
+msgstr "Could not start the install"
+
+msgid "установлен %s"
+msgstr "installed %s"
+
+msgid "установлен вручную"
+msgstr "installed by hand"
+
+msgid "не установлен"
+msgstr "not installed"
+
+msgid "Установить"
+msgstr "Install"
+
+msgid "Переустановить"
+msgstr "Reinstall"
+
+msgid "Обновить до %s"
+msgstr "Update to %s"
+
+msgid "вместе с ботом для Telegram"
+msgstr "with the Telegram bot"
+
+msgid "Открыть Hybrid Failover"
+msgstr "Open Hybrid Failover"
+
+msgid "Версию в фиде узнать не удалось. Проверьте интернет на роутере."
+msgstr "Could not get the version in the feed. Check the internet on the router."
+
+msgid "В фиде версия %s."
+msgstr "The feed has version %s."
+
+msgid "Сейчас Hybrid Failover стоит не из фида, а своим скриптом установки. Установка отсюда заменит его пакетами из фида, настройки сохранятся. После этого обновления будут приходить вместе с остальными пакетами."
+msgstr "Hybrid Failover is installed by its own install script now, not from the feed. Installing from here replaces it with packages from the feed and keeps the settings. After that, updates come with the other packages."
+
+msgid "Дополнения"
+msgstr "Add-ons"
+
+msgid "Программы, которые не входят в прошивку, но собраны для неё и ставятся из фида MiWRT одной кнопкой. Новые версии появляются в фиде сами, после выхода каждого релиза."
+msgstr "Programs that are not part of the firmware but are built for it and install from the MiWRT feed with one button. New versions show up in the feed by themselves after every release."
+
+msgid "Маршрутизация через VPN с автоматическим резервом. Основной канал идёт через ваш VPN, например AmneziaWG. Если он падает, трафик сам уходит на резервные прокси, а когда VPN поднимается, возвращается обратно. Устройствам в сети ничего настраивать не нужно."
+msgstr "Routing through a VPN with an automatic fallback. The main channel goes through your VPN, AmneziaWG for example. If it goes down, traffic moves to backup proxies by itself and comes back once the VPN is up again. Nothing needs to be set up on the devices in the network."
+
+msgid "Зачем это нужно"
+msgstr "Why you would want it"
+
+msgid "Обычный VPN на роутере работает по принципу всё или ничего. Если сервер недоступен, пропадают и сайты, которые через него шли. Hybrid Failover держит несколько каналов сразу, сам проверяет, какой из них жив и быстрее, и переключается без вашего участия. Заодно он умеет пускать через VPN только нужные сервисы, а остальное напрямую."
+msgstr "A plain VPN on a router is all or nothing. When the server is down, the sites that went through it are gone too. Hybrid Failover keeps several channels at once, checks which one is alive and faster, and switches without your help. It can also send only the services you choose through the VPN and the rest directly."
+
+msgid "Что умеет"
+msgstr "What it can do"
+
+msgid "Прозрачно перехватывает трафик локальной сети и направляет его по правилам. Правила задаются доменами, подсетями и готовыми списками сервисов, например youtube или telegram."
+msgstr "It transparently intercepts LAN traffic and routes it by rules. Rules are set by domains, subnets and ready-made service lists, youtube or telegram for example."
+
+msgid "Проверяет каналы и сам выбирает живой и самый быстрый. Можно держать основной канал и переключаться только при его падении."
+msgstr "It checks the channels and picks the live and fastest one by itself. You can also keep a main channel and switch only when it goes down."
+
+msgid "Понимает ссылки vless, ss, trojan, hysteria2, socks и экспорт из Amnezia, включая AmneziaWG 3.1."
+msgstr "It understands vless, ss, trojan, hysteria2 and socks links and Amnezia exports, AmneziaWG 3.1 included."
+
+msgid "Правила для отдельных устройств. Например, приставка всегда через VPN, а телевизор мимо."
+msgstr "Rules for single devices. For example, the game console always through the VPN and the TV around it."
+
+msgid "Разные сервисы можно развести по разным туннелям, чтобы видео не делило канал со всем остальным."
+msgstr "Different services can go through different tunnels, so video does not share a channel with everything else."
+
+msgid "Графики по каждому каналу в LuCI и бот для Telegram, который показывает статус, переключает каналы и присылает уведомления."
+msgstr "Charts for every channel in LuCI and a Telegram bot that shows the status, switches channels and sends notifications."
+
+msgid "Что понадобится"
+msgstr "What you need"
+
+msgid "Свой VPN-сервер или ссылки на прокси. Сам по себе Hybrid Failover никуда трафик не уводит, ему нужны каналы, которые вы добавите. AmneziaWG уже встроен в прошивку, ставить его отдельно не нужно."
+msgstr "Your own VPN server or proxy links. Hybrid Failover does not send traffic anywhere by itself, it needs the channels you add. AmneziaWG is already built into the firmware, there is no need to install it."
+
+msgid "Что произойдёт при установке"
+msgstr "What happens on install"
+
+msgid "Поставятся служба, страница в LuCI и её перевод, а если отмечено, ещё и бот для Telegram."
+msgstr "The service, its LuCI page and its translation are installed, and the Telegram bot too if ticked."
+
+msgid "Служба сама не включится и трафик не тронет. Сначала откройте Сервисы, Hybrid Failover, добавьте каналы и включите её там."
+msgstr "The service does not turn on by itself and does not touch traffic. First open Services, Hybrid Failover, add channels and turn it on there."
+
+msgid "Если на роутере стоит отдельный sing-box, Hybrid Failover его остановит и выключит, чтобы они не мешали друг другу."
+msgstr "If a separate sing-box is installed on the router, Hybrid Failover stops and disables it so they do not get in each other's way."
+
+msgid "Когда служба включена, она берёт на себя DNS роутера и выключает IPv6 в локальной сети. Это нужно для маршрутизации по доменам."
+msgstr "Once the service is on, it takes over the router DNS and turns IPv6 off in the LAN. This is needed for routing by domain."
+
+msgid "Исходники и подробная документация на GitHub"
+msgstr "Sources and detailed docs on GitHub"
+
+msgid "Контейнеры сейчас не выходят в интернет, и опубликованные порты, например веб-интерфейс qBittorrent, не открываются из локальной сети. Файрволу роутера нужно разрешить пересылку между зоной docker, интернетом и локальной сетью."
+msgstr "Containers cannot reach the internet right now, and published ports, the qBittorrent web interface for example, do not open from the local network. The router firewall has to allow forwarding between the docker zone, the internet and the local network."
+
+msgid "Разрешить"
+msgstr "Allow"
+
+msgid "Настраиваю файрвол"
+msgstr "Setting up the firewall"
+
+msgid "Установлен"
+msgstr "Installed"
+
+msgid "Пока недоступен"
+msgstr "Not available yet"
+
+msgid "Панель для установки и настройки Zapret, Zapret2, ByeDPI, ByeTube, NetShift, AmneziaWG и других средств маршрутизации и обхода блокировок."
+msgstr "A panel for installing and configuring Zapret, Zapret2, ByeDPI, ByeTube, NetShift, AmneziaWG and other routing and blocking circumvention tools."
+
+msgid "Версия для MiWRT"
+msgstr "MiWRT version"
+
+msgid "Менеджер адаптирован под архитектуру aarch64_cortex-a73 и пакетный менеджер apk. Zapret, Zapret2, ByeDPI, NetShift, sing-box, hev-socks5-tunnel и интерфейс AmneziaWG ставятся из подписанного фида MiWRT."
+msgstr "The manager is adapted to the aarch64_cortex-a73 architecture and the apk package manager. Zapret, Zapret2, ByeDPI, NetShift, sing-box, hev-socks5-tunnel and the AmneziaWG interface install from the signed MiWRT feed."
+
+msgid "Поставится только панель Zapret Manager и её служебные зависимости. Zapret и другие способы обхода не включаются автоматически."
+msgstr "Only the Zapret Manager panel and its service dependencies are installed. Zapret and the other circumvention methods are not turned on automatically."
+
+msgid "После установки откройте панель и выберите нужный способ. Его пакеты будут установлены из фида MiWRT с проверкой подписи."
+msgstr "After the install, open the panel and choose the method you need. Its packages are installed from the MiWRT feed with a signature check."
+
+msgid "Внешние модули AmneziaWG не используются. Менеджер оставляет встроенный модуль, который собран вместе с ядром этой прошивки."
+msgstr "External AmneziaWG modules are not used. The manager keeps the built-in module that is built together with the kernel of this firmware."
+
+msgid "Открыть Zapret Manager"
+msgstr "Open Zapret Manager"
+
+msgid "Пакет пока не найден в фиде. Сначала нужно опубликовать новую сборку фида."
+msgstr "The package is not in the feed yet. A new feed build has to be published first."
+
+msgid "Исходный проект"
+msgstr "Source project"
+
+msgid "Что такое Docker и зачем он на роутере"
+msgstr "What Docker is and why it is on a router"
+
+msgid "Docker запускает программы в изолированных контейнерах. В контейнере уже лежит всё нужное для программы, поэтому её не нужно собирать под роутер, и она не мешает системе. Так на роутере работают, например, AdGuard Home, Home Assistant, торрент-клиент, менеджер паролей и многое другое."
+msgstr "Docker runs programs in isolated containers. A container already holds everything the program needs, so it does not have to be built for the router and it does not get in the way of the system. This is how AdGuard Home, Home Assistant, a torrent client, a password manager and much more run on a router."
+
+msgid "Контейнеры ставятся из готовых образов. Набор контейнеров, который запускается вместе, описывается одним файлом docker-compose.yml. Такой набор здесь называется стеком."
+msgstr "Containers are installed from ready-made images. A set of containers that start together is described by one docker-compose.yml file. Such a set is called a stack here."
+
+msgid "USB-диск или SSD с файловой системой ext4 и хотя бы гигабайтом свободного места. Образы занимают сотни мегабайт, а во внутренней памяти роутера около 19 МБ, поэтому первый же образ её забьёт."
+msgstr "A USB disk or SSD with the ext4 file system and at least a gigabyte of free space. Images take hundreds of megabytes, and the router internal memory is about 19 MB, so the first image fills it."
+
+msgid "Оперативная память общая с роутером. У BE7000 её 1 ГБ, поэтому несколько тяжёлых программ вместе лучше не запускать."
+msgstr "The memory is shared with the router. The BE7000 has 1 GB, so it is better not to run several heavy programs together."
+
+msgid "Как установить"
+msgstr "How to install"
+
+msgid "Подключите и смонтируйте диск, потом выполните команду ниже. Она найдёт диск, поставит Docker и Dockerman, перенесёт данные Docker на диск и настроит файрвол."
+msgstr "Plug in and mount the disk, then run the command below. It finds the disk, installs Docker and Dockerman, moves the Docker data to the disk and sets up the firewall."
+
+msgid "Где что лежит"
+msgstr "Where things are"
+
+msgid "Образы, тома и слои лежат в каталоге data-root на вашем диске. Сколько места занято, показывает кнопка в разделе обслуживания внизу страницы."
+msgstr "Images, volumes and layers live in the data-root directory on your disk. The button in the maintenance part at the bottom of the page shows how much space is used."
+
+msgid "Файлы стеков лежат в /etc/be7000-docker/stacks, у каждого стека своя папка с файлом docker-compose.yml. Их можно править прямо на этой странице."
+msgstr "Stack files are in /etc/be7000-docker/stacks, each stack has its own folder with a docker-compose.yml file. You can edit them right on this page."
+
+msgid "Каждый стек можно запустить, остановить, обновить его образы и посмотреть журнал кнопками в таблице."
+msgstr "Every stack can be started, stopped, have its images updated and its log read with the buttons in the table."
+
+msgid "Сеть и файрвол"
+msgstr "Network and firewall"
+
+msgid "Контейнеры живут в отдельной зоне docker. Файрвол разрешает им выходить в интернет, а локальной сети разрешает открывать порты, которые контейнеры публикуют. Из интернета к контейнерам по умолчанию никто не попадёт."
+msgstr "Containers live in a separate docker zone. The firewall lets them out to the internet and lets the local network open the ports the containers publish. By default nobody from the internet can reach the containers."
+
+msgid "Если контейнеры не выходят в интернет, вверху страницы появится кнопка с предложением это разрешить. То же делает команда be7000-docker firewall."
+msgstr "If containers cannot reach the internet, a button offering to allow it shows up at the top of the page. The be7000-docker firewall command does the same."
+
+msgid "Осторожно"
+msgstr "Be careful"
+
+msgid "Контейнеры с доступом к /var/run/docker.sock, например Portainer и Watchtower, получают полный контроль над Docker, а значит и над роутером. Ставьте их, только если понимаете, зачем они вам."
+msgstr "Containers with access to /var/run/docker.sock, Portainer and Watchtower for example, get full control of Docker, and so of the router. Install them only if you understand why you need them."
+
+msgid "Не открывайте порты управления контейнерами из интернета."
+msgstr "Do not open the management ports of containers to the internet."
+
+msgid "Если что-то не работает"
+msgstr "If something does not work"
+
+msgid "Docker не отвечает. Посмотрите состояние командой /etc/init.d/dockerd status и системный журнал."
+msgstr "Docker does not answer. Check the state with the /etc/init.d/dockerd status command and the system log."
+
+msgid "Не хватает места. Кнопки очистки внизу страницы убирают лишние образы и неподключённые тома."
+msgstr "Out of space. The cleanup buttons at the bottom of the page remove unused images and unattached volumes."
+
+msgid "Автоматическая проверка"
+msgstr "Automatic check"
+
+msgid "Раз в сутки роутер сам спрашивает у GitHub, вышла ли новая версия, и сообщает об этом. На странице Статус, Обзор появляется блок с новой версией, а в верхней панели кнопка. Роутер отправляет один запрос к api.github.com и ничего о вас не передаёт. Обновление само не ставится, решение всегда за вами."
+msgstr "Once a day the router asks GitHub by itself whether a new version is out and tells you about it. A block with the new version appears on Status, Overview, and a button in the top bar. The router sends one request to api.github.com and tells nothing about you. The update is never installed by itself, the decision is always yours."
+
+msgid "Проверять наличие новой версии автоматически"
+msgstr "Check for a new version automatically"
+
+msgid "Сборки без номера версии, например собранные самостоятельно, не проверяются."
+msgstr "Builds without a version number, such as self-built ones, are not checked."
+
+msgid "нужно доустановить"
+msgstr "needs finishing"
+
+msgid "Доустановить"
+msgstr "Finish install"
+
+msgid "Пакет Zapret Manager стоит, но сама панель не создалась. Обычно так бывает, когда во время установки не было интернета. Нажмите кнопку, чтобы завершить установку, роутеру понадобится доступ в интернет."
+msgstr "The Zapret Manager package is installed, but the panel itself was not created. This usually happens when there was no internet during the install. Press the button to finish it, the router needs internet access for this."
+
+msgid "Hybrid Failover последних версий ведёт контейнеры так же, как остальные устройства сети: их трафик идёт по тем же правилам, а мосты Docker он подхватывает сам. Если стоит старая версия, контейнерам прописываются публичные DNS-серверы, иначе роутер отвечал бы им служебными адресами Hybrid Failover, до которых не достучаться. Тогда трафик контейнеров идёт напрямую. Если Hybrid Failover поставлен позже Docker, нажмите ту же кнопку или выполните be7000-docker firewall."
+msgstr "The latest Hybrid Failover treats containers like the other devices on the network: their traffic follows the same rules, and it picks up the Docker bridges by itself. With an older version the containers get public DNS servers, because the router would otherwise answer them with service addresses of Hybrid Failover that cannot be reached. Their traffic then goes out directly. If Hybrid Failover was installed after Docker, press the same button or run be7000-docker firewall."
+msgid "Светодиоды"
+msgstr "LEDs"
+
+msgid "На передней панели два индикатора, которым в MiWRT можно дать дополнительные роли. Оба включены по умолчанию, здесь их можно выключить. Всё применяется сразу."
+msgstr "MiWRT can give two of the indicators on the front panel extra roles. Both are on by default and can be turned off here. Everything applies at once."
+
+msgid "Wi-Fi 2,4 ГГц, янтарный"
+msgstr "Wi-Fi 2.4 GHz, amber"
+
+msgid "занят"
+msgstr "in use"
+
+msgid "Янтарный светодиод индикатора сети мигает, когда по Wi-Fi 2,4 ГГц идёт трафик. Белый светодиод рядом остаётся индикатором 5 ГГц, так что по цвету видно, какой диапазон работает."
+msgstr "The amber LED of the network indicator blinks while Wi-Fi 2.4 GHz carries traffic. The white one next to it stays the 5 GHz indicator, so the colour shows which band is busy."
+
+msgid "Этот светодиод уже настроен вами на странице Индикаторы, поэтому он не тронут."
+msgstr "You have already set this LED up on the LED page, so it is left alone."
+
+msgid "Hybrid Failover, белый AIoT"
+msgstr "Hybrid Failover, white AIoT"
+
+msgid "горит"
+msgstr "lit"
+
+msgid "Светодиод AIoT горит, пока работает Hybrid Failover и его правила маршрутизации на месте. Если служба остановлена или упала, он гаснет."
+msgstr "The AIoT LED is lit while Hybrid Failover runs and its routing rules are in place. If the service is stopped or has died, it goes out."
+
+msgid "Hybrid Failover не установлен, светодиод не горит. Его можно поставить на странице Службы, Дополнения."
+msgstr "Hybrid Failover is not installed, so the LED stays dark. You can install it on Services, Add-ons."
+
+msgid "Какие светодиоды есть"
+msgstr "Which LEDs there are"
+
+msgid "На плате есть белые и янтарные светодиоды. Яркость у них не регулируется, они либо горят, либо нет. Белый светодиод сети по умолчанию показывает трафик Wi-Fi 5 ГГц, белый системный горит, когда роутер загрузился. Янтарный системный показывает проблемы при загрузке."
+msgstr "The board has white and amber LEDs. Their brightness cannot be changed, they are either on or off. The white network LED shows Wi-Fi 5 GHz traffic by default, the white system LED is on once the router has booted. The amber system LED shows boot problems."
+
+msgid "Светодиоды LAN и WAN у разъёмов показывают связь и трафик порта."
+msgstr "The LAN and WAN LEDs at the sockets show link and traffic of the port."
+
+msgid "Wi-Fi 2,4 ГГц"
+msgstr "Wi-Fi 2.4 GHz"
+
+msgid "Янтарный светодиод сети привязывается к интерфейсу точки доступа 2,4 ГГц и мигает при приёме и передаче. В режиме MLO белый светодиод следует за общим интерфейсом MLO, это делается само при переключении режима 5 ГГц."
+msgstr "The amber network LED is tied to the 2.4 GHz access point interface and blinks on receive and transmit. In MLO mode the white LED follows the shared MLO interface, which happens by itself when the 5 GHz mode is switched."
+
+msgid "Hybrid Failover"
+msgstr "Hybrid Failover"
+
+msgid "Белый светодиод AIoT проверяется каждые пять секунд. Он горит, если процесс Hybrid Failover работает и таблица его правил в межсетевом экране есть. Раньше узнать, что служба упала и трафик пошёл мимо неё, можно было только по странице службы."
+msgstr "The white AIoT LED is checked every five seconds. It is lit if the Hybrid Failover process runs and the table of its rules in the firewall exists. Before, the only way to notice that the service had died and traffic went around it was the service page."
+
+msgid "Если светодиод уже настроен вами"
+msgstr "If you have already set a LED up"
+
+msgid "Если вы сами назначили янтарный светодиод сети или белый AIoT на странице Индикаторы, MiWRT их не трогает. Чтобы вернуть управление сюда, удалите свою настройку на той странице."
+msgstr "If you assigned the amber network LED or the white AIoT one yourself on the LED page, MiWRT leaves them alone. To hand control back here, delete your setting on that page."
+
+msgid "Из консоли"
+msgstr "From the console"
+
+msgid "Работу Hybrid Failover"
+msgstr "Hybrid Failover running"
+
+msgid "Связь или трафик интерфейса"
+msgstr "Link or traffic of an interface"
+
+msgid "Работу процесса"
+msgstr "A process running"
+
+msgid "Доступность интернета"
+msgstr "Internet reachable"
+
+msgid "Результат своей команды"
+msgstr "Result of your own command"
+
+msgid "Горит всегда"
+msgstr "Always on"
+
+msgid "Мигает всегда"
+msgstr "Always blinking"
+
+msgid "Пульс"
+msgstr "Heartbeat"
+
+msgid "Выключен"
+msgstr "Off"
+
+msgid "связь"
+msgstr "link"
+
+msgid "приём"
+msgstr "receive"
+
+msgid "передача"
+msgstr "transmit"
+
+msgid "мигает"
+msgstr "blinks"
+
+msgid "Интерфейс"
+msgstr "Interface"
+
+msgid "Что считать"
+msgstr "What counts"
+
+msgid "Имя процесса"
+msgstr "Process name"
+
+msgid "Адрес для проверки"
+msgstr "Address to check"
+
+msgid "Команда"
+msgstr "Command"
+
+msgid "Когда выполнено"
+msgstr "When it holds"
+
+msgid "Наоборот"
+msgstr "Inverted"
+
+msgid "светодиод показывает, что условие не выполнено"
+msgstr "the LED shows that the condition does not hold"
+
+msgid "Мигание, мс"
+msgstr "Blinking, ms"
+
+msgid "не горит"
+msgstr "off"
+
+msgid "Светодиод AIoT, белый"
+msgstr "AIoT LED, white"
+
+msgid "Этот светодиод можно привязать к чему угодно. Выберите, что он показывает, и как. По умолчанию он горит, пока работает Hybrid Failover."
+msgstr "This LED can be tied to anything. Choose what it shows and how. By default it is lit while Hybrid Failover runs."
+
+msgid "Что показывает"
+msgstr "What it shows"
+
+msgid "Светодиод AIoT"
+msgstr "The AIoT LED"
+
+msgid "Белый светодиод AIoT свободен, ему можно дать любую роль. Источники, которые можно выбрать"
+msgstr "The white AIoT LED is free and can be given any role. The sources to choose from"
+
+msgid "Работа Hybrid Failover. Процесс запущен и таблица его правил в межсетевом экране на месте. Проверка каждые пять секунд."
+msgstr "Hybrid Failover running. The process is up and the table of its rules in the firewall is in place. Checked every five seconds."
+
+msgid "Связь или трафик интерфейса. Светодиод сам следует за интерфейсом, мигает при приёме и передаче или горит, пока есть связь. Подходит любой интерфейс, например wan, awg0 или br-lan."
+msgstr "Link or traffic of an interface. The LED follows the interface by itself, blinks on receive and transmit or stays lit while there is a link. Any interface works, for example wan, awg0 or br-lan."
+
+msgid "Работа процесса. Горит, пока в системе есть процесс с таким именем."
+msgstr "A process running. Lit while a process with that name exists."
+
+msgid "Доступность интернета. Роутер раз в 15 секунд проверяет адрес командой ping."
+msgstr "Internet reachable. The router pings the address every 15 seconds."
+
+msgid "Результат своей команды. Команда выполняется раз в пять секунд от имени root, светодиод показывает, завершилась ли она с кодом 0."
+msgstr "Result of your own command. The command runs every five seconds as root, and the LED shows whether it exited with code 0."
+
+msgid "Горит всегда, мигает всегда, пульс или выключен."
+msgstr "Always on, always blinking, heartbeat or off."
+
+msgid "Для проверяемых источников можно выбрать, как показывать выполненное условие, горением или миганием, и перевернуть логику: тогда светодиод покажет, что условие не выполнено. Это удобно для сигнала о неполадке."
+msgstr "For the checked sources you can choose how to show that the condition holds, lit or blinking, and turn the logic around so that the LED shows the condition does not hold. This is handy as a fault signal."
+
+msgid "Не управляется здесь"
+msgstr "Not managed here"
+
+msgid "Светодиод показывает, выполнено ли условие. Выберите условие и то, как оно будет выглядеть. По умолчанию он горит, пока работает Hybrid Failover."
+msgstr "The LED shows whether a condition holds. Choose the condition and how it looks. By default the LED is lit while Hybrid Failover runs."
+
+msgid "Этот светодиод настроен на странице Индикаторы, поэтому здесь он не управляется. Удалите его настройку там, чтобы вернуть управление сюда."
+msgstr "This LED is set up on the LED Configuration page, so it is not managed here. Delete its entry there to hand control back."
+
+msgid "Открыть Индикаторы"
+msgstr "Open LED Configuration"
+
+msgid "Здесь светодиод AIoT привязывается к состоянию: работе Hybrid Failover, процессу, доступности адреса или результату команды. Всё, что ядро умеет само, например трафик интерфейса, мигание или пульс, настраивается для любого светодиода на странице"
+msgstr "Here the AIoT LED is tied to a state: Hybrid Failover running, a process, an address answering or the result of a command. Everything the kernel can do by itself, such as interface traffic, blinking or a heartbeat, is set for any LED on the page"
+
+msgid "Индикаторы"
+msgstr "LED Configuration"
+
+msgid "На плате есть белые и янтарные светодиоды. Яркость у них не регулируется, они либо горят, либо нет. Белый светодиод сети по умолчанию показывает трафик Wi-Fi 5 ГГц, белый системный горит, когда роутер загрузился. Янтарный системный показывает проблемы при загрузке. Светодиоды LAN и WAN у разъёмов показывают связь и трафик порта."
+msgstr "The board has white and amber LEDs. Their brightness cannot be changed, they are either on or off. The white network LED shows Wi-Fi 5 GHz traffic by default, the white system LED is on once the router has booted. The amber system LED shows boot problems. The LAN and WAN LEDs at the sockets show link and traffic of the port."
+
+msgid "Что настраивается на странице Индикаторы"
+msgstr "What is set on the LED Configuration page"
+
+msgid "Любому светодиоду там можно задать любой режим из тех, что умеет ядро: трафик или связь интерфейса, мигание с нужными интервалами, пульс, постоянное свечение и другие. По умолчанию янтарный светодиод сети уже стоит там как Wi-Fi 2.4GHz и мигает при трафике 2,4 ГГц, его можно изменить или удалить. В режиме MLO светодиод 5 ГГц сам переключается на общий интерфейс MLO."
+msgstr "Any LED can be given any mode the kernel offers there: interface traffic or link, blinking with the intervals you want, a heartbeat, steady light and more. The amber network LED is already there as WIFI 2.4GHz and blinks with 2.4 GHz traffic, you can change or delete it. In MLO mode the 5 GHz LED switches to the shared MLO interface by itself."
+
+msgid "Белый светодиод AIoT свободен. Здесь он привязывается к тому, что ядро само отследить не может. Условия, которые можно выбрать"
+msgstr "The white AIoT LED is free. Here it is tied to what the kernel cannot follow by itself. The conditions to choose from"
+
+msgid "Выполненное условие можно показать горением или миганием, а логику перевернуть: тогда светодиод покажет, что условие не выполнено. Это удобно для сигнала о неполадке."
+msgstr "A condition that holds can be shown as lit or blinking, and the logic can be turned around so that the LED shows the condition does not hold. This is handy as a fault signal."
+
+msgid "Если вы сами назначили светодиод AIoT на странице Индикаторы, MiWRT его не трогает, а здесь он помечен как занятый. Чтобы вернуть управление сюда, удалите свою настройку на той странице."
+msgstr "If you set the AIoT LED up yourself on the LED Configuration page, MiWRT leaves it alone and it is marked as in use here. To hand control back, delete your entry on that page."
+
+msgid "Светодиод показывает, выполнено ли условие. Выберите условие и то, как оно будет выглядеть. По умолчанию светодиод свободен."
+msgstr "The LED shows whether a condition holds. Choose the condition and how it looks. By default the LED is free."
+
+msgid "Здесь светодиод AIoT привязывается к состоянию: работе процесса, доступности адреса или результату команды. Всё, что ядро умеет само, например трафик интерфейса, мигание или пульс, настраивается для любого светодиода на странице"
+msgstr "Here the AIoT LED is tied to a state: a process running, an address answering or the result of a command. Everything the kernel can do by itself, such as interface traffic, blinking or a heartbeat, is set for any LED on the page"
+
+msgid "Работа процесса. Горит, пока в системе есть процесс с таким именем, например hybrid-failover или sing-box. Проверка каждые пять секунд."
+msgstr "A process running. Lit while a process with that name exists, for example hybrid-failover or sing-box. Checked every five seconds."
+
+msgid "Состояние (MiWRT)"
+msgstr "State (MiWRT)"
+
+msgid "Светодиод показывает, выполнено ли условие: работает ли процесс, отвечает ли адрес или завершилась ли команда с кодом 0. Выполненное условие можно показать горением или миганием, а можно перевернуть."
+msgstr "The LED shows whether a condition holds: a process is running, an address answers or a command exits with code 0. A condition that holds can be shown as lit or blinking, and the logic can be turned around."
+
+msgid "Что проверять"
+msgstr "What to check"
+
+msgid "Доступность адреса"
+msgstr "An address answering"
+
+msgid "Например hybrid-failover или sing-box. Проверка каждые пять секунд."
+msgstr "For example hybrid-failover or sing-box. Checked every five seconds."
+
+msgid "Проверяется командой ping раз в 15 секунд."
+msgstr "Checked with ping every 15 seconds."
+
+msgid "Выполняется раз в пять секунд от имени root. Светодиод показывает, завершилась ли она с кодом 0."
+msgstr "Runs every five seconds as root. The LED shows whether it exited with code 0."
+
+msgid "Светодиод показывает, что условие не выполнено. Удобно для сигнала о неполадке."
+msgstr "The LED shows that the condition does not hold. Handy as a fault signal."
+
+msgid "Горит, мс"
+msgstr "On, ms"
+
+msgid "Не горит, мс"
+msgstr "Off, ms"
+
+msgid "Бесшовный роуминг Wi-Fi. Уводит клиентов с 2,4 ГГц на 5 ГГц, когда они рядом с роутером, и помогает им быстро переходить между точками доступа одной сети."
+msgstr "Seamless Wi-Fi roaming. Moves clients from 2.4 GHz to 5 GHz when they are close to the router and helps them switch quickly between access points of one network."
+
+msgid "Сам включает в настройках Wi-Fi 802.11k (соседние точки), 802.11v (переход по подсказке роутера) и 802.11r (быстрый переход без повторного входа)."
+msgstr "Turns on 802.11k (neighbouring access points), 802.11v (moving on the router's hint) and 802.11r (fast transition without logging in again) in the Wi-Fi settings by itself."
+
+msgid "Переводит клиента в другой диапазон только тогда, когда связь от этого точно не станет хуже."
+msgstr "Moves a client to the other band only when the link is certain not to get worse."
+
+msgid "Собирает из нескольких роутеров OpenWrt одну сеть Wi-Fi: настраивает их как точки доступа и показывает общую таблицу клиентов."
+msgstr "Joins several OpenWrt routers into one Wi-Fi network: sets them up as access points and shows a shared client table."
+
+msgid "Особенности на MiWRT"
+msgstr "On MiWRT"
+
+msgid "Сеть MLO roamd не меняет. 802.11r на ней приводил к сбою прошивки модуля 5 ГГц и перезагрузке роутера, поэтому в сборке для MiWRT такие сети пропускаются."
+msgstr "roamd leaves the MLO network unchanged. 802.11r on it crashed the 5 GHz module firmware and rebooted the router, so the MiWRT build skips such networks."
+
+msgid "BE7000 может управлять сетью из нескольких роутеров и сам подключаться узлом к сети, которой управляет другой BE7000 с MiWRT. К контроллеру на обычной OpenWrt узлом он не подключится: тот ищет roamd для узла в фиде roamd, а там нет сборки под процессор BE7000. При захвате узел сбрасывается к заводским настройкам, MLO на нём после этого выключен."
+msgstr "The BE7000 can manage a network of several routers and can join as a node a network that another BE7000 on MiWRT manages. It cannot join a controller on plain OpenWrt: that one looks for roamd for the node in the roamd feed, which has no build for the BE7000 CPU. A captured node is reset to factory settings, so MLO is off on it afterwards."
+
+msgid "Обновления roamd приходят из фида MiWRT вместе с остальными пакетами, а не через встроенную проверку обновлений."
+msgstr "roamd updates come from the MiWRT feed together with the other packages, not through its built-in update check."
+
+msgid "Поставятся служба roamd, страница Сеть, Роуминг Wi-Fi и её перевод."
+msgstr "The roamd service, the Network, Wi-Fi Roaming page and its translation will be installed."
+
+msgid "Служба сразу запустится и пропишет 802.11k/v/r в настройки Wi-Fi. Wi-Fi при этом перезапустится на несколько секунд."
+msgstr "The service starts right away and writes 802.11k/v/r into the Wi-Fi settings. Wi-Fi restarts for a few seconds."
+
+msgid "Открыть roamd"
+msgstr "Open roamd"
+
+msgid "Эти команды выполняются в заводской прошивке. В самом MiWRT nvram нет, здесь слот переключает эта страница."
+msgstr "These commands run in the factory firmware. MiWRT itself has no nvram, here the slot is switched by this page."
+
+
+msgid "/overlay сейчас на USB-диске, места там больше. Этот режим не нужен."
+msgstr "/overlay is on a USB disk now, which has more room. This mode is not needed."
+
+msgid "Вернуть второй слот"
+msgstr "Give the second slot back"
+
+msgid "Вернуть второй слот?"
+msgstr "Give the second slot back?"
+
+msgid "Вернуть копию в слот"
+msgstr "Write a backup back into the slot"
+
+msgid "Возврат второго слота"
+msgstr "Giving the second slot back"
+
+
+msgid "Второй слот под пакеты"
+msgstr "Second slot for packages"
+
+
+msgid "Если слот пустой, копия не нужна."
+msgstr "If the slot is empty, no backup is needed."
+
+msgid "Загрузить копию и записать в слот %d"
+msgstr "Upload a backup and write it into slot %d"
+
+msgid "Записать"
+msgstr "Write"
+
+msgid "Записать копию в слот %d?"
+msgstr "Write the backup into slot %d?"
+
+msgid "Записывает сохранённую копию обратно во второй слот, например чтобы вернуть заводскую прошивку. Нужны оба файла, копия и .meta."
+msgstr "Writes a saved backup back into the second slot, for example to get the factory firmware back. Both files are needed, the backup and its .meta."
+
+msgid "Запись копии в слот %d"
+msgstr "Writing the backup into slot %d"
+
+msgid "Запуск"
+msgstr "Starting"
+
+msgid "Копия загружена. Теперь выберите файл .meta к ней."
+msgstr "The backup is uploaded. Now choose its .meta file."
+
+msgid "Копия слота %d"
+msgstr "Backup of slot %d"
+
+msgid "Не получилось: %s"
+msgstr "Failed: %s"
+
+msgid "Не удалось скачать: %s"
+msgstr "Download failed: %s"
+
+msgid "Не удалось узнать состояние."
+msgstr "Could not get the state."
+
+msgid "Отдан под пакеты (/overlay)"
+msgstr "Given over to packages (/overlay)"
+
+msgid "Отдать пустой слот под пакеты"
+msgstr "Give the empty slot over to packages"
+
+msgid "Отдать слот %d под пакеты?"
+msgstr "Give slot %d over to packages?"
+
+msgid "Перед тем как стереть слот, роутер сохраняет его содержимое байт в байт и сверяет копию с флешем. Копия лежит в оперативной памяти до перезагрузки, скачайте оба файла на компьютер. С ними слот можно вернуть как было, например с заводской прошивкой."
+msgstr "Before erasing the slot the router saves its contents byte for byte and checks the copy against the flash. The copy stays in RAM until a reboot, download both files to your computer. With them the slot can be put back as it was, for example with the factory firmware."
+
+msgid "Перезагрузить"
+msgstr "Reboot"
+
+msgid "Позже"
+msgstr "Later"
+
+msgid "Понимаю, отката на второй слот не будет"
+msgstr "I understand there is no rollback to the second slot"
+
+
+msgid "После этого откатиться на прошивку из слота %d нельзя, пока слот не вернёте и не запишете копию обратно."
+msgstr "After that you cannot roll back to the firmware in slot %d until you give the slot back and write the backup into it."
+
+msgid "Работаю"
+msgstr "Working"
+
+msgid "Роутер перезагружается. Страница обновится сама."
+msgstr "The router is rebooting. The page reloads by itself."
+
+msgid "Роутер проверит копию по контрольной сумме и запишет её во второй слот, затем прочитает слот и сверит ещё раз."
+msgstr "The router checks the backup against its checksum, writes it into the second slot, then reads the slot back and checks again."
+
+msgid "Сделать копию слота %d"
+msgstr "Back up slot %d"
+
+msgid "Сейчас /overlay %s, свободно %s МБ из %s МБ."
+msgstr "/overlay is %s now, %s MB free of %s MB."
+
+msgid "Скачать .meta"
+msgstr "Download .meta"
+
+msgid "Скачать копию"
+msgstr "Download the backup"
+
+msgid "Слот %d будет стёрт. Если в нём есть прошивка, роутер откажется и попросит сделать копию."
+msgstr "Slot %d will be erased. If it holds a firmware, the router refuses and asks for a backup."
+
+msgid "Слот %d будет стёрт. Перед этим роутер ещё раз сверит копию с флешем. Убедитесь, что оба файла копии скачаны: после перезагрузки их на роутере не будет."
+msgstr "Slot %d will be erased. Before that the router checks the backup against the flash once more. Make sure both backup files are downloaded: after a reboot they are gone from the router."
+
+
+msgid "Слот %d под пакеты"
+msgstr "Slot %d for packages"
+
+
+msgid "Стереть слот %d и отдать под пакеты"
+msgstr "Erase slot %d and give it over to packages"
+
+msgid "Шаг 1. Копия второго слота"
+msgstr "Step 1. Back up the second slot"
+
+msgid "Шаг 2. Отдать слот под пакеты"
+msgstr "Step 2. Give the slot over to packages"
+
+msgid "внутри текущего слота"
+msgstr "inside the running slot"
+
+msgid "на USB-диске"
+msgstr "on a USB disk"
+
+msgid "на втором слоте"
+msgstr "on the second slot"
+
+msgid "на разделе данных (mtd28)"
+msgstr "on the data partition (mtd28)"
+
+msgid "не запустилось"
+msgstr "did not start"
+
+msgid "не получилось"
+msgstr "failed"
+
+msgid "/overlay вернётся на раздел данных (около 23 МБ), это происходит при следующей загрузке."
+msgstr "/overlay goes back to the data partition (about 23 MB), this happens on the next boot."
+
+msgid "Всё готово к возврату. /overlay вернётся на раздел данных при следующей загрузке, слот %d станет пустым."
+msgstr "All set to go back. /overlay returns to the data partition on the next boot, slot %d becomes empty."
+
+msgid "Всё готово к переносу. /overlay переедет на склеенный раздел при следующей загрузке, она займёт на полминуты дольше обычного."
+msgstr "All set for the move. /overlay moves to the joined partition on the next boot, which takes about half a minute longer than usual."
+
+msgid "Второй слот и раздел данных можно склеить в один раздел под /overlay, то есть под пакеты и настройки. Места станет около 61 МБ вместо 23. Цена: в слоте %d больше не будет запасной прошивки, и настройки заводской прошивки на разделе данных сотрутся. Вернуться на заводскую прошивку или на прошлую версию MiWRT переключением слота не получится, пока слот не вернёте. Обновления MiWRT работают как обычно."
+msgstr "The second slot and the data partition can be joined into one partition for /overlay, that is for packages and settings. You get about 61 MB instead of 23. The price: slot %d no longer holds a spare firmware, and the factory firmware settings on the data partition are erased. Going back to the factory firmware or to a previous MiWRT by switching slots is not possible until you give the slot back. MiWRT updates work as usual."
+
+msgid "Готово. Перенос произойдёт при следующей загрузке."
+msgstr "Done. The move happens on the next boot."
+
+msgid "Отменить"
+msgstr "Cancel"
+
+msgid "После перезагрузки второй слот будет пустым. В него можно вернуть копию на этой странице или поставить прошивку."
+msgstr "After the reboot the second slot is empty. You can write a backup back into it on this page or install a firmware there."
+
+msgid "Раздел данных тоже будет отформатирован. Настройки и пакеты MiWRT роутер перенесёт сам, а настройки заводской прошивки там пропадут."
+msgstr "The data partition is formatted too. The router moves the MiWRT settings and packages by itself, the factory firmware settings there are lost."
+
+msgid "Сам перенос происходит при следующей загрузке, до запуска системы."
+msgstr "The move itself happens on the next boot, before the system starts."
+
+msgid "Сейчас в /overlay %s МБ, а на разделе данных помещается около %s МБ. Чтобы вернуть слот, сначала удалите лишние пакеты."
+msgstr "/overlay holds %s MB now, and the data partition takes about %s MB. To give the slot back, remove some packages first."
+
+msgid "Слот %d и раздел данных отданы под пакеты."
+msgstr "Slot %d and the data partition are given over to packages."
+
+msgid "Слот %d отдан под пакеты, но подключить его при загрузке не получилось, /overlay сейчас временный. Посмотрите системный журнал, строки be7000 slot storage."
+msgstr "Slot %d is given over to packages, but attaching it at boot failed, /overlay is temporary now. See the system log, lines with be7000 slot storage."
+
+msgid "Это сборка roamd от Ground-Zerro под BE7000. Скрипт установки из его репозитория на этот роутер не подходит, ставьте кнопкой выше."
+msgstr "This is Ground-Zerro's roamd built for the BE7000. The install script from his repository does not fit this router, use the button above."

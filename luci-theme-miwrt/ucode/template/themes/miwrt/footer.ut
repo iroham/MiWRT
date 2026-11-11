@@ -1,0 +1,25 @@
+{#
+ MiWRT theme for LuCI
+ Licensed to the public under the Apache License 2.0.
+-#}
+
+		{% if (!blank_page): %}
+				</div>
+				<footer class="mw-foot">
+					<span>
+						<a href="{{ entityencode(version.disturl ?? '#', true) }}" target="_blank" rel="noreferrer">{{ version.distname }} {{ version.distversion }}</a>
+						<span class="mw-foot-sep" aria-hidden="true">/</span>
+						<a href="https://github.com/openwrt/luci" target="_blank" rel="noreferrer">{{ version.luciname }} {{ version.luciversion }}</a>
+						{% if (lua_active): %}
+							<span class="mw-foot-sep" aria-hidden="true">/</span>
+							{{ _('Lua compatibility mode active') }}
+						{% endif %}
+					</span>
+					<ul class="mw-modes" id="modemenu" style="display:none"></ul>
+				</footer>
+			</div>
+		</div>
+		<script>L.require('menu-miwrt')</script>
+		{% endif %}
+	</body>
+</html>

@@ -1,0 +1,80 @@
+What the firmware can do
+
+Packages
+
+Packages install with apk. The generic OpenWrt feeds do not fit here, because the official mirror builds this chipset for a different CPU type. The firmware points to its own feed with more than 600 packages. Among them are nano, htop, tcpdump, modemmanager, USB modem drivers and much more.
+
+Wi-Fi
+
+On 5 GHz Wi-Fi 6 and Wi-Fi 7 work, and so does automatic channel selection. If you want a link without pauses, use channel 36 or 149 at 80 MHz. These channels have no radar check. 160 MHz is only possible on channels with a radar check, and the 5 GHz network then goes away for about a minute on every Wi-Fi restart.
+
+With some country codes, RU for example, the radio forbids Wi-Fi 7. Network, Wireless then shows a warning. The button next to it sets US for 5 GHz and Wi-Fi 7 works again.
+
+5 GHz modes
+
+The mode is chosen at the top of Network, Wireless. The router does not reboot, the 5 GHz network is down for about half a minute.
+
+One radio. One network for the whole band, up to 160 MHz. The highest speed for a single device.
+
+Two radios, like 5G-1 and 5G-2 in the factory firmware. The lower one runs on channels 36-64 up to 160 MHz, the upper one from 149 up to 80 MHz. Each has its own clients.
+
+MLO. One Wi-Fi 7 network on both radios at once. Wi-Fi 7 devices keep a link on two channels, the rest join one of them like an ordinary network. Older devices get in too, the protection is WPA2 and WPA3.
+
+In the two-radio and MLO modes each radio gets half of the antennas. So one device is slower than in one-radio mode.
+
+From the console the mode changes like this.
+
+be7000-5g-split mode
+be7000-5g-split mode split
+be7000-5g-split mode mlo
+be7000-5g-split mode single
+
+Settings from stock
+
+On the first boot after installing from stock the firmware takes the Wi-Fi names and passwords, the internet connection and the router address from there. The connection can be PPPoE, DHCP or a static address. Status, Overview shows what was taken, with an undo button.
+
+The factory firmware keeps its settings encrypted. The firmware opens them read-only and from a copy, so everything is in place if you go back to stock. To see what stock has without changing anything, run be7000-stock-import preview.
+
+Slots
+
+System, Slots shows what each of the two slots holds, which one runs and which one boots. You can switch to the other slot there, for example back to the factory firmware. The page explains in full how it works and how to come back later.
+
+Hardware offload
+
+The feature is tested and works, and it is off by default. It is turned on at Network, Hardware offload.
+
+Routing and NAT can be done by a separate network engine, the PPE, instead of the main CPU. The bridge between the wired LAN ports can be offloaded as well. The page explains what is offloaded, what it does not mix with (SQM, for example) and how to turn it off from the console if something goes wrong.
+
+USB storage
+
+The be7000-extroot command moves settings and packages to a USB disk as a whole and checks everything by itself. In the web interface it is the System, Storage page.
+
+be7000-extroot list
+be7000-extroot use /dev/sda1 --yes
+be7000-extroot status
+be7000-extroot revert --yes
+
+Docker
+
+Docker installs with one command. It finds a connected disk by itself and puts the data there. Without that Docker writes to internal memory, and the first image fills it up.
+
+be7000-docker status
+be7000-docker setup --yes
+be7000-docker setup --data-root /mnt/usb/docker --yes
+
+Without parameters the command looks for a mounted disk with at least a gigabyte free. Docker is tested on this board: it installs, containers reach the internet and their ports open from the local network.
+
+Containers, images, networks and volumes are on Services, Dockerman. docker-compose stacks, ready-made sets in one click and cleanup are on Services, "Docker: stacks". Ready-made sets exist for Portainer, AdGuard Home, Uptime Kuma, Vaultwarden, qBittorrent, Nginx Proxy Manager, Home Assistant and Watchtower.
+
+If containers cannot reach the internet or their web interface does not open from the local network, the firewall has to allow forwarding from the docker zone. The be7000-docker setup command does it by itself, and for a Docker installed earlier there is the be7000-docker firewall command and a button on Services, "Docker: stacks". Details are in the "Containers without internet" section of docs/cookbook.en.md. If a container still has no network after that, be7000-docker diag prints everything needed to look into it in one piece.
+
+What else is there
+
+The MiWRT theme: a sidebar layout with light and dark modes and quick search (Ctrl+K). The stock one can be brought back on System, System, Language and Style.
+UPnP on Services, UPnP IGD and PCP, off by default.
+Kernel modules for transparent proxying.
+
+What has been tested
+
+The gigabit port does about 940 Mbit/s both ways without errors. Wi-Fi 7 on 5 GHz with a laptop gave 945 Mbit/s. PPPoE was tested on a live line, and so was updating with sysupgrade. The 2.5 Gbit/s ports were tested by another owner, tens of gigabytes went through without errors.
+

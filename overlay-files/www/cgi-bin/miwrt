@@ -1,0 +1,168 @@
+#!/usr/bin/env ucode
+// MiWRT app API. Everything except /health and /pair needs "Authorization: Bearer <access key>".
+'use strict';
+
+import { stdin } from 'fs';
+import * as hub from 'miwrt.hub';
+import * as extras from 'miwrt.extras';
+import * as power from 'miwrt.power';
+
+function reply(code, obj) {
+	const reason = { '200': 'OK', '400': 'Bad Request', '401': 'Unauthorized', '403': 'Forbidden', '404': 'Not Found', '429': 'Too Many Requests' };
+	print(`Status: ${code} ${reason[code] ?? 'Error'}\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n\r\n`, sprintf('%J', obj), '\n');
+	exit(0);
+}
+
+function body() {
+	let n = +getenv('CONTENT_LENGTH') || 0;
+	if (n <= 0 || n > 8192) return {};
+	try { return json(stdin.read(n)) ?? {}; } catch (e) { return {}; }
+}
+
+function done(err) {
+	reply(err ? 400 : 200, err ? { error: err } : { ok: true });
+}
+
+function main() {
+	const method = getenv('REQUEST_METHOD') ?? 'GET';
+	const path = getenv('PATH_INFO') ?? '/';
+	const ip = getenv('REMOTE_ADDR') ?? '';
+
+	if (path == '/health')
+		reply(200, { ok: true, service: 'miwrt', version: hub.VERSION, pairing: 'password', proof: true });
+
+	if (path == '/pair' && method == 'POST') {
+		// the password is only taken over the encrypted port and as JSON, which a web page in a browser
+		// cannot send to the router behind the user's back
+		if (getenv('HTTPS') != 'on' || index(lc(getenv('CONTENT_TYPE') ?? ''), 'application/json') != 0)
+			reply(400, { error: 'Pair from the MiWRT app.' });
+		let b = body(), r = hub.pair(b.password, b.name, ip);
+		reply(r.code, r.code == 200 ? { token: r.token } : { error: r.error });
+	}
+
+	// pairing without sending the password: the app proves it knows it (see hub.uc)
+	if ((path == '/pair/start' || path == '/pair/finish') && method == 'POST') {
+		if (getenv('HTTPS') != 'on' || index(lc(getenv('CONTENT_TYPE') ?? ''), 'application/json') != 0)
+			reply(400, { error: 'Pair from the MiWRT app.' });
+		let r = path == '/pair/start' ? hub.pair_start(ip) : hub.pair_finish(body(), ip);
+		if (r.code != 200) reply(r.code, { error: r.error });
+		delete r.code;
+		reply(200, r);
+	}
+
+	// remote power setup: reached from the laptop being set up, with its one-time code
+	if (path == '/power/s' && method == 'GET') {
+		let m = match(getenv('QUERY_STRING') ?? '', /(^|&)c=([0-9a-f]{32})(&|$)/), text = m ? power.script(m[2]) : null;
+		if (!text) reply(404, { error: 'This setup command has expired. Make a new one in the app.' });
+		print('Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nCache-Control: no-store\r\n\r\n', text);
+		exit(0);
+	}
+	if (path == '/power/register' && method == 'POST') done(power.register(body(), ip));
+
+	let auth = getenv('HTTP_AUTHORIZATION') ?? '';
+	if (substr(auth, 0, 7) != 'Bearer ' || !hub.token_ok(substr(auth, 7)))
+		reply(401, { error: 'unauthorized' });
+
+	let query = {};
+	for (let kv in split(getenv('QUERY_STRING') ?? '', '&')) {
+		let i = index(kv, '=');
+		if (i > 0) query[substr(kv, 0, i)] = substr(kv, i + 1);
+	}
+
+	if (method == 'GET') {
+		if (path == '/v1/status') reply(200, hub.cached('status'));
+		if (path == '/v1/devices') reply(200, hub.cached('devices'));
+		if (path == '/v1/alerts') reply(200, { alerts: hub.alerts(200) });
+		if (path == '/v1/meta') reply(200, { categories: hub.CATEGORIES, icons: hub.ICONS });
+		if (path == '/v1/groups') reply(200, { groups: hub.groups_list() });
+		if (path == '/v1/schedules') reply(200, { schedules: hub.schedules_list() });
+		if (path == '/v1/usage') reply(200, { days: hub.usage_history() });
+		if (path == '/v1/week') reply(200, extras.week());
+		if (path == '/v1/wifi') reply(200, extras.wifi_list());
+		if (path == '/v1/wifi/secret') reply(200, extras.wifi_secret(query.id));
+		if (path == '/v1/guest') reply(200, extras.guest_status());
+		if (path == '/v1/firmware') reply(200, extras.firmware(query.check == '1'));
+		if (path == '/v1/threats') reply(200, extras.threats());
+		if (path == '/v1/diagnose') reply(200, extras.diagnose());
+		if (path == '/v1/overview') reply(200, extras.overview());
+		if (path == '/v1/shaping') reply(200, extras.shaping_get());
+		if (path == '/v1/iotwatch') reply(200, extras.iot_watch());
+		if (path == '/v1/history') reply(200, { samples: hub.history() });
+		if (path == '/v1/speedtests') reply(200, { tests: extras.speedtests() });
+		if (path == '/v1/wifi/check') reply(200, extras.wifi_check());
+		if (path == '/v1/push') { let st = hub.settings(); reply(200, { enabled: st.push.enabled, kinds: st.push.kinds, mode: hub.push_mode(st.push), kinds_order: hub.PUSH_KINDS, registered: length(hub.push_targets()), this_phone: hub.push_this_phone(substr(auth, 7)) }); }
+		// The backup holds the Wi-Fi passwords and the router's own keys, so an access key alone does not
+		// get it: the administrator password is asked for again (POST, below).
+		if (path == '/v1/router/backup') reply(403, { error: 'A backup now asks for the router password. Update the MiWRT app.' });
+		if (path == '/v1/phones') reply(200, { phones: hub.phones(substr(auth, 7)) });
+		if (path == '/v1/protection') reply(200, hub.protection());
+		if (path == '/v1/protection/lists') reply(200, hub.protection_lists());
+		if (path == '/v1/protection/log') reply(200, hub.protection_log(query.filter, query.search));
+		if (path == '/v1/protection/check') reply(200, hub.protection_check(query.domain));
+		let pm = match(path, /^\/v1\/devices\/([0-9a-f:]{17})\/power(\/plug|\/usage)?$/);
+		if (pm) reply(200, pm[2] == '/plug' ? power.plug_status(pm[1]) : pm[2] == '/usage' ? power.usage(pm[1]) : power.status(pm[1]));
+		reply(404, { error: 'not found' });
+	}
+
+	if (method == 'POST') {
+		if (path == '/v1/router/backup') {
+			let bad = hub.check_password(body().password, ip);
+			if (bad) reply(bad.code, { error: bad.error });
+			let data = hub.run('sysupgrade -b - 2>/dev/null');
+			if (length(data) < 100) reply(500, { error: 'The router could not make a backup.' });
+			print('Status: 200 OK\r\nContent-Type: application/gzip\r\nContent-Disposition: attachment; filename="miwrt-backup.tar.gz"\r\nCache-Control: no-store\r\n\r\n', data);
+			exit(0);
+		}
+		let m = match(path, /^\/v1\/devices\/([0-9a-f:]{17})$/);
+		if (m && hub.is_mac(m[1])) {
+			let err = hub.update_device(m[1], body());
+			reply(err ? 400 : 200, err ? { error: err } : { ok: true });
+		}
+		if (path == '/v1/protection/connect') done(hub.protection_connect(body()));
+		if (path == '/v1/protection/disconnect') { hub.protection_disconnect(); done(null); }
+		if (path == '/v1/protection/pause') done(hub.protection_pause(body().minutes));
+		if (path == '/v1/protection/lists') done(hub.protection_list_action(body()));
+		if (path == '/v1/protection/rules') done(hub.protection_rule_action(body()));
+		if (path == '/v1/speedtest') reply(200, extras.speedtest());
+		if (path == '/v1/shaping') done(extras.shaping_set(body()));
+		if (path == '/v1/firmware/install') done(extras.firmware_install());
+		if (path == '/v1/push/register') done(hub.push_register(substr(auth, 7), body()));
+		if (path == '/v1/push/test') { hub.add_alert('router', 'Test notification', 'Notifications from your MiWRT router work.', 'warning'); done(null); }
+		m = match(path, /^\/v1\/devices\/([0-9a-f:]{17})\/power(\/setup|\/remove|\/plug)?$/);
+		if (m) {
+			if (m[2] == '/setup') { let b = body(), r = power.setup(m[1], b.os, b.never_sleep); reply(r.error ? 400 : 200, r); }
+			if (m[2] == '/plug') { let r = power.plug_link(m[1], body()); reply(r.error ? 400 : 200, r); }
+			if (m[2] == '/remove') done(power.remove(m[1]));
+			let r = power.action(m[1], body().action);
+			reply(r.error ? 400 : 200, r);
+		}
+		m = match(path, /^\/v1\/devices\/([0-9a-f:]{17})\/wake$/);
+		if (m) done(extras.wake(m[1]));
+		if (path == '/v1/groups') done(hub.groups_action(body()));
+		if (path == '/v1/schedules') done(hub.schedules_action(body()));
+		if (path == '/v1/settings') done(hub.set_setting(body()));
+		if (path == '/v1/guest') done(extras.guest_set(body()));
+		m = match(path, /^\/v1\/wifi\/([A-Za-z0-9_]{1,40})$/);
+		if (m) done(extras.wifi_update(m[1], body()));
+		if (path == '/v1/phones/revoke') done(hub.revoke_phone(body().id));
+		if (path == '/v1/router/watchdog') { hub.set_watchdog(!!body().on); done(null); }
+		if (path == '/v1/router/leds') {
+			hub.set_leds(!!body().on);
+			hub.tick();
+			reply(200, { ok: true });
+		}
+		if (path == '/v1/router/reboot') {
+			hub.add_alert('router', 'Router restart requested', 'From the app. The network drops for two to three minutes.', 'info');
+			system('(sleep 3; reboot) >/dev/null 2>&1 &');
+			reply(200, { ok: true });
+		}
+	}
+	reply(404, { error: 'not found' });
+}
+
+try {
+	main();
+} catch (e) {
+	warn(`miwrt api: ${e}\n`);
+	reply(500, { error: 'The router hit an internal error.' });
+}

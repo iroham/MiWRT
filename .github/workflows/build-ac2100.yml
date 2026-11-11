@@ -1,0 +1,282 @@
+name: ac2100 image
+
+# MiWRT for the Xiaomi Redmi Router AC2100, built with the official OpenWrt
+# ImageBuilder: no toolchain, no kernel patches, every package from the
+# official mipsel_24kc feeds, and the MiWRT files copied in as plain files.
+# About ten minutes. Separate from build.yml on purpose: nothing here touches
+# the BE7000 image.
+#
+# Every run builds, verifies and keeps the image as a workflow artifact. A
+# push of an ac2100-v* tag also signs the checksum list with the MiWRT key,
+# publishes a GitHub pre-release (every AC2100 release stays a pre-release
+# until the hardware phase in docs/plans/redmi-ac2100.md is through) and
+# mirrors the image on GitHub Pages for miwrt-update.
+
+on:
+  workflow_dispatch:
+    inputs:
+      openwrt:
+        description: "OpenWrt release the ImageBuilder comes from"
+        default: "25.12.6"
+      imagebuilder_sha256:
+        description: "Expected SHA-256 of the ImageBuilder archive (empty: trust downloads.openwrt.org's sha256sums and print the hash to pin)"
+        default: ""
+      release_tag:
+        description: "Publish a pre-release under this tag (ac2100-vX.Y.Z); the tag is created on the built commit if it does not exist. Empty: build only"
+        default: ""
+  push:
+    branches: [ main ]
+    paths:
+      - "overlay-ac2100/**"
+      - "scripts/ac2100/**"
+      - ".github/workflows/build-ac2100.yml"
+    tags: [ "ac2100-v*" ]
+
+concurrency:
+  group: ac2100-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENWRT: ${{ inputs.openwrt || '25.12.6' }}
+  IB_SHA256: ${{ inputs.imagebuilder_sha256 || '' }}
+  # the release tag: from a pushed ac2100-v* tag, or from the dispatch input
+  # (the tag is then created by the release step on the commit that was built)
+  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/ac2100-v') && github.ref_name) || '' }}
+  TARGET: ramips/mt7621
+  PROFILE: xiaomi_redmi-router-ac2100
+  DEVICE: openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    # the release step creates the tag and the GitHub release, the mirror step
+    # pushes to gh-pages: both need write access to contents with the job token
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+            build-essential libncurses-dev zlib1g-dev gawk gettext libssl-dev xsltproc \
+            rsync wget unzip python3 python3-setuptools zstd file
+
+      - name: Download and verify the ImageBuilder
+        run: |
+          set -eu
+          base="https://downloads.openwrt.org/releases/$OPENWRT/targets/$TARGET"
+          ib="openwrt-imagebuilder-$OPENWRT-${TARGET/\//-}.Linux-x86_64.tar.zst"
+          curl -fsSL -o "$ib" "$base/$ib"
+          curl -fsSL -o sha256sums "$base/sha256sums"
+          grep " \*$ib\$" sha256sums | sha256sum -c -
+          have=$(sha256sum "$ib" | cut -d' ' -f1)
+          # the archive hash seen on the first build of each release; a new
+          # release gets its line after its first run has been looked at
+          case "$OPENWRT" in
+            25.12.6) pin=4c8b3874b686077372839bc246d5f40e822a0082747dfbb181940e158089c2d5 ;;
+            *) pin= ;;
+          esac
+          want=${IB_SHA256:-$pin}
+          if [ -n "$want" ]; then
+            [ "$have" = "$want" ] || { echo "::error::ImageBuilder sha256 is $have, expected $want"; exit 1; }
+            echo "ImageBuilder archive matches the pinned hash"
+          else
+            echo "::notice::ImageBuilder $ib sha256 $have (pin it in the workflow once reviewed)"
+          fi
+          echo "imagebuilder sha256 $have  $ib"
+          echo "IB_HASH=$have" >> "$GITHUB_ENV"
+          mkdir ib
+          tar --zstd -xf "$ib" -C ib --strip-components=1
+          ls ib
+
+      - name: Assemble the MiWRT files
+        run: |
+          set -eu
+          TAG="$RELEASE_TAG"
+          if [ -n "$TAG" ]; then
+            printf '%s\n' "$TAG" | grep -Eq '^ac2100-v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::release tag must look like ac2100-v1.0.0, got '$TAG'"; exit 1; }
+            VER="${TAG#ac2100-v}"
+          else
+            VER=dev
+          fi
+          scripts/ac2100/assemble-files.sh ib/files "$VER" "$TAG" "${{ github.run_id }}" "$OPENWRT"
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          echo "--- /etc/miwrt-release"; cat ib/files/etc/miwrt-release
+          echo "--- files"; (cd ib/files && find . -type f -o -type l | sort)
+
+      # The key the BE7000 feed and releases are signed with. Its public half
+      # goes into the image so miwrt-update can check a release signature and
+      # apk can trust a MiWRT feed later; the private half signs the checksum
+      # list of a release below. A fork without the secret builds an unsigned
+      # image that cannot self-update.
+      - name: Signing key
+        env:
+          APK_SIGNING_KEY: ${{ secrets.APK_SIGNING_KEY }}
+        run: |
+          set -eu
+          if [ -z "$APK_SIGNING_KEY" ]; then
+            echo "::warning::APK_SIGNING_KEY secret is not set: unsigned build, no release possible"
+            echo "SIGNED=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          umask 077
+          printf '%s\n' "$APK_SIGNING_KEY" > "$RUNNER_TEMP/private-key.pem"
+          mkdir -p ib/files/etc/apk/keys
+          openssl ec -in "$RUNNER_TEMP/private-key.pem" -pubout -out ib/files/etc/apk/keys/public-key.pem 2>/dev/null
+          chmod 644 ib/files/etc/apk/keys/public-key.pem
+          echo "public key sha256: $(sha256sum ib/files/etc/apk/keys/public-key.pem | cut -c1-16)"
+          echo "SIGNED=1" >> "$GITHUB_ENV"
+
+      - name: Build the image
+        run: |
+          set -eu
+          pkgs=$(grep -vE '^\s*(#|$)' scripts/ac2100/packages.list | tr '\n' ' ')
+          echo "packages: $pkgs"
+          cd ib
+          make image PROFILE="$PROFILE" PACKAGES="$pkgs" FILES="$PWD/files" 2>&1 | tee ../make-image.log | grep -vE '^\s*$' | tail -n 60
+          test "${PIPESTATUS[0]}" = 0
+
+      - name: Collect the output under the device name
+        run: |
+          set -eu
+          src=ib/bin/targets/$TARGET
+          ls -la "$src"
+          mkdir -p out
+          # the ImageBuilder puts the OpenWrt version into the file names; the
+          # updater and the instructions use the plain device name, as the
+          # BE7000 release does
+          for f in "$src"/openwrt-"$OPENWRT"-*; do
+            n=$(basename "$f")
+            cp "$f" "out/openwrt-${n#openwrt-$OPENWRT-}"
+          done
+          cp "$src"/profiles.json out/ 2>/dev/null || true
+          cp make-image.log out/
+          # provenance: what this image was built from
+          {
+            echo "openwrt=$OPENWRT"
+            echo "imagebuilder_sha256=$IB_HASH"
+            echo "profile=$PROFILE"
+            echo "repository=${{ github.repository }}"
+            echo "commit=${{ github.sha }}"
+            echo "ref=${{ github.ref_name }}"
+            echo "run=${{ github.run_id }}"
+          } > out/build-metadata.txt
+          cat out/build-metadata.txt
+          (cd out && sha256sum openwrt-* > sha256sums.txt)
+          if [ "${SIGNED:-0}" = 1 ]; then
+            # the list is signed with the key every image carries, so a router can
+            # tell that an update really comes from this build
+            openssl dgst -sha256 -sign "$RUNNER_TEMP/private-key.pem" -out out/sha256sums.txt.sig out/sha256sums.txt
+            openssl dgst -sha256 -verify ib/files/etc/apk/keys/public-key.pem -signature out/sha256sums.txt.sig out/sha256sums.txt
+          fi
+          ls -la out
+
+      - name: Verify the image
+        run: scripts/ac2100/verify-image.sh out
+
+      - name: What is in the image
+        run: |
+          set -u
+          cd out
+          echo "### packages ($(wc -l < "$DEVICE.manifest"))"
+          cat "$DEVICE.manifest"
+          echo "### sysupgrade CONTROL"
+          tar -xOf "$DEVICE-squashfs-sysupgrade.bin" --wildcards 'sysupgrade-*/CONTROL' 2>/dev/null || true
+          echo "### sysupgrade metadata"
+          tail -c 2048 "$DEVICE-squashfs-sysupgrade.bin" | strings | grep -o '{.*}' | head -c 1500; echo
+          echo "### MiWRT files inside the root filesystem"
+          tar -xOf "$DEVICE-squashfs-sysupgrade.bin" --wildcards 'sysupgrade-*/root' > root.squashfs 2>/dev/null || true
+          us=$(ls ../ib/staging_dir/host/bin/unsquashfs* 2>/dev/null | head -1)
+          if [ -s root.squashfs ] && [ -n "$us" ]; then
+            "$us" -d '' -ls root.squashfs 2>/dev/null | grep -E 'miwrt|be7000-update|uci-defaults/|openwrt_release|banner$' | sort
+          else
+            echo "(no unsquashfs in the ImageBuilder, listing skipped)"
+          fi
+          rm -f root.squashfs
+          {
+            echo "## Redmi AC2100 image, OpenWrt $OPENWRT"
+            echo '```'
+            ls -la openwrt-*
+            echo
+            cat build-metadata.txt
+            echo
+            echo "$(wc -l < "$DEVICE.manifest") packages"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package the release
+        if: env.RELEASE_TAG != ''
+        run: |
+          set -eu
+          [ "${SIGNED:-0}" = 1 ] || { echo "::error::a release needs the signing key"; exit 1; }
+          ZIP="miwrt-ac2100-v$VER.zip"
+          mkdir -p out/zip
+          cp out/"$DEVICE"-squashfs-kernel1.bin out/"$DEVICE"-squashfs-rootfs0.bin out/"$DEVICE"-squashfs-sysupgrade.bin \
+             out/sha256sums.txt out/sha256sums.txt.sig out/build-metadata.txt \
+             docs/instruction/ac2100/*.txt scripts/ac2100/hw-report.sh out/zip/
+          sed -i "1s/^MiWRT [0-9][0-9.]*/MiWRT $VER/" out/zip/*.txt
+          (cd out/zip && zip -q -X "../$ZIP" ./*)
+          rm -r out/zip
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+          sha256sum "out/$ZIP"
+
+      - name: Publish the pre-release
+        if: env.RELEASE_TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          cd out
+          notes=../docs/release-notes/$RELEASE_TAG.md
+          if [ -f "$notes" ]; then
+            printf '\n\nSHA-256 of %s\n%s\n' "$ZIP" "$(sha256sum "$ZIP" | cut -d' ' -f1)" >> "$notes"
+            args=(--notes-file "$notes")
+          else
+            args=(--generate-notes)
+          fi
+          assets=("$ZIP" "$DEVICE-squashfs-kernel1.bin" "$DEVICE-squashfs-rootfs0.bin" "$DEVICE-squashfs-sysupgrade.bin" \
+                  "$DEVICE.manifest" build-metadata.txt sha256sums.txt sha256sums.txt.sig)
+          if gh release view "$RELEASE_TAG" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" -R "${{ github.repository }}" --clobber "${assets[@]}"
+          else
+            # --target creates the tag on the built commit when it does not exist yet
+            gh release create "$RELEASE_TAG" -R "${{ github.repository }}" --prerelease --target "${{ github.sha }}" \
+              --title "MiWRT $VER for the Redmi AC2100" "${args[@]}" "${assets[@]}"
+          fi
+
+      # miwrt-update tries firmware/<tag>/ on GitHub Pages before github.com.
+      # Same layout as the BE7000 mirror in build.yml; the three newest
+      # AC2100 tags are kept, the BE7000 ones are not touched.
+      - name: Mirror the image on GitHub Pages
+        if: env.RELEASE_TAG != ''
+        run: |
+          set -eu
+          git clone --filter=blob:none --no-checkout --depth 1 --branch gh-pages \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" mirror
+          cd mirror
+          git sparse-checkout set --no-cone /firmware/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          tag="$RELEASE_TAG"
+          for i in 1 2 3 4 5; do
+            git fetch -q --filter=blob:none --depth 1 origin gh-pages
+            git checkout -q -B gh-pages FETCH_HEAD
+            mkdir -p "firmware/$tag"
+            cp "../out/$DEVICE-squashfs-sysupgrade.bin" ../out/sha256sums.txt ../out/sha256sums.txt.sig "firmware/$tag/"
+            ls -d firmware/ac2100-v* | sort -V | head -n -3 | xargs -r git rm -rq
+            git add -A firmware
+            git diff --cached --quiet && exit 0
+            git commit -q -m "firmware: $tag image mirror"
+            git push -q origin gh-pages && exit 0
+            sleep $((i * 10))
+          done
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: miwrt-ac2100-${{ env.OPENWRT }}-${{ github.run_id }}
+          path: out/
+          retention-days: 14
+          if-no-files-found: error

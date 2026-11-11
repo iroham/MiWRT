@@ -1,0 +1,98 @@
+Installing from stock
+
+
+What you need first
+
+You need root SSH access on the factory firmware. If you do not have it, turn it on with xmir-patcher. Set the root password there as well, in item 8, Other functions. Without it SSH does not accept the web interface password, and people got stuck on this.
+
+On Windows 10 and newer the built-in OpenSSH is enough, the commands below run in PowerShell or the normal command prompt. On Mac and Linux the same commands work in a terminal.
+
+The factory firmware version does not matter. Installs worked from 1.1.16 and from 1.1.38, there is no need to update it first.
+
+The factory firmware address is 192.168.31.1. Connect the computer by cable to a LAN port.
+
+
+About space for settings
+
+There is little room inside the slot. So on the first boot MiWRT keeps its settings and packages in the partition where the factory firmware keeps its own, in a separate directory. That gives 19.4 MB instead of 7.4. The factory settings are not touched, after going back the factory firmware boots with its own. If you want to stay at 7.4 MB, set 0 in /etc/config/bigoverlay before the first boot.
+
+
+Step 1. Backup, do not start without it
+
+The most valuable partitions are ART and bdata. ART holds the Wi-Fi calibration, the radios do not work without it. bdata holds the MAC addresses and the serial number. Save the bootloader and both slots too. First everything goes to /tmp on the router.
+
+ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa root@192.168.31.1 "for n in 17 18 19 20 25; do cat /dev/mtd$n > /tmp/mtd$n.bin; done"
+
+Then copy the files to the computer one by one.
+
+scp -O -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa root@192.168.31.1:/tmp/mtd20.bin .
+
+Do the same for mtd17, mtd18, mtd19 and mtd25. The slots mtd23 and mtd24 are 40 MB each. You can save them the same way, but one at a time, or /tmp runs out of memory.
+
+In PowerShell do not redirect ssh output straight into a file with the greater-than sign, it corrupts binary data. That is why it goes through /tmp and scp.
+
+
+Step 2. Upload the image and the script
+
+scp -O -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa openwrt-qualcommbe-ipq95xx-xiaomi_be7000-squashfs-factory.ubi root@192.168.31.1:/tmp/openwrt.ubi
+scp -O -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa install-from-stock.sh root@192.168.31.1:/tmp/install-from-stock.sh
+
+
+Step 3. Check the checksum on the router
+
+ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa root@192.168.31.1 "openssl dgst -sha256 /tmp/openwrt.ubi"
+
+Compare the result with sha256sums.txt. If it does not match, upload the image again and stop there.
+
+
+Step 4. Install
+
+ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa root@192.168.31.1 "sh /tmp/install-from-stock.sh /tmp/openwrt.ubi reboot"
+
+The script finds out which slot the factory firmware runs from, writes the image into the other slot and switches the boot. It does not touch the bootloader. If something does not add up, it stops and writes nothing. If MiWRT does not boot, the next power-on takes the router back to the factory firmware by itself.
+
+
+Step 5. First login
+
+The first boot takes about a minute. When the LED is solid white, the router is ready. The root password is empty for now.
+
+Where to find the router after the install
+
+On the first boot the firmware takes the Wi-Fi names and passwords, the internet connection and the router address from the factory firmware.
+
+If the factory firmware was set up, the router stays at its address, usually 192.168.31.1. Wi-Fi keeps the same names and passwords and the internet works by itself. Nothing needs to change on the computer.
+
+If the factory firmware was not set up or the import failed, the router is at 192.168.1.1. The Wi-Fi network is OpenWrt-BE7000. Its password is the router's serial number from the label on the bottom (SN), typed without the slash. Change it after the first login. Only if the router could not read its own serial number is the password be7000openwrt.
+
+Status, Overview shows what was taken, with an undo button. The admin password of the factory firmware is not taken.
+
+If the router is at 192.168.1.1 and the computer did not get an address by itself, set it by hand. Address 192.168.1.2, mask 255.255.255.0, gateway left empty. Just do not give the computer the same address as the router, then nothing works. On a Mac with automatic addressing the system may send all traffic to the router, which has no internet yet.
+
+If the router does not answer over the cable, try another LAN port or connect over Wi-Fi.
+
+Open the router address in a browser, https works too. Set the root password right away. If Wi-Fi still has the default password, change it on Network, Wireless.
+
+After a successful boot the firmware locks its slot in the bootloader. Cutting the power no longer takes you back to the factory firmware. For that there is a button on System, Slots and the rollback script, see 3-rollback-and-problems-en.txt.
+
+If another OpenWrt is installed now
+
+For example the kravasuper port or the Quarx2k NAND build, with the factory bootloader. Our installer will not run there, it needs the factory firmware. For this case the archive has install-from-openwrt.sh. It runs on the router from that OpenWrt and first only looks at what the slots hold.
+
+scp -O install-from-openwrt.sh openwrt-qualcommbe-ipq95xx-xiaomi_be7000-squashfs-factory.ubi root@192.168.1.1:/tmp/
+ssh root@192.168.1.1 "sh /tmp/install-from-openwrt.sh"
+
+Then there are two cases.
+
+The other slot holds the factory firmware. It must not be overwritten, it is the fallback if MiWRT does not boot. The script switches the boot to it and erases nothing.
+
+ssh root@192.168.1.1 "sh /tmp/install-from-openwrt.sh to-stock reboot"
+
+The router boots the factory firmware, usually at 192.168.31.1. Then install by the steps of this file from the start. MiWRT replaces that OpenWrt.
+
+The other slot holds something else, for example another OpenWrt. Then MiWRT is written there right away.
+
+ssh root@192.168.1.1 "sh /tmp/install-from-openwrt.sh install /tmp/openwrt-qualcommbe-ipq95xx-xiaomi_be7000-squashfs-factory.ubi reboot"
+
+If MiWRT does not boot, the next power-on brings back the OpenWrt you installed from.
+
+If the bootloader is not the factory one (QWRT, for example), the script refuses. Put the factory bootloader back first, as that firmware's instruction says.

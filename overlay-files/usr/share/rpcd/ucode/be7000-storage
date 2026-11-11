@@ -1,0 +1,92 @@
+'use strict';
+
+import { popen, access, readfile, unlink } from 'fs';
+
+const BIN = '/usr/sbin/be7000-extroot';
+const JOB_LOG = '/tmp/be7000-extroot.log';
+const JOB_RC = '/tmp/be7000-extroot.rc';
+
+function shellquote(s) {
+	return `'${replace(s, "'", "'\\''")}'`;
+}
+
+// The wizard is a shell tool rather than a daemon: moving /overlay has to work
+// on a router where nothing else is installed.
+function run(args) {
+	if (access(BIN) != true)
+		return { ok: false, code: 127, output: 'be7000-extroot not found' };
+
+	let cmd = join(' ', map(args, (a) => shellquote(a)));
+	cmd = `${shellquote(BIN)} ${cmd}`;
+
+	let fd = popen(`(${cmd}) 2>&1; echo __EXIT:$?`, 'r');
+	let all = fd ? fd.read('all') : '';
+	if (fd)
+		fd.close();
+
+	let m = match(all, /__EXIT:(\d+)\s*$/);
+	let code = m ? int(m[1]) : 1;
+	let output = trim(replace(all, /__EXIT:\d+\s*$/, ''));
+
+	return { ok: code == 0, code, output };
+}
+
+function query(sub) {
+	return {
+		call: function() {
+			let res = run([sub, '--json']);
+			if (!res.ok)
+				return { ok: false, output: res.output };
+			try {
+				return { ok: true, data: json(res.output) };
+			}
+			catch (err) {
+				return { ok: false, output: res.output };
+			}
+		}
+	};
+}
+
+return {
+	'be7000-storage': {
+		status: query('status'),
+		list: query('list'),
+		use: {
+			args: { device: '' },
+			call: function(req) {
+				let dev = req.args?.device ?? '';
+				if (!length(dev))
+					return { ok: false, output: 'device is required' };
+				if (access(BIN) != true)
+					return { ok: false, output: 'be7000-extroot not found' };
+				if (access(JOB_LOG) && !access(JOB_RC))
+					return { ok: false, output: 'already running' };
+				unlink(JOB_RC);
+				// Formatting and copying outlast the LuCI request timeout, so
+				// the job runs detached and the page polls "job" for the result.
+				let cmd = `${shellquote(BIN)} use ${shellquote(dev)} --yes`;
+				let fd = popen(`(${cmd} >${JOB_LOG} 2>&1; echo $? >${JOB_RC}) </dev/null >/dev/null 2>&1 &`, 'r');
+				if (fd)
+					fd.close();
+				return { ok: true, started: true };
+			}
+		},
+		job: {
+			call: function() {
+				let rc = readfile(JOB_RC);
+				return {
+					running: rc == null && access(JOB_LOG) == true,
+					done: rc != null,
+					ok: rc != null && int(trim(rc)) == 0,
+					output: trim(readfile(JOB_LOG) ?? '')
+				};
+			}
+		},
+		revert: {
+			call: function() {
+				let res = run(['revert', '--yes']);
+				return { ok: res.ok, output: res.output };
+			}
+		}
+	}
+};

@@ -1,0 +1,25 @@
+name = "miwrt-relay"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+routes = [{ pattern = "miwrt-relay.iroham.cloud", custom_domain = true }]
+
+[observability]
+enabled = false
+
+# 60 notifications a minute per sending home (an IPv6 home counts as one), 10 a minute per phone
+[[ratelimits]]
+name = "PER_SENDER"
+namespace_id = "7301"
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "PER_PHONE"
+namespace_id = "7302"
+simple = { limit = 10, period = 60 }
+
+# Which router may send to which phone (fingerprints only, see src/index.js).
+# Your own deployment needs its own: wrangler kv namespace create BINDINGS
+[[kv_namespaces]]
+binding = "BINDINGS"
+id = "PUT-YOUR-NAMESPACE-ID-HERE"
