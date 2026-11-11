@@ -1,7 +1,6 @@
 #!/bin/sh
-# Factory reset (LuCI's Reset to defaults, the reset button, a roamd node
-# being released). Replaces the base-files script, which only calls
-# /sbin/factoryreset.
+# Factory reset (LuCI's Reset to defaults, the reset button). Replaces the
+# base-files script, which only calls /sbin/factoryreset.
 #
 # factoryreset erases rootfs_data, the small volume inside the firmware
 # slot. When /overlay lives on a volume of its own (the data partition with

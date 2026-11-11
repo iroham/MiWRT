@@ -1280,14 +1280,6 @@ export function check_password(password, ip) {
 	});
 };
 
-/* The older pairing: the app sends the password itself. Kept for app versions that know nothing else. */
-export function pair(password, name, ip) {
-	let bad = check_password(password, ip);
-	if (bad) return bad;
-	add_alert('router', 'A phone was paired', `${substr(name ?? 'iPhone', 0, 40)} from ${ip}.`, 'warning');
-	return { code: 200, token: mint_token(name, ip) };
-};
-
 // ---------- pairing without sending the password ----------
 //
 // The router keeps the administrator password as a salted hash. The app is told the salt, works out the same

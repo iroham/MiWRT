@@ -26,7 +26,6 @@ var MODELS = [
 
 var TEXT = {
 	ru: {
-		sub: 'Прошивка и приложение для телефона для Xiaomi BE7000 на базе OpenWrt, ядро 6.18',
 		version: 'Версия',
 		github: 'Исходники на GitHub',
 		releases: 'Релизы',
@@ -37,7 +36,6 @@ var TEXT = {
 		credits: 'Благодарности'
 	},
 	en: {
-		sub: 'Firmware and phone app for the Xiaomi BE7000, built on OpenWrt, kernel 6.18',
 		version: 'Version',
 		github: 'Sources on GitHub',
 		releases: 'Releases',
@@ -48,7 +46,6 @@ var TEXT = {
 		credits: 'Credits'
 	},
 	zh: {
-		sub: '基于 OpenWrt 的小米 BE7000 固件与手机应用，内核 6.18',
 		version: '版本',
 		github: 'GitHub 上的源代码',
 		releases: '发布版本',
@@ -131,10 +128,10 @@ return baseclass.extend({
 	render: function(board) {
 		var tx = TEXT[lang()];
 		// release.version is the OpenWrt release third-party scripts check,
-		// ours is in the description: "MiWRT 1.5.4.1 r20260929-d958caf"
+		// ours is in the description: "MiWRT 2.0.0 r20261111-d958caf"
 		var ver = (L.isObject(board.release) ? board.release.description : '') || '';
 
-		ver = ver.replace(/^(BE7000|MiWRT|OpenWrt)\s+/, '').split(' ')[0];
+		ver = ver.replace(/^(MiWRT|OpenWrt)\s+/, '').split(' ')[0];
 		var model = MODELS.filter(function(m) { return m.match.test(board.model || ''); })[0] || MODELS[MODELS.length - 1];
 
 		if (!document.getElementById('be7k-css'))
@@ -144,7 +141,7 @@ return baseclass.extend({
 			E('div', { 'class': 'be7k-logo', 'aria-hidden': 'true' }),
 			E('div', { 'class': 'be7k-head' }, [
 				E('a', { 'class': 'be7k-name', 'href': REPO, 'target': '_blank', 'rel': 'noopener' }, 'MiWRT'),
-				E('div', { 'class': 'be7k-sub' }, model.sub[lang()] || tx.sub),
+				E('div', { 'class': 'be7k-sub' }, model.sub[lang()]),
 				ver ? E('span', { 'class': 'be7k-ver' }, tx.version + ' ' + ver) : ''
 			]),
 			E('div', { 'class': 'be7k-links' }, [

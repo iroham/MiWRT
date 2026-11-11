@@ -1,4 +1,4 @@
-MiWRT 1.0.0 for the Xiaomi Redmi Router AC2100: installing from the stock firmware
+MiWRT 2.0.0 for the Xiaomi Redmi Router AC2100: installing from the stock firmware
 
 STATUS: TESTING. The MiWRT project has not yet flashed this image on a router.
 The flash commands in step 3 are the ones OpenWrt's own support commit for
@@ -55,8 +55,8 @@ Step 4. First contact
   - By Wi-Fi: both bands come up as "MiWRT" with this router's serial number
     (on the label) as the password. If the serial could not be read the
     password is miwrt-ac2100 and the system log says so. Change it.
-  - System, Overview and the console greeting show
-    "MiWRT 1.0.0 ... (Redmi AC2100, OpenWrt 25.12.6)"; scripts see OpenWrt 25.12.6.
+  - Status, Overview and the console greeting show
+    "MiWRT 2.0.0 ... (Redmi AC2100, OpenWrt 25.12.6)"; scripts see OpenWrt 25.12.6.
 
 Step 5. Run the hardware report and keep it
       sh /path/to/hw-report.sh > /tmp/report.txt

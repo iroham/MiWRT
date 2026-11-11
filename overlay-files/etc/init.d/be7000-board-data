@@ -10,11 +10,13 @@
 #            plus the generic file's regulatory entry, unchanged
 START=08
 
+# The image carries Xiaomi's file in place of the package's, so the copy in
+# /rom is the one to go back to.
 restore() {
 	local d="$1"
-	[ -s "$d/board-2.bin.xiaomi" ] || return 0
-	cmp -s "$d/board-2.bin.xiaomi" "$d/board-2.bin" && return 0
-	cp "$d/board-2.bin.xiaomi" "$d/board-2.bin" && logger -t be7000-board-data "restored Xiaomi board-2.bin in $d"
+	[ -s "/rom$d/board-2.bin" ] || return 0
+	cmp -s "/rom$d/board-2.bin" "$d/board-2.bin" && return 0
+	cp "/rom$d/board-2.bin" "$d/board-2.bin" && logger -t be7000-board-data "restored Xiaomi board-2.bin in $d"
 }
 
 start() {

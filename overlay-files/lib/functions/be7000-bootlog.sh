@@ -5,7 +5,7 @@
 be7000_bootlog_state() {
 	local i
 	echo "=== release ==="
-	cat /etc/be7000-release 2>/dev/null
+	cat /etc/miwrt-release 2>/dev/null
 	echo "=== flags ==="
 	fw_printenv 2>/dev/null | grep -E '^flag_|^fdt|^soc_|^flash_'
 	echo "=== mtd/ubi ==="

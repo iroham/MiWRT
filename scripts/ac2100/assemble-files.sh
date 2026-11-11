@@ -7,7 +7,7 @@
 #
 #   scripts/ac2100/assemble-files.sh OUT VERSION TAG BUILD OPENWRT
 #     OUT      directory to create (must not exist or be empty)
-#     VERSION  "1.0.0" for a release, "dev" otherwise
+#     VERSION  "2.0.0" for a release, "dev" otherwise
 #     TAG      the git tag the image is built from, or empty
 #     BUILD    a build identifier (the CI run id)
 #     OPENWRT  the OpenWrt release the ImageBuilder came from, e.g. 25.12.6
@@ -85,7 +85,6 @@ take $U/htdocs/luci-static/resources/view/status/include/04_be7000_update.js www
 take $U/root/etc/init.d/be7000-update-check                              etc/init.d/be7000-update-check
 take $U/root/etc/uci-defaults/luci-app-be7000-update                     etc/uci-defaults/luci-app-be7000-update
 take $U/root/usr/sbin/miwrt-update                                       usr/sbin/miwrt-update
-take $U/root/usr/sbin/be7000-update                                      usr/sbin/be7000-update
 take $U/root/usr/share/luci/menu.d/luci-app-be7000-update.json           usr/share/luci/menu.d/luci-app-be7000-update.json
 take $U/root/usr/share/rpcd/acl.d/luci-app-be7000-update.json            usr/share/rpcd/acl.d/luci-app-be7000-update.json
 take $U/root/usr/share/rpcd/ucode/be7000-update                          usr/share/rpcd/ucode/be7000-update
@@ -105,7 +104,7 @@ mkdir -p "$OUT/etc"
 	echo "TAG_PREFIX=$TAG_PREFIX"
 	echo "MODEL=$MODEL"
 	echo "BASE=OpenWrt $OPENWRT"
-	# every AC2100 release is a pre-release until the hardware phase is through
+	# every AC2100 release is a pre-release until it has been tested on a real router
 	echo "PRERELEASE_OK=1"
 } > "$OUT/etc/miwrt-release"
 

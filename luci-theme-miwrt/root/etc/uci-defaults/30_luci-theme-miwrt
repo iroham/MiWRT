@@ -2,13 +2,6 @@
 
 uci -q get luci.themes.MiWRT >/dev/null || uci set luci.themes.MiWRT=/luci-static/miwrt
 
-# MiWRT 1.x shipped the Nimbus theme. Its files are gone after an upgrade to
-# 2.x, so a kept config that still points at it must move to this theme.
-uci -q delete luci.themes.Nimbus
-case "$(uci -q get luci.main.mediaurlbase)" in
-	/luci-static/nimbus) uci set luci.main.mediaurlbase=/luci-static/miwrt ;;
-esac
-
 if [ "$PKG_UPGRADE" != 1 ]; then
 	uci set luci.main.mediaurlbase=/luci-static/miwrt
 fi

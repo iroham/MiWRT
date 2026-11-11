@@ -1,5 +1,5 @@
 #!/usr/bin/env ucode
-// MiWRT app API. Everything except /health and /pair needs "Authorization: Bearer <access key>".
+// MiWRT app API. Everything except /health, pairing and the laptop power setup needs "Authorization: Bearer <access key>".
 'use strict';
 
 import { stdin } from 'fs';
@@ -29,18 +29,11 @@ function main() {
 	const ip = getenv('REMOTE_ADDR') ?? '';
 
 	if (path == '/health')
-		reply(200, { ok: true, service: 'miwrt', version: hub.VERSION, pairing: 'password', proof: true });
+		reply(200, { ok: true, service: 'miwrt', version: hub.VERSION });
 
-	if (path == '/pair' && method == 'POST') {
-		// the password is only taken over the encrypted port and as JSON, which a web page in a browser
-		// cannot send to the router behind the user's back
-		if (getenv('HTTPS') != 'on' || index(lc(getenv('CONTENT_TYPE') ?? ''), 'application/json') != 0)
-			reply(400, { error: 'Pair from the MiWRT app.' });
-		let b = body(), r = hub.pair(b.password, b.name, ip);
-		reply(r.code, r.code == 200 ? { token: r.token } : { error: r.error });
-	}
-
-	// pairing without sending the password: the app proves it knows it (see hub.uc)
+	// pairing without sending the password: the app proves it knows it (see hub.uc). Only over the
+	// encrypted port and as JSON, which a web page in a browser cannot send to the router behind the
+	// user's back.
 	if ((path == '/pair/start' || path == '/pair/finish') && method == 'POST') {
 		if (getenv('HTTPS') != 'on' || index(lc(getenv('CONTENT_TYPE') ?? ''), 'application/json') != 0)
 			reply(400, { error: 'Pair from the MiWRT app.' });
@@ -91,9 +84,6 @@ function main() {
 		if (path == '/v1/speedtests') reply(200, { tests: extras.speedtests() });
 		if (path == '/v1/wifi/check') reply(200, extras.wifi_check());
 		if (path == '/v1/push') { let st = hub.settings(); reply(200, { enabled: st.push.enabled, kinds: st.push.kinds, mode: hub.push_mode(st.push), kinds_order: hub.PUSH_KINDS, registered: length(hub.push_targets()), this_phone: hub.push_this_phone(substr(auth, 7)) }); }
-		// The backup holds the Wi-Fi passwords and the router's own keys, so an access key alone does not
-		// get it: the administrator password is asked for again (POST, below).
-		if (path == '/v1/router/backup') reply(403, { error: 'A backup now asks for the router password. Update the MiWRT app.' });
 		if (path == '/v1/phones') reply(200, { phones: hub.phones(substr(auth, 7)) });
 		if (path == '/v1/protection') reply(200, hub.protection());
 		if (path == '/v1/protection/lists') reply(200, hub.protection_lists());
@@ -105,6 +95,8 @@ function main() {
 	}
 
 	if (method == 'POST') {
+		// The backup holds the Wi-Fi passwords and the router's own keys, so an access key alone does not
+		// get it: the administrator password is asked for again.
 		if (path == '/v1/router/backup') {
 			let bad = hub.check_password(body().password, ip);
 			if (bad) reply(bad.code, { error: bad.error });

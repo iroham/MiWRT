@@ -2,7 +2,7 @@
 # MiWRT and its version in the fields people read (the description LuCI's
 # Overview, the banner and the app show), the OpenWrt release left in the
 # fields third-party install scripts check (DISTRIB_RELEASE, VERSION_ID).
-# The same rule the BE7000 image follows since 1.5.1.
+# The same rule the BE7000 image follows (patches/tree/017).
 rel=/etc/miwrt-release
 [ -r "$rel" ] || exit 0
 ver=$(sed -n 's/^VERSION=//p' "$rel" | head -1)

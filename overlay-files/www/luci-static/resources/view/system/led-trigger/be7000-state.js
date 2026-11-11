@@ -34,10 +34,10 @@ return baseclass.extend({
 		o.value('command', _('Результат своей команды'));
 		o.default = 'service';
 
-		o = s.option(form.Value, 'be7000_service', _('Имя процесса'), _('Например hybrid-failover или sing-box. Проверка каждые пять секунд.'));
+		o = s.option(form.Value, 'be7000_service', _('Имя процесса'), _('Например nlbwmon или dockerd. Проверка каждые пять секунд.'));
 		o.modalonly = true;
 		o.rmempty = true;
-		o.placeholder = 'hybrid-failover';
+		o.placeholder = 'nlbwmon';
 		o.depends({ trigger: 'be7000-state', be7000_source: 'service' });
 
 		o = s.option(form.Value, 'be7000_target', _('Адрес для проверки'), _('Проверяется командой ping раз в 15 секунд.'));

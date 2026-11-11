@@ -33,15 +33,12 @@ rootfs_data_dev() {
 	return 1
 }
 
-# The shared settings volume on mtd28 (bigoverlay): stock's "cfg", else the
-# legacy "overlay_data".
+# The shared settings volume on mtd28 (bigoverlay): stock's "cfg".
 bigoverlay_dev() {
-	local n want
-	for want in cfg overlay_data; do
-		for n in /sys/class/ubi/ubi1_*/name; do
-			[ -e "$n" ] || continue
-			[ "$(cat "$n")" = "$want" ] && { echo "/dev/$(basename "$(dirname "$n")")"; return 0; }
-		done
+	local n
+	for n in /sys/class/ubi/ubi1_*/name; do
+		[ -e "$n" ] || continue
+		[ "$(cat "$n")" = cfg ] && { echo "/dev/$(basename "$(dirname "$n")")"; return 0; }
 	done
 	return 1
 }
@@ -301,12 +298,11 @@ cmd_revert() {
 # settings, and reboot once onto the disk if it is plugged in. When the entry
 # is already there nothing changes, so this cannot loop.
 cmd_boot_sync() {
-	local rd cur mnt dir="" uuid en rd_uuid rd_en kver changed=0 marker bigdev bigen extuuid exten useful _w
+	local rd cur mnt dir="" uuid en rd_uuid rd_en changed=0 marker bigdev bigen extuuid exten useful _w
 	if be7000_factory_reset_pending; then
 		logger -t be7000-extroot "factory reset pending, leaving extroot quarantined"
 		return 0
 	fi
-	[ -e /rom/etc/be7000-test ] && return 0
 	rd="$(rootfs_data_dev)" || return 0
 	cur="$(current_overlay_device)"
 	# On the first boot after sysupgrade the restored fstab arrives only after
@@ -365,13 +361,6 @@ cmd_boot_sync() {
 	fi
 	rd_uuid="$(uci -q -c "$dir/upper/etc/config" get fstab.extroot.uuid || true)"
 	rd_en="$(uci -q -c "$dir/upper/etc/config" get fstab.extroot.enabled || true)"
-
-	# A uas driver copied into rootfs_data by hand on 1.3.x is not needed
-	# once the image carries it, and would shadow it after a kernel change.
-	kver="$(uname -r)"
-	if [ -f "/rom/lib/modules/$kver/uas.ko" ]; then
-		rm -f "$dir/upper/lib/modules/$kver/uas.ko" "$dir/upper/etc/modules-boot.d/60-usb-storage-uas"
-	fi
 
 	if [ -z "$uuid" ]; then
 		if [ -n "$rd_uuid" ]; then

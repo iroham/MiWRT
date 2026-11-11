@@ -9,7 +9,7 @@ name: ac2100 image
 # Every run builds, verifies and keeps the image as a workflow artifact. A
 # push of an ac2100-v* tag also signs the checksum list with the MiWRT key,
 # publishes a GitHub pre-release (every AC2100 release stays a pre-release
-# until the hardware phase in docs/plans/redmi-ac2100.md is through) and
+# until the image has been tested on a real router) and
 # mirrors the image on GitHub Pages for miwrt-update.
 
 on:
@@ -96,7 +96,7 @@ jobs:
           set -eu
           TAG="$RELEASE_TAG"
           if [ -n "$TAG" ]; then
-            printf '%s\n' "$TAG" | grep -Eq '^ac2100-v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::release tag must look like ac2100-v1.0.0, got '$TAG'"; exit 1; }
+            printf '%s\n' "$TAG" | grep -Eq '^ac2100-v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::release tag must look like ac2100-v2.0.0, got '$TAG'"; exit 1; }
             VER="${TAG#ac2100-v}"
           else
             VER=dev

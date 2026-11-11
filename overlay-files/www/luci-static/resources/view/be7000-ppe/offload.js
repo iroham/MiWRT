@@ -128,7 +128,7 @@ return view.extend({
 			sec(_('Если что-то пошло не так'), [
 				_('Выключите разгрузку на этой странице. NAT выключается сразу, мост после перезагрузки. Если страница не открывается, выполните в консоли команды ниже.'),
 				E('pre', {}, '/usr/libexec/be7000-ppe nat off\n/usr/libexec/be7000-ppe bridge off\nreboot'),
-				_('Напишите о проблеме в тему MiWRT на 4PDA или в issues на GitHub и приложите вывод этой команды.'),
+				_('Опишите проблему в issues на GitHub и приложите вывод этой команды.'),
 				E('pre', {}, 'cat /sys/kernel/debug/ppe/flows /sys/kernel/debug/ppe/reason_counters')
 			])
 		]);

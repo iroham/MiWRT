@@ -113,7 +113,6 @@ cmd_info() {
 			elif [ -s $mnt/etc/openwrt_release ]; then
 				kind=openwrt
 				ver="$(sed -n "s/^DISTRIB_DESCRIPTION='\(.*\)'$/\1/p" $mnt/etc/openwrt_release)"
-				[ -e $mnt/etc/be7000-test ] && kind=test
 			else
 				kind=unknown
 			fi
@@ -168,7 +167,7 @@ cmd_switch() {
 	kind="$(printf '%s' "$info" | sed -n 's/.*"kind":"\([a-z]*\)".*/\1/p')"
 	case "$kind" in
 	stock) stock_settings_flag ;;
-	openwrt|test) ;;
+	openwrt) ;;
 	*)
 		# no "kind" means the look itself failed: say why instead of an empty ()
 		why="$kind"
@@ -473,7 +472,6 @@ cmd_storage_enable() {
 	usb) die "/overlay is on a USB disk, which has more room than this would give"; return 1 ;;
 	*) die "/overlay is on an unexpected device ($(overlay_src))"; return 1 ;;
 	esac
-	[ -e /etc/be7000-test ] && { die "not on a test image"; return 1; }
 	[ -e /rom/lib/modules/"$(uname -r)"/be7000-mtdconcat.ko ] || { die "this image has no be7000-mtdconcat module"; return 1; }
 	usedkb="$(du -sk /overlay/upper 2>/dev/null | cut -f1)"
 	[ "${usedkb:-0}" -lt "$FIT_GLUED_KB" ] || { die "/overlay holds $((usedkb / 1024)) MB, more than the new volume takes"; return 1; }

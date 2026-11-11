@@ -9,8 +9,8 @@ import { readfile, writefile, popen } from 'fs';
 const src = readfile('/rom/etc/banner') ?? '';
 const data = json(readfile('/www/luci-static/resources/be7000-credits/credits.json') ?? '{}');
 const rel = readfile('/etc/openwrt_release') ?? '';
-const ver = match(readfile('/etc/be7000-release') ?? '', /VERSION=([^\n]+)/)?.[1] ??
-	split(replace(match(rel, /DISTRIB_DESCRIPTION='([^']*)'/)?.[1] ?? '', /^(BE7000|MiWRT|OpenWrt) /, ''), ' ')[0];
+const ver = match(readfile('/etc/miwrt-release') ?? '', /VERSION=([^\n]+)/)?.[1] ??
+	split(replace(match(rel, /DISTRIB_DESCRIPTION='([^']*)'/)?.[1] ?? '', /^(MiWRT|OpenWrt) /, ''), ' ')[0];
 const rev = match(rel, /DISTRIB_REVISION='([^']*)'/)?.[1];
 const board = trim(readfile('/tmp/sysinfo/model') ?? '') || 'Xiaomi BE7000';
 const p = popen('uci -q get luci.main.lang');

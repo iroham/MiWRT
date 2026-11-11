@@ -317,7 +317,7 @@ return baseclass.extend({
 	},
 
 	draw: function(root, tx, st, radios) {
-		var mode = st.mode || (st.split ? 'split' : 'single');
+		var mode = st.mode || 'single';
 		var note = '', blocked = false;
 
 		if (!st.available) {
@@ -424,7 +424,7 @@ return baseclass.extend({
 					return;
 				}
 				if (!st.running && tries > 1) {
-					var now = st.mode || (st.split ? 'split' : 'single');
+					var now = st.mode || 'single';
 					var expected = want || was;
 					var ready = now == expected && (expected != 'mlo' || st.mlo_up === true);
 					if (!ready) {

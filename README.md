@@ -2,7 +2,7 @@
 
 OpenWrt firmware for the Xiaomi BE7000 (board RC06, Qualcomm IPQ9554), tuned to get the most out of the hardware, with a built-in service for the MiWRT phone app. An image for the Xiaomi Redmi Router AC2100 is in testing.
 
-MiWRT stands on the work of the [OpenWrt](https://openwrt.org) project and of Timofey Maykov, whose Beam WRT firmware for the BE7000 MiWRT grew out of. Everyone else whose work is in it is listed under [Credits](#credits-and-licence).
+MiWRT stands on the work of the [OpenWrt](https://openwrt.org) project and of Timofey Maykov, whose Beam WRT firmware for the BE7000 is where MiWRT began. Everyone else whose work is in it is listed under [Credits](#credits-and-licence).
 
 Current version: **2.0.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in [Releases](https://github.com/iroham/MiWRT/releases), checksums in `sha256sums.txt`, what changed in [the release notes](docs/release-notes/v2.0.0.md).
 
@@ -12,10 +12,8 @@ Current version: **2.0.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 - [Wi-Fi tuning](#wi-fi-tuning)
 - [Safe updates](#safe-updates)
 - [The app service](#the-app-service)
-- [The phone app](#the-phone-app)
 - [Privacy](PRIVACY.md)
 - [Installing, updating, going back](#installing-updating-going-back)
-- [Coming from MiWRT 1.x](#coming-from-miwrt-1x)
 - [Redmi AC2100](#redmi-ac2100)
 - [Building](#building)
 - [Credits and licence](#credits-and-licence)
@@ -106,7 +104,7 @@ A small service on the router that a phone app talks to. Nothing else is needed 
 ### Finding and pairing
 
 - The router announces `_miwrt._tcp` (port 443) on the main network through umdns. The app finds it by itself.
-- Pairing asks for the router's administrator password, the same one LuCI uses, and the password stays on the phone. The router keeps it as a salted hash (`/etc/shadow`); `POST /pair/start` gives the app the salt and a random value, the app computes the same hash and answers `POST /pair/finish` with an HMAC-SHA256 over both sides' random values and the fingerprint of the certificate it is talking to, and the router answers with its own. A device in between with another certificate gets a proof the router refuses; a device only posing as the router cannot produce the router's answer, and the app then saves nothing. On success the phone gets a random 256-bit access key; only the key's hash is stored. Wrong passwords are counted per address (5 in 10 minutes) and overall (40). The older `POST /pair`, which takes the password itself, stays for app versions that know nothing else.
+- Pairing asks for the router's administrator password, the same one LuCI uses, and the password stays on the phone. The router keeps it as a salted hash (`/etc/shadow`); `POST /pair/start` gives the app the salt and a random value, the app computes the same hash and answers `POST /pair/finish` with an HMAC-SHA256 over both sides' random values and the fingerprint of the certificate it is talking to, and the router answers with its own. A device in between with another certificate gets a proof the router refuses; a device only posing as the router cannot produce the router's answer, and the app then saves nothing. On success the phone gets a random 256-bit access key; only the key's hash is stored. Wrong passwords are counted per address (5 in 10 minutes) and overall (40).
 - The API is served over HTTPS with the router's own certificate. The app remembers that certificate at pairing and refuses any other afterwards.
 - Every phone has its own key; keys can be listed and revoked from the app or with `miwrt-ctl`.
 - The API is reachable from the main network only. Guest and IoT zones and the WAN side are rejected by the firewall.
@@ -134,20 +132,20 @@ A small service on the router that a phone app talks to. Nothing else is needed 
 | Checks | connection test, speed test from the router (download and upload), Wi-Fi channel check, blocked threats (banIP), protection overview, weekly summary, 48 hours of health samples |
 | Laptop power | sleep, restart and wake for Mac and Windows laptops. The router holds one SSH key; each laptop accepts it only from the router and only for a fixed script (status, sleep, restart). A laptop is added with one setup command, valid once for 30 minutes, whose download is checked against a checksum. Wake uses Wake-on-LAN and needs the laptop asleep on its charger; a sleep or restart request wakes a sleeping laptop first. The setup also prepares the laptop for this on mains power: wake for network access and no deep power-off sleep on macOS; on Windows, wake on magic packet, no hibernation, and a closed lid no longer sleeps the PC |
 | Smart plug power-on | for laptops whose Wi-Fi is off while they sleep: a Tuya plug on the charger, linked with its device ID and local key, is switched off for 45 seconds (a shorter cut is not noticed by a laptop that is off, because its charger holds its charge) to start a laptop that powers on when its charger is connected. Works from shutdown and from hibernation; with a plug linked, "sleep" on Windows means hibernate. The Windows setup can also make the PC hibernate wherever it used to sleep (idle time, lid on battery, sleep button, Start menu), for laptops that cannot be woken from sleep. The plug's power reading is taken every 5 minutes: 24 hours of readings and 60 days of energy per day are kept |
-| Maintenance | settings backup download, lights on, off or off at night, restart, firmware version, update check and install (through `miwrt-update`, the same program as `be7000-update`) |
+| Maintenance | settings backup download, lights on, off or off at night, restart, firmware version, update check and install (through `miwrt-update`) |
 | Discovery relay | where an IoT network exists (`br-iot`), smart-home announcements (UDP 6666 and 6667) are repeated onto the main network so phone apps still find their devices |
 | Casting across networks | where an IoT network exists, mDNS is repeated both ways so phones on the main network find AirPlay and Chromecast devices, printers and speakers on the IoT side. Discovery only: the firewall still decides what may connect. The IoT zone needs an input rule for UDP 5353 |
 
 ### API
 
-Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start`, `POST /pair/finish` and the older `POST /pair` need no key; everything else needs `Authorization: Bearer <key>`.
+Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start` and `POST /pair/finish` need no key; everything else needs `Authorization: Bearer <key>`.
 
 | Method and path | Purpose |
 |---|---|
 | `GET /v1/status`, `/v1/devices`, `/v1/alerts`, `/v1/meta` | the main screens. `status.capabilities` says what this router has (`slots`, `split5g`, `usb`, `temperature`, `wifi_cores`, `sqm`, `banip`, `wan_speed_mbit`), so the app shows only those parts; `router.temperature` is `null` on a board without a sensor; `wifi.down` lists radios that are enabled but not running |
 | `POST /v1/devices/<mac>` | `name`, `category`, `icon`, `blocked`, `pause_minutes`, `approve`, `fixed_ip`, `filtering` (`on` or `off`) |
 | `POST /v1/devices/<mac>/wake` | Wake-on-LAN |
-| `GET /v1/devices/<mac>/power`, `/power/plug`, `/power/usage`; `POST /v1/devices/<mac>/power` (`action`: `sleep`, `hibernate`, `restart`, `shutdown`, `poweron`, `status`), `/power/setup` (`os`: `mac`, `windows`), `/power/plug` (`plug`, `device_id`, `local_key`, or `remove`), `/power/remove` | laptop power |
+| `GET /v1/devices/<mac>/power`, `/power/plug`, `/power/usage`; `POST /v1/devices/<mac>/power` (`action`: `sleep`, `hibernate`, `restart`, `shutdown`, `poweron`, `wake`, `status`), `/power/setup` (`os`: `mac`, `windows`), `/power/plug` (`plug`, `device_id`, `local_key`, or `remove`), `/power/remove` | laptop power |
 | `GET /power/s?c=<code>`, `POST /power/register` | used by the laptop's setup script, authorised by the one-time code, no access key |
 | `GET`/`POST /v1/groups`, `/v1/schedules` | people and rooms, schedules |
 | `POST /v1/settings` | `approve_new`, `watchdog`, `night`, `push` |
@@ -170,7 +168,7 @@ Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start`, `POST
   - **Direct.** `miwrt-ctl apns AuthKey_XXXXXXXXXX.p8 <key id> <team id>` stores a key under `/etc/miwrt/apns/` (root only, kept across sysupgrade, never served by the API). The router then talks to Apple itself and nothing else is involved. This is for whoever publishes the app build the phone runs: the key must belong to that app.
   - **Relay.** A router without a key sends to a relay that holds it: the Cloudflare Worker in [miwrt-relay](miwrt-relay/README.md). The firmware's default relay is `DEFAULT_RELAY` in `hub.uc` (`https://miwrt-relay.iroham.cloud`, run by the app's publisher); `settings.push.relay` overrides it.
 - Notification privacy: at registration the phone makes a random 64-byte key and gives it to the router over the pinned HTTPS connection. For each alert and each phone the router encrypts title and text (AES-256-CBC, then HMAC-SHA256 over IV and ciphertext). The notification that travels says only "Your router has an alert"; the app's notification extension checks the seal, decrypts, and shows the real text. A relay therefore sees notification addresses, the alert's kind, and ciphertext.
-- Security review of 10 Oct 2026 (in the image from 1.4.7.2):
+- Security measures:
   - Pairing counts wrong passwords per address (5 in 10 minutes) and overall (40), under the file lock; it is only taken over HTTPS and as JSON, which a web page cannot send from a browser on the network.
   - At most 600 devices are remembered. When the list is full the oldest device nobody named makes room. More than ten new devices in an hour raise one alert, not one each.
   - IoT watch remembers at most 300 sites per device and raises at most three alerts per device per pass.
@@ -178,36 +176,22 @@ Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start`, `POST
   - Laptop power: the laptop's SSH host key is stored with the laptop at setup and checked on every request, at whatever address the laptop has that day. The account name may not start with a dash. The macOS setup command downloads into a private folder, and when it is the one switching Remote Login on, Remote Login accepts keys only.
   - Notifications: each alert carries its time, id and kind inside the encrypted text; the app shows only the generic line for one stamped more than two hours away from now. A relay must be `https://`; plain `http://` is accepted only for a relay at a private address.
   - The app service's files and `/etc/miwrt` are readable by root only.
-  - Firmware updates: the build signs `sha256sums.txt` with the key every image carries (`sha256sums.txt.sig`). The updater takes files only from this repository's releases and refuses a release whose signature does not match the key in its own ROM. 1.4.7.2 is the first image that checks; 1.4.7.1 and older do not.
+  - Firmware updates: the build signs `sha256sums.txt` with the key every image carries (`sha256sums.txt.sig`). The updater takes files only from this repository's releases and refuses a release whose signature does not match the key in its own ROM.
   - The relay Worker counts every notification against the sending home (an IPv6 home counts as one /64), sends nothing when its limiter is unavailable, and checks the size before reading a request.
   - A settings backup (`POST /v1/router/backup`) needs the administrator password as well as the access key: it holds the Wi-Fi passwords and the router's own keys.
   - The relay keeps a fingerprint per phone and accepts that phone's notifications only with the random value the phone gave its router (`sender` at registration, `auth` towards the relay).
-  - Fresh installs: the Wi-Fi password is the unit's serial number from its label, without the slash, instead of one password shared by every router. Only a unit whose serial cannot be read falls back to the old one.
-  - Laptop wake (from 1.4.7.3): `POST /v1/devices/<mac>/power` takes `wake`. The router sends the wake-up signal, asks the laptop until it answers, and tells a Mac to light its screen. A sleeping laptop often stays on Wi-Fi and looks online, so the app offers Wake whether or not the device shows as online.
+  - Fresh installs: the Wi-Fi password is the unit's serial number from its label, without the slash, instead of one password shared by every router. Only a unit whose serial cannot be read falls back to a shared one (`be7000openwrt`).
 - Android: the same split would apply to Firebase Cloud Messaging (a service-account key instead of the Apple key). There is no Android app yet, so the router has no FCM sender yet.
-
-## The phone app
 
 ## Installing, updating, going back
 
 The procedures come with every release archive:
 
 - [Install from stock](docs/instruction/1-install-en.txt) (needs root SSH on the stock firmware)
-- [Update](docs/instruction/2-update-en.txt): System, Build update in LuCI, or `miwrt-update apply` (`be7000-update` still works), or sysupgrade with the `…-sysupgrade.bin` from a release. Settings are kept.
+- [Update](docs/instruction/2-update-en.txt): System, Build update in LuCI, or `miwrt-update apply`, or sysupgrade with the `…-sysupgrade.bin` from a release. Settings are kept.
 - [Back to stock, and troubleshooting](docs/instruction/3-rollback-and-problems-en.txt): System, Slots in LuCI switches to the stock firmware in the other slot.
 
 Never write to the bootloader partitions `0:APPSBL` and `0:APPSBL_1`.
-
-## Coming from MiWRT 1.x
-
-MiWRT 1.x routers look for updates and packages at this project's old address. Install 2.0.0 once by hand (System, Backup / Flash firmware, with `…-sysupgrade.bin` from the [release](https://github.com/iroham/MiWRT/releases), keeping settings), or point the router at the new address first and use Build update:
-
-```sh
-sed -i -E 's#iroham\.github\.io/[A-Za-z0-9_-]+#iroham.github.io/MiWRT#g; s#^REPO="iroham/[^"]*"#REPO="iroham/MiWRT"#' \
-  /etc/apk/repositories.d/customfeeds.list /usr/sbin/miwrt-update /etc/init.d/be7000-romsync
-```
-
-Add-ons from 1.x that 2.0.0 no longer builds (the Add-ons page, Hybrid Failover, Zapret Manager and its steer feed, roamd and the modem page) stay installed if they were, but get no updates from this project.
 
 ## Redmi AC2100
 
@@ -217,7 +201,9 @@ A MiWRT image for the Xiaomi Redmi Router AC2100 is in testing: the `ac2100 imag
 
 GitHub Actions builds everything: a tag `v*` produces the images, the signed package feed on this repository's GitHub Pages and a release whose text is `docs/release-notes/<tag>.md`. The workflow needs one secret, `APK_SIGNING_KEY` (an EC P-256 private key in PEM); images trust its public key. Pushing to the branch does not build the BE7000 image; only a version tag does.
 
-To build by hand, follow `.github/workflows/build.yml`: the OpenWrt tree at the commit in `patches/port/BASE`, the BE7000 port series from `patches/port` applied with `git am`, the kernel patches from `patches` copied to `target/linux/qualcommbe/patches-6.18`, the ath12k and mac80211 patches to their package, `patches/tree` applied on top, `overlay-files` as `files/`, then `config.buildinfo` as `.config`.
+To build by hand, follow `.github/workflows/build.yml`: the OpenWrt tree at the commit in `patches/port/BASE`, the BE7000 port series from `patches/port` applied with `git am`, the kernel patches from `patches` copied to `target/linux/qualcommbe/patches-6.18`, the ath12k and mac80211 patches to their package, `patches/tree` applied on top, `overlay-files` as `files/`, `luci-theme-miwrt` in `package/`, then `config.buildinfo` as `.config`. A few LuCI files in `overlay-files` replace LuCI's own; `patches/luci` holds what changed in each against the pinned LuCI, to be applied again when the pin moves.
+
+Checks that run on a desktop shell: `scripts/test-factory-reset.sh`, `scripts/test-factory-reset-writers.sh` and `scripts/test-slot-storage-preinit.sh` exercise the boot and reset scripts; `scripts/i18n-check.sh` checks that every interface string has its English and Chinese translation and that the `.lmo` files match the `.po` files.
 
 ## Credits and licence
 

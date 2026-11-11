@@ -2,9 +2,7 @@
 # 5 GHz split, like 5G-1 and 5G-2 on stock: the QCN9274 runs its dual-MAC
 # firmware as two radios, 36-64 and 149-165.
 #
-#   be7000-5g-split status | mode [single|split|mlo] | on | off
-#
-# on and off are the old names of mode split and mode single.
+#   be7000-5g-split mode [single|split|mlo]
 #
 # The ath12k board_id parameter picks the firmware (0x1008 split, 0 = the
 # single-MAC board id from DT), the PCI device is rebound to apply it, and
@@ -21,9 +19,8 @@
 # switched off, so going back restores them exactly. The twin runs WPA3
 # compatibility mode (sae-compat): the SAE-EXT-KEY and GCMP-256 that MLO
 # asks for go in an RSN Override element, WPA2 clients still join one
-# link. The lower radio may run 160 MHz: its
-# link then waits a minute for the DFS channel check (hostapd needs tree
-# patch 012 for that); if it does not come up, 80 MHz is tried once.
+# link. The lower radio may run 160 MHz: its link then waits a minute for
+# the DFS channel check; if it does not come up, 80 MHz is tried once.
 
 SPLIT_ID=0x1008
 PARAM=/sys/module/ath12k/parameters/board_id
@@ -383,8 +380,7 @@ mlo_watch() {
 
 saved_mode() {
 	local m="$(uci -q get be7000.wifi.mode_5g)"
-	case "$m" in single|split|mlo) echo $m; return ;; esac
-	[ "$(uci -q get be7000.wifi.split_5g)" = 1 ] && echo split || echo single
+	case "$m" in single|split|mlo) echo $m ;; *) echo single ;; esac
 }
 
 # running mode: the firmware decides single/split, MLO ifaces make it mlo
@@ -401,8 +397,6 @@ save() {
 	[ -f /etc/config/be7000 ] || touch /etc/config/be7000
 	uci -q get be7000.wifi >/dev/null || uci set be7000.wifi=wifi
 	uci set be7000.wifi.mode_5g=$1
-	# the older images read split_5g
-	[ "$1" = single ] && uci set be7000.wifi.split_5g=0 || uci set be7000.wifi.split_5g=1
 	uci commit be7000
 }
 
@@ -449,10 +443,6 @@ to_split() {
 }
 
 case "$1" in
-	status)
-		# on/off for the older LuCI page and scripts
-		[ "$(current_mode)" = single ] && echo off || echo on
-		;;
 	mode)
 		case "$2" in
 		"") current_mode ;;
@@ -460,12 +450,6 @@ case "$1" in
 		split|mlo) to_split $2 || exit 1 ;;
 		*) echo "usage: $0 mode [single|split|mlo]" >&2; exit 1 ;;
 		esac
-		;;
-	on)
-		to_split split || exit 1
-		;;
-	off)
-		to_single || exit 1
 		;;
 	boot)
 		saved=$(saved_mode)
@@ -502,7 +486,7 @@ case "$1" in
 		exit 0
 		;;
 	*)
-		echo "usage: $0 status | mode [single|split|mlo] | on | off" >&2
+		echo "usage: $0 mode [single|split|mlo]" >&2
 		exit 1
 		;;
 esac

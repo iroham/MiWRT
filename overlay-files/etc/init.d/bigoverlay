@@ -9,11 +9,7 @@
 # know inside its own volume, and it only wipes the partition on a factory
 # reset. So we share the volume: our overlayfs upper/ and work/ live next to
 # stock's etc/ and userdisk/, and a rollback to stock finds its settings and
-# its SSH root exactly as they were. Versions 1.2 to 1.2.5 formatted the
-# partition instead and created a volume "overlay_data"; that volume is
-# renamed to "cfg" on the first boot after the upgrade, and because it holds
-# no stock settings, rollback-to-stock.sh then asks stock to repopulate
-# /data/etc from its ROM (flag_format_overlay), as before.
+# its SSH root exactly as they were.
 #
 # The first boot after a sysupgrade or after the installer runs on the slot's
 # own small overlay; this script copies it into the volume once (fresh
@@ -24,8 +20,6 @@ START=11
 STATE=/etc/bigoverlay.failed
 # stock's volume name (lib/preinit/00_preinit.conf: pi_overlay_partitions="cfg:/data:")
 STOCK_VOLNAME=cfg
-# what bigoverlay 1.2 to 1.2.5 created after formatting the partition
-LEGACY_VOLNAME=overlay_data
 # Written into the volume once the settings have been copied in. An existing
 # volume is NOT enough to call it done: an empty one mounted as /overlay comes
 # up with factory defaults and looks like the router lost its configuration.
@@ -35,7 +29,7 @@ SWITCH_TRIES=.bigoverlay_switch_tries
 
 . /lib/functions/be7000-factory-reset-guard.sh
 
-# The volume to live in: stock's, else the legacy one, else whatever is there.
+# The volume to live in: stock's, else whatever is there.
 volume_dev() {
 	local n name first=""
 	for n in /sys/class/ubi/ubi1_*/name; do
@@ -43,10 +37,6 @@ volume_dev() {
 		name="$(cat "$n")"
 		[ -z "$first" ] && first="/dev/$(basename "$(dirname "$n")")"
 		[ "$name" = "$STOCK_VOLNAME" ] && { echo "/dev/$(basename "$(dirname "$n")")"; return 0; }
-	done
-	for n in /sys/class/ubi/ubi1_*/name; do
-		[ -e "$n" ] || continue
-		[ "$(cat "$n")" = "$LEGACY_VOLNAME" ] && { echo "/dev/$(basename "$(dirname "$n")")"; return 0; }
 	done
 	[ -n "$first" ] && { echo "$first"; return 0; }
 	return 1
@@ -77,19 +67,6 @@ migrate() {
 	sync
 	umount /tmp/bigoverlay
 	return 0
-}
-
-# A volume left by bigoverlay 1.2 to 1.2.5 gets stock's name, so that stock
-# keeps it (and our data in it) instead of deleting it on a rollback. Only
-# possible while the volume is not mounted, which is the case here.
-rename_legacy() {
-	local dev="$1"
-	[ "$(volume_name "$dev")" = "$LEGACY_VOLNAME" ] || return 0
-	if ubirename /dev/ubi1 "$LEGACY_VOLNAME" "$STOCK_VOLNAME" 2>/dev/null; then
-		logger -t bigoverlay "renamed volume $LEGACY_VOLNAME to $STOCK_VOLNAME so stock leaves it alone"
-	else
-		logger -t bigoverlay "could not rename volume $LEGACY_VOLNAME, stock will replace it on a rollback"
-	fi
 }
 
 # fstab is what makes fstools mount the volume as /overlay on the next boot.
@@ -191,12 +168,6 @@ boot() {
 	# Slots): there is no ubi1, and making one would wipe /overlay
 	grep -q '"be7000_concat"' /proc/mtd && return 0
 	[ "$(uci -q get bigoverlay.main.enabled)" = "1" ] || return 0
-	# a local test build runs on a private copy of the shared volume (see
-	# /lib/preinit/78_be7000_overlay_refresh) and must not switch to it
-	if [ -e /rom/etc/be7000-test ]; then
-		logger -t bigoverlay "test image, staying on the private copy"
-		return 0
-	fi
 	# Already serving as /overlay: nothing left to do, forget any switch tries.
 	case "$(mount | grep ' on /overlay ')" in
 	/dev/ubi1_*)
@@ -217,8 +188,6 @@ boot() {
 		rm -f "$STATE"
 		dev="$(volume_dev)" || { logger -t bigoverlay "volume missing after creation"; return 0; }
 	fi
-
-	rename_legacy "$dev"
 
 	if migrated "$dev"; then
 		# Prepared earlier, but this boot runs on the slot's own overlay:

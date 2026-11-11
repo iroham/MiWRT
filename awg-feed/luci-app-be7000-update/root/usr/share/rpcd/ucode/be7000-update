@@ -42,7 +42,6 @@ return {
 	'be7000-update': {
 		status: query('status'),
 		check: query('check'),
-		download: query('download'),
 		download_start: query('download-start'),
 		download_status: query('download-status'),
 		// the daily check on or off, answers with the fresh status

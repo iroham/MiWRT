@@ -141,33 +141,10 @@ fw_has_device() {
 	uci -q get "firewall.$ref.device" | tr ' ' '\n' | grep -qx docker0
 }
 
-# Hybrid Failover answers the router's DNS with fake addresses (198.18.x.x) and
-# only steers traffic that comes from its own source interfaces. Newer versions
-# put Docker's bridges among them, so containers are treated like LAN clients
-# and need nothing. An older Hybrid Failover does not, and a container that asks
-# the router for a name gets an address it cannot reach. For that case the
-# containers get plain public resolvers and go out directly.
-hf_present() {
-	[ -x /usr/sbin/hybrid-failover ]
-}
-
-hf_steers_docker() {
-	# the hotplug file comes with the versions that know about Docker (1.7.54
-	# and later); the binary itself is packed, there is nothing to grep in it
-	[ -x /etc/hotplug.d/net/30-hybrid-failover-docker ] &&
-		[ "$(uci -q get hybrid-failover.settings.source_docker)" != 0 ]
-}
-
-dns_ok() {
-	hf_present || return 0
-	hf_steers_docker && return 0
-	[ -n "$(uci -q get dockerd.globals.dns)" ]
-}
-
 fw_ok() {
 	local wan
 	wan="$(fw_wan_zone)" || return 1
-	dns_ok && fw_docker_zone_exists && fw_has_device && fw_has_forwarding docker "$wan" && fw_has_forwarding lan docker
+	fw_docker_zone_exists && fw_has_device && fw_has_forwarding docker "$wan" && fw_has_forwarding lan docker
 }
 
 cmd_firewall() {
@@ -182,19 +159,9 @@ cmd_firewall() {
 
 	# the zone and the docker network come from dockerd's own init script,
 	# which only does it at boot and only with the daemon stopped
-	# dockerd reads its DNS setting only at start
-	if ! dns_ok; then
-		if [ -x /etc/init.d/dockerd ] && [ "$restart" = 0 ]; then
-			/etc/init.d/dockerd running >/dev/null 2>&1 && { /etc/init.d/dockerd stop; restart=1; trap "/etc/init.d/dockerd start >/dev/null 2>&1" EXIT; }
-		fi
-		uci -q add_list dockerd.globals.dns=77.88.8.8
-		uci -q add_list dockerd.globals.dns=8.8.8.8
-		uci -q commit dockerd
-	fi
-
 	if ! fw_docker_zone_exists; then
 		if [ -x /etc/init.d/dockerd ]; then
-			[ "$restart" = 0 ] && /etc/init.d/dockerd running >/dev/null 2>&1 && { /etc/init.d/dockerd stop; restart=1; trap "/etc/init.d/dockerd start >/dev/null 2>&1" EXIT; }
+			/etc/init.d/dockerd running >/dev/null 2>&1 && { /etc/init.d/dockerd stop; restart=1; trap "/etc/init.d/dockerd start >/dev/null 2>&1" EXIT; }
 			/etc/init.d/dockerd uciadd >/dev/null 2>&1 || true
 		fi
 		fw_docker_zone_exists || die "$(t "Не получилось создать зону docker. Установите Docker: be7000-docker setup" "Could not create the docker zone. Install Docker first: be7000-docker setup" "无法创建 docker 区域。请先安装 Docker: be7000-docker setup")"
@@ -346,7 +313,7 @@ done
 
 # Everything needed to see why a container has no network, in one paste
 cmd_diag() {
-	echo "== release"; grep -E '^(VERSION|KERNEL)=' /etc/be7000-release 2>/dev/null
+	echo "== release"; grep -E '^(VERSION|KERNEL)=' /etc/miwrt-release 2>/dev/null
 	echo "== firewall (docker, wan)"; uci -q show firewall | grep -E "docker|zone.*wan|\.wan\b|forwarding" | head -60
 	echo "== ip_forward"; cat /proc/sys/net/ipv4/ip_forward
 	echo "== interfaces"; ip -br a 2>/dev/null | grep -E "docker|br-|veth"

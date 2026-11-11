@@ -156,9 +156,9 @@ return baseclass.extend({
 			end.insertBefore(node, end.firstChild);
 	},
 
-	// be7000-update checks for a newer build once a day. Its last answer is
+	// miwrt-update checks for a newer build once a day. Its last answer is
 	// one local call away; the tab keeps it for ten minutes. Builds without
-	// be7000-update reject the call and nothing shows.
+	// the update package reject the call and nothing shows.
 	checkUpdate() {
 		const KEY = 'mw-update-notice';
 		let cached = null;

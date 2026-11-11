@@ -58,7 +58,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			request.get(L.resource('be7000-credits/credits.json')).then(function(r) { return r.json(); }),
-			L.resolveDefault(fs.read('/etc/be7000-release'), '')
+			L.resolveDefault(fs.read('/etc/miwrt-release'), '')
 		]);
 	},
 

@@ -44,7 +44,6 @@ var CSS = `
 var KIND = {
 	stock: function() { return _('Заводская прошивка Xiaomi'); },
 	openwrt: function() { return _('MiWRT или другой OpenWrt'); },
-	test: function() { return _('Тестовая сборка MiWRT'); },
 	empty: function() { return _('Пусто'); },
 	storage: function() { return _('Отдан под пакеты (/overlay)'); },
 	unknown: function() { return _('Не удалось определить'); }
@@ -89,7 +88,7 @@ return view.extend({
 			var k = (KIND[r.kind] || KIND.unknown)();
 			L.dom.content(what, r.version ? '%s: %s'.format(k, r.version) : k);
 			L.dom.content(act, '');
-			if (r.kind == 'stock' || r.kind == 'openwrt' || r.kind == 'test')
+			if (r.kind == 'stock' || r.kind == 'openwrt')
 				act.appendChild(E('button', {
 					'class': 'cbi-button cbi-button-action important',
 					'click': ui.createHandlerFn(this, 'confirm', slot, r)

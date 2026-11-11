@@ -16,11 +16,10 @@ name: Build
 # config hash (vermagic). apk refuses a module built for a different hash, and
 # every image bakes its own hash into /etc/apk/repositories.d/customfeeds.list,
 # so an old image keeps finding modules that fit it after the kernel config
-# moves on. The unversioned targets/.../packages directory is the feed of the
-# 1.2.x images and is never touched here.
+# moves on.
 #
 # The apk indexes are signed with the same key the images trust, taken from
-# the APK_SIGNING_KEY secret (the private-key.pem of the original tree).
+# the APK_SIGNING_KEY secret.
 
 on:
   workflow_dispatch:
@@ -30,7 +29,7 @@ on:
         type: boolean
         default: false
       release_tag:
-        description: "Build and publish a release under this tag (v1.2.3 or debug-...); the tag is created on the built commit if it does not exist. Empty: as before"
+        description: "Build and publish a release under this tag (v2.0.1 or debug-...); the tag is created on the built commit if it does not exist. Empty: as before"
         type: string
         default: ""
   push:
@@ -81,7 +80,7 @@ jobs:
         if: inputs.release_tag != ''
         run: |
           printf '%s\n' "$REL_TAG" | grep -Eq '^v[0-9]+\.[0-9]+(\.[0-9]+)*$|^debug-[0-9A-Za-z.-]+$' ||
-            { echo "::error::release_tag must look like v1.5.4.1 or debug-20261102-name, got '$REL_TAG'"; exit 1; }
+            { echo "::error::release_tag must look like v2.0.1 or debug-20261102-name, got '$REL_TAG'"; exit 1; }
           echo "releasing $REL_TAG from ${{ github.sha }}"
 
       - name: Free disk space
@@ -129,10 +128,6 @@ jobs:
           fi
           mkdir -p files
           cp -a ../repo/overlay-files/. files/
-          # a debug-* tag ships extra diagnostics and experiments on top
-          case "$REL_TAG" in
-            debug-*) cp -a ../repo/overlay-files-debug/. files/; echo "debug overlay added" ;;
-          esac
           cp -a ../repo/awg-feed .
           cp -a ../repo/awg-proto-feed .
           cp -a ../repo/miwrt-feed .
@@ -192,18 +187,6 @@ jobs:
           sed -i 's/^\$(eval \$(call BuildPackage,\$(PKG_NAME)))$/# call BuildPackage - OpenWrt buildroot signature/' feeds/netshift/luci-app-netshift/Makefile
           rm -rf feeds/netshift.tmp
           ./scripts/feeds update -i netshift
-          # Our changes to extra feeds, patches/feeds/<feed>/*.patch, applied
-          # to the pinned checkout. A patch that no longer applies fails the
-          # build instead of shipping the package without it.
-          for dir in ../repo/patches/feeds/*/; do
-            [ -d "$dir" ] || continue
-            feed=$(basename "$dir")
-            for p in "$dir"*.patch; do
-              [ -e "$p" ] || continue
-              echo "feed $feed: $(basename "$p")"
-              patch -d "feeds/$feed" -p1 --forward --no-backup-if-mismatch < "$p"
-            done
-          done
           ./scripts/feeds install -a
 
       - name: Configure
@@ -217,13 +200,10 @@ jobs:
           # defconfig silently drops the option and nothing is ever cached.
           echo "CONFIG_DEVEL=y" >> .config
           echo "CONFIG_CCACHE=y" >> .config
-          case "$REL_TAG:${{ inputs.warm }}" in
-            debug-*|*:true) echo "CONFIG_PACKAGE_tcpdump-mini=y" >> .config ;;
-          esac
           # the version LuCI, /etc/openwrt_release and the banner show:
-          # "MiWRT 1.3.1 r20260623-790d036a" instead of "OpenWrt SNAPSHOT".
+          # "MiWRT 2.0.0 r20261111-790d036a" instead of "OpenWrt SNAPSHOT".
           # Image file names stay openwrt-... (tree 009), the installer and
-          # be7000-update look the assets up by name.
+          # miwrt-update look the assets up by name.
           TAG="$REL_TAG"
           case "$TAG" in
             v*) REL="${TAG#v}" ;;
@@ -313,7 +293,7 @@ jobs:
           sed -i "s|feed/targets/$TARGET/packages/packages.adb|feed/targets/$TARGET/$VERMAGIC/packages/packages.adb|" "$f"
           sed -i "s|feed/$ARCH/|feed/$FEED_BASE/$ARCH/|" "$f"
           grep "feed/" "$f"
-          # what be7000-update and the LuCI page report as the installed version
+          # what miwrt-update and the LuCI page report as the installed version
           TAG="$REL_TAG"
           case "$TAG" in v*) VER="${TAG#v}"; VER="${VER%%-*}" ;; debug-*) VER="$TAG" ;; *) VER=dev ;; esac
           {
@@ -327,8 +307,8 @@ jobs:
             # releases: miwrt-update never offers a firmware for another model
             echo "DEVICE=$DEVICE"
             echo "TAG_PREFIX=v"
-          } > files/etc/be7000-release
-          cat files/etc/be7000-release
+          } > files/etc/miwrt-release
+          cat files/etc/miwrt-release
 
       - name: Build everything
         run: |
@@ -339,21 +319,12 @@ jobs:
         if: always()
         run: cd owrt && (staging_dir/host/bin/ccache -s 2>/dev/null || ccache -s 2>/dev/null || echo "no ccache binary yet")
 
-      - name: Check the image is clean
+      - name: Check the image
         run: |
           cd owrt
           img=bin/targets/$TARGET/$DEVICE-squashfs-factory.ubi
           ls -la "$img" bin/targets/$TARGET/$DEVICE-squashfs-sysupgrade.bin
-          # a stray personal file or a debug service would ship to everyone
-          ! grep -rlE "hfdbg|HFDBG|192\.168\.11\." build_dir/target-*/root-qualcommbe/etc || {
-            echo "personal or debug files in the rootfs" >&2; exit 1; }
-          case "$REL_TAG" in
-            debug-*) test -e build_dir/target-*/root-qualcommbe/etc/be7000-debug ;;
-            *) ! test -e build_dir/target-*/root-qualcommbe/etc/be7000-debug ;;
-          esac
           test -L build_dir/target-*/root-qualcommbe/etc/rc.d/S99be7000-bootconfirm
-          # the marker of a local slot-0 test build turns off boot confirmation
-          ! test -e build_dir/target-*/root-qualcommbe/etc/be7000-test
 
       - name: Publish the feed
         if: "!startsWith(env.REL_TAG, 'debug-') && !inputs.warm"
@@ -361,7 +332,6 @@ jobs:
           git clone --branch gh-pages --single-branch \
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" pages
           cd pages
-          # feed/$ARCH/ (no base) is the frozen feed of the 1.3.x images
           for d in awg awgproto miwrt base byedpi luci netshift packages zapret zapret2; do
             [ -d "../owrt/bin/packages/$ARCH/$d" ] || continue
             mkdir -p "feed/$FEED_BASE/$ARCH/$d"
@@ -445,7 +415,7 @@ jobs:
             esac
           fi
 
-      # be7000-update fetches the image from GitHub Pages first: github.com
+      # miwrt-update fetches the image from GitHub Pages first: github.com
       # itself is often slow or unreachable from where the routers are, the
       # Pages host that already serves the package feed usually is not. Keep
       # the three newest releases there.

@@ -7,9 +7,6 @@
 			}
 		},
 		"write": {
-			"file": {
-				"/usr/sbin/be7000-extroot": [ "exec" ]
-			},
 			"ubus": {
 				"be7000-storage": [ "use", "revert" ]
 			}

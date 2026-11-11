@@ -3,7 +3,7 @@
 		"description": "Credits page",
 		"read": {
 			"file": {
-				"/etc/be7000-release": [ "read" ]
+				"/etc/miwrt-release": [ "read" ]
 			}
 		}
 	}

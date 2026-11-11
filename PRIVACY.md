@@ -13,7 +13,7 @@ This covers the MiWRT firmware's app service, the MiWRT iPhone app, and the noti
 
 Everything the app shows comes from your router and is stored on your router: the list of devices, their names and traffic totals, alerts, schedules, Wi-Fi settings. The app keeps on the phone only what it needs to reach the router: the router's address, the phone's own access key, the router's certificate fingerprint, and a key for decrypting notifications. These are stored in the iPhone's Keychain and are not included in backups.
 
-The router's administrator password is typed into the app at pairing and, with firmware 1.4.7.2 and the app that goes with it, never leaves the phone: the app proves to the router that it knows it. Older versions send it to the router once, over an encrypted connection. It is not stored on the phone in either case. Making a settings backup asks for it again and sends it to the router over the already verified connection.
+The router's administrator password is typed into the app at pairing and never leaves the phone: the app proves to the router that it knows it. It is not stored on the phone. Making a settings backup asks for it again and sends it to the router over the already verified connection.
 
 ## Notifications
 
@@ -30,8 +30,7 @@ Notifications are off until you switch them on, and can be switched off again at
 ## Other connections the router makes for the app
 
 - Speed test: downloads from and uploads to Cloudflare's public speed test servers, only when you start a test.
-- Firmware check: asks GitHub for the latest release of this project. From 1.4.7.1 the router also asks by itself once a day, so it can show a notice; this can be switched off on System, Build update.
-- Only if Hybrid Failover from MiWRT 1.x is still installed: while its package is being restored after a firmware update, the router sends name lookups straight to 8.8.8.8 (Google) and 77.88.8.8 (Yandex) until the add-on is back. Docker containers get the same two servers when an older Hybrid Failover is installed.
+- Firmware check: asks GitHub for the latest release of this project. The router also asks by itself once a day, so it can show a notice; this can be switched off on System, Build update.
 - Packages you install yourself from the feed (for example zapret or AmneziaWG) contact servers of their own choosing; they are not covered by this text.
 - Ad blocker link: if you link an AdGuard Home, the router talks to it on your network with the login you entered. That login is stored on the router.
 

@@ -8,7 +8,7 @@
 		},
 		"write": {
 			"ubus": {
-				"be7000-update": [ "download", "download_start", "apply", "autocheck_set" ]
+				"be7000-update": [ "download_start", "apply", "autocheck_set" ]
 			}
 		}
 	}

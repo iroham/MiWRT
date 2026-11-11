@@ -1,4 +1,4 @@
-MiWRT 1.0.0 for the Xiaomi Redmi Router AC2100: recovery and problems
+MiWRT 2.0.0 for the Xiaomi Redmi Router AC2100: recovery and problems
 
 STATUS: TESTING. The MiWRT project has not exercised these paths on a router.
 The TFTP recovery below is the one OpenWrt's own support commit for this

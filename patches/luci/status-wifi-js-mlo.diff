@@ -1,0 +1,73 @@
+# Our changes to LuCI's view/status/include/60_wifi.js (luci-mod-status), the
+# Wireless box on Status, Overview: MLO networks under every radio they use,
+# channel, frequency and rate per radio from iwinfo, and networks switched off
+# by the split script (be7000_mlo_off) hidden. The file in overlay-files is
+# the one from the luci pin in feeds-pins.txt with this diff applied.
+--- a/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/60_wifi.js
++++ b/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/60_wifi.js
+@@ -25,6 +25,16 @@
+ 		expect: { 'access': false }
+ 	}),
+ 
++	wifiUsesRadio(net, radioName) {
++		return L.toArray(net.get('device')).indexOf(radioName) > -1 || net.getWifiDeviceName() == radioName;
++	},
++
++	activeEncryption(net) {
++		return net.get('encryption') == 'sae-compat'
++			? 'WPA2/WPA3 SAE (MLO)'
++			: net.getActiveEncryption();
++	},
++
+ 	wifirate(rate) {
+ 		let s = `${rate.rate / 1000}\xa0${_('Mbit/s')}, ${rate.mhz}\xa0${_('MHz')}`;
+ 
+@@ -104,14 +114,18 @@
+ 	},
+ 
+ 	renderbox(radio, networks) {
+-		let chan = null;
+-		let freq = null;
+-		let rate = null;
+-		let coco = null;
++		const info = radio.ubus('dev', 'iwinfo') || {};
++		let chan = info.channel || radio.get('channel');
++		let freq = info.frequency > 0 ? info.frequency / 1000 : null;
++		let rate = info.bitrate > 0 ? info.bitrate / 1000 : null;
++		let coco = info.country || radio.get('country');
+ 		let noise = null;
+ 		let tx_power = null;
+ 		const badges = [];
+ 
++		if (!freq && chan && radio.get('band') == '5g')
++			freq = (5000 + 5 * chan) / 1000;
++
+ 		for (let i = 0; i < networks.length; i++) {
+ 			const net = networks[i];
+ 			const is_assoc = (net.getBSSID() != '00:00:00:00:00:00' && net.getChannel() && !net.isDisabled());
+@@ -153,7 +167,7 @@
+ 				_('SSID'), net.getActiveSSID() || '?',
+ 				_('Mode'), net.getActiveMode(),
+ 				_('BSSID'), is_assoc ? (net.getActiveBSSID() || '-') : null,
+-				_('Encryption'), is_assoc ? net.getActiveEncryption() : null,
++				_('Encryption'), is_assoc ? this.activeEncryption(net) : null,
+ 				_('Associations'), is_assoc ? (net.assoclist.length || '-') : null,
+ 				null, is_assoc ? null : E('em', net.isDisabled() ? _('Wireless is disabled') : _('Wireless is not associated')),
+ 				_('WPS status'), this.WPSTranslateTbl[net.wps_status],
+@@ -200,6 +214,7 @@
+ 			L.hasSystemFeature('wifi') ? L.resolveDefault(uci.load('wireless')) : L.resolveDefault(),
+ 		]).then(L.bind(data => {
+ 			const tasks = [];
++			data[1] = data[1].filter(net => net.get('be7000_mlo_off') != '1');
+ 			const radios_networks_hints = data[1];
+ 			const hasWPS = L.hasSystemFeature('hostapd', 'wps');
+ 
+@@ -235,7 +250,7 @@
+ 
+ 		for (let i = 0; i < radios.sort((a, b) => a.getName().localeCompare(b.getName())).length; i++)
+ 			table.appendChild(this.renderbox(radios[i],
+-				networks.filter(net => { return net.getWifiDeviceName() == radios[i].getName() })));
++				networks.filter(net => { return this.wifiUsesRadio(net, radios[i].getName()) })));
+ 
+ 		if (!table.lastElementChild)
+ 			return null;

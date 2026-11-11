@@ -1,8 +1,5 @@
 # Check for and install newer builds of this firmware from GitHub Releases:
-# the miwrt-update command (be7000-update is the same program under its old
-# name) plus a LuCI page under System. Packaged so that a router already
-# running an older image can pick it up from the feed with
-# apk add luci-app-be7000-update.
+# the miwrt-update command plus a LuCI page under System.
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-be7000-update

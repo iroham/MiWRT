@@ -47,8 +47,8 @@ be7000_do_upgrade() {
 	#
 	# The other slot holds the stock firmware, and it is the only recovery
 	# path there is: after a few failed boots the bootloader falls back to it.
-	# The previous version always wrote rootfs_1, which silently destroyed
-	# that fallback on units where OpenWrt had been installed into slot 0.
+	# Always writing rootfs_1 would silently destroy that fallback on units
+	# where OpenWrt was installed into slot 0.
 	#
 	# The running slot comes from the kernel command line, which the
 	# bootloader fills in, so it reflects what actually booted rather than
@@ -120,7 +120,7 @@ be7000_do_upgrade() {
 		if [ "$try" -ge 2 ]; then
 			local other=$((1 - target_slot)) other_part=rootfs_1
 			[ "$other" = 0 ] && other_part=rootfs
-			# Since 1.5.0 the other slot may hold /overlay instead of
+			# The other slot may hold /overlay instead of
 			# the factory firmware (System, Slots). Nothing boots from there,
 			# so in that case the boot variables are left as they are.
 			case "$(fw_printenv -n be7000_slot_storage 2>/dev/null)" in

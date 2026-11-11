@@ -235,10 +235,10 @@ export function firmware(check) {
 	let out = {};
 	try { out = json(hub.run(`miwrt-update ${check ? 'check' : 'status'} --json 2>/dev/null`)); } catch (e) {}
 	let board = connect().call('system', 'board') ?? {};
-	// release.version is the OpenWrt release third-party scripts check (25.12.6
-	// since 1.5.1); the MiWRT version is the first word of the
-	// description after the name: "MiWRT 1.5.4.1 r20260929-d958caf"
-	let desc = replace(board.release?.description ?? '', /^(BE7000|MiWRT|OpenWrt) /, '');
+	// release.version is the OpenWrt release third-party scripts check; the
+	// MiWRT version is the first word of the description after the name:
+	// "MiWRT 2.0.0 r20261111-d958caf"
+	let desc = replace(board.release?.description ?? '', /^(MiWRT|OpenWrt) /, '');
 	let cur = out.installed?.version ?? (length(desc) ? split(desc, ' ')[0] : null), latest = out.latest?.latest;
 	return { current: cur, description: board.release?.description, built: out.installed?.date,
 		latest, latest_name: out.latest?.name, published: out.latest?.published_at, notes: substr(out.latest?.body ?? '', 0, 4000),

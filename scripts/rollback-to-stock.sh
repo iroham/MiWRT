@@ -26,18 +26,17 @@ fi
 # If either is there, stock picks its settings up again by itself, and
 # flag_format_overlay must stay unset: stock acts on the flag after it has
 # opened the container (90_mount_bind_etc, init_data_dir), empties it and
-# copies its ROM defaults in, so it comes up in the setup wizard. 1.2.6 and
-# 1.2.7 looked at etc/config only and did exactly that on every rollback.
+# copies its ROM defaults in, so it comes up in the setup wizard.
 #
-# Only when the volume carries neither (the partition was formatted by
-# bigoverlay 1.2 to 1.2.5 and holds only our files) tell stock to repopulate
+# Only when the volume carries neither (bigoverlay created it on a blank
+# partition and it holds only our files) tell stock to repopulate
 # /data/etc from its ROM; otherwise it comes up with an empty /etc/config and
 # even SSH will not start.
 case "$(grep ' /overlay ' /proc/mounts | cut -d' ' -f1)" in
 /dev/ubi1_*)
 	if [ -s /overlay/sec_cfg/data.vol ] || [ -s /overlay/usr/sec_cfg/data.vol ] \
 	   || [ -n "$(ls /overlay/etc/config 2>/dev/null)" ]; then
-		# a flag left by an older copy of this script would still wipe them
+		# a flag left from earlier would still wipe them
 		[ -n "$(fw_printenv -n flag_format_overlay 2>/dev/null)" ] && fw_setenv flag_format_overlay
 		echo "stock settings found on mtd28, stock will boot with them"
 	else

@@ -44,9 +44,9 @@
 					"name": "Kenneth Kasilag",
 					"site": "GitHub",
 					"url": "https://github.com/openwrt/openwrt/pull/24033",
-					"ru": "Серия исправлений UNIPHY и USXGMII для IPQ9574, а также серия патчей разгрузки PPE, на которой построен аппаратный NAT в 1.4.0.",
-					"en": "The UNIPHY and USXGMII fix series for IPQ9574, and the PPE offload series that the hardware NAT in 1.4.0 is built on.",
-					"zh": "IPQ9574 的 UNIPHY 和 USXGMII 修复补丁系列，以及 1.4.0 硬件 NAT 加速所基于的 PPE 加速补丁系列。"
+					"ru": "Серия исправлений UNIPHY и USXGMII для IPQ9574, а также серия патчей разгрузки PPE, на которой построен аппаратный NAT.",
+					"en": "The UNIPHY and USXGMII fix series for IPQ9574, and the PPE offload series that the hardware NAT is built on.",
+					"zh": "IPQ9574 的 UNIPHY 和 USXGMII 修复补丁系列，以及硬件 NAT 加速所基于的 PPE 加速补丁系列。"
 				},
 				{
 					"name": "Alta Labs Route10",
@@ -169,17 +169,17 @@
 					"name": "FOV5",
 					"site": "4PDA",
 					"url": "https://4pda.to/forum/index.php?showuser=3121811",
-					"ru": "Подсказал хранить настройки OpenWrt в томе стока, с 1.2.6 откат на сток их не стирает.",
-					"en": "Suggested keeping OpenWrt settings in the stock volume, since 1.2.6 a rollback to stock no longer wipes them.",
-					"zh": "建议把 OpenWrt 的设置保存在原厂固件的卷中，从 1.2.6 起回退到原厂固件不再清除这些设置。"
+					"ru": "Подсказал хранить настройки OpenWrt в томе стока, чтобы откат на сток их не стирал.",
+					"en": "Suggested keeping OpenWrt settings in the stock volume, so that a rollback to stock does not wipe them.",
+					"zh": "建议把 OpenWrt 的设置保存在原厂固件的卷中，这样回退到原厂固件时不会清除这些设置。"
 				},
 				{
 					"name": "KaMaToZzz",
 					"site": "GitHub",
 					"url": "https://github.com/KaMaToZzz",
-					"ru": "Docker без интернета в контейнерах, исправлено в 1.4.4, нехватка места под Docker и сбой точки монтирования на USB-диске в issues #7, #8 и #11.",
-					"en": "Docker containers without internet, fixed in 1.4.4, running out of space for Docker and a broken mount point on a USB disk.",
-					"zh": "在 issues #7、#8 和 #11 中反馈了 Docker 容器无法上网（已在 1.4.4 修复）、Docker 空间不足以及 USB 硬盘挂载点失效的问题。"
+					"ru": "Docker без интернета в контейнерах, нехватка места под Docker и сбой точки монтирования на USB-диске.",
+					"en": "Docker containers without internet, running out of space for Docker and a broken mount point on a USB disk.",
+					"zh": "反馈了 Docker 容器无法上网、Docker 空间不足以及 USB 硬盘挂载点失效的问题。"
 				}
 			]
 		},

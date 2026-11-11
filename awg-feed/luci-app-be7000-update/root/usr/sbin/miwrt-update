@@ -1,6 +1,5 @@
 #!/bin/sh
 # Check for and install a newer build of this firmware from GitHub Releases.
-# Installed as miwrt-update; be7000-update is the same program under its old name.
 #
 #   miwrt-update status   [--json]   what is installed, what was last seen
 #   miwrt-update check    [--json]   ask GitHub for the latest release
@@ -10,16 +9,14 @@
 #   miwrt-update watch               the loop behind it, run by the init script
 #
 # Settings are kept across the upgrade (plain sysupgrade). The installed
-# version comes from /etc/miwrt-release (or the older /etc/be7000-release),
-# which CI writes into the image; a build without it is "dev" and never offers
-# itself an upgrade. The same file names the image this router runs
+# version comes from /etc/miwrt-release, which CI writes into the image; a
+# build without it is "dev" and never offers itself an upgrade. The same file names the image this router runs
 # (DEVICE=...) and the tag prefix of its releases (TAG_PREFIX=...), so a
 # router only ever sees releases and images meant for its own model.
 
 REPO="iroham/MiWRT"
 API="https://api.github.com/repos/$REPO/releases?per_page=30"
 RELEASE_FILE=/etc/miwrt-release
-[ -r "$RELEASE_FILE" ] || RELEASE_FILE=/etc/be7000-release
 STATE=/tmp/be7000-update.json
 DIR=/tmp/be7000-update
 IMG="$DIR/sysupgrade.bin"
@@ -48,12 +45,9 @@ installed_field() {
 	sed -n "s/^$1=//p" "$RELEASE_FILE" | head -1
 }
 
-# Which image in a release is ours and which tags are ours. Images without
-# these lines are BE7000 builds from before the lines existed.
+# Which image in a release is ours and which tags are ours
 DEVICE=$(installed_field DEVICE)
-DEVICE=${DEVICE:-openwrt-qualcommbe-ipq95xx-xiaomi_be7000}
 TAG_PREFIX=$(installed_field TAG_PREFIX)
-TAG_PREFIX=${TAG_PREFIX:-v}
 # a router in a testing programme takes pre-releases too (PRERELEASE_OK=1 in the release file)
 PRERELEASE_OK=$(installed_field PRERELEASE_OK)
 TAG_PREFIX_RE=$(printf '%s' "$TAG_PREFIX" | sed 's/[][\.*^$+?(){}|/]/\\&/g')
@@ -66,7 +60,7 @@ json_escape() {
 		sed -e ':a;N;$!ba;s/\n/\\n/g'
 }
 
-# "1.2.5" from "v1.2.5-r20260925", "1.0.0" from "ac2100-v1.0.0"
+# "2.0.0" from "v2.0.0", also from "ac2100-v2.0.0"
 tag_to_version() {
 	local t=${1#"$TAG_PREFIX"}
 	echo "${t%%-*}"
@@ -110,7 +104,7 @@ fetch() {
 do_check() {
 	local tmp=/tmp/be7000-releases.json release=/tmp/be7000-release-latest.json
 	: >"$LOG"
-	fetch "$API" "$tmp" || fail "$(t "GitHub не отвечает или нет https (нужны ca-bundle и libustream, они есть с 1.2.5)" "GitHub does not answer or there is no https (needs ca-bundle and libustream, present since 1.2.5)")"
+	fetch "$API" "$tmp" || fail "$(t "GitHub не отвечает или нет https (нужны ca-bundle и libustream)" "GitHub does not answer or there is no https (needs ca-bundle and libustream)")"
 	local tag name date body img_url sums_url img_size draft prerelease i=0
 	while [ "$i" -lt 30 ]; do
 		jsonfilter -i "$tmp" -e "@[$i]" >"$release" 2>/dev/null || true
@@ -245,7 +239,7 @@ autocheck_on() {
 # Wait a few minutes for the network, then ask GitHub once a day. The answer
 # lands in the same state file the LuCI page reads, so the interface can tell
 # about a new version without anyone pressing "Check". A failed attempt is
-# repeated after half an hour. A build without /etc/be7000-release is "dev"
+# repeated after half an hour. A build without /etc/miwrt-release is "dev"
 # and never offers itself an upgrade, so there is nothing to watch for there.
 watch_loop() {
 	local wait

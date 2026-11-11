@@ -278,7 +278,7 @@ s77_enable_undo() {
 	local src="$1" dev
 	if [ "$src" = cfg ]; then
 		s77_fstab_bigoverlay
-		dev=$(s77_vol ubi1 "cfg overlay_data") && mkdir -p $S/dst && mount -t ubifs "$dev" $S/dst && {
+		dev=$(s77_vol ubi1 cfg) && mkdir -p $S/dst && mount -t ubifs "$dev" $S/dst && {
 			s77_upper_bigoverlay $S/dst/upper
 			sync
 			umount $S/dst
@@ -319,7 +319,7 @@ s77_to_cfg() {
 s77_enable() {
 	local slot="$1" src="$2" dev num
 	case "$src" in
-	cfg) dev=$(s77_vol ubi1 "cfg overlay_data") ;;
+	cfg) dev=$(s77_vol ubi1 cfg) ;;
 	rootfs_data) dev=$(s77_vol ubi0 rootfs_data) ;;
 	esac
 	if [ -z "$dev" ] || ! s77_save "$dev"; then

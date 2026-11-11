@@ -317,7 +317,6 @@ cmd_wifi_pending() {
 # first boot of a fresh install: take the stock settings once, before
 # netifd starts, and only while this router still has its defaults
 cmd_auto() {
-	[ -e /rom/etc/be7000-test ] && return 0
 	[ -e $STAMP ] || [ -e /etc/.be7000_stock_auto_done ] && return 0
 	touch /etc/.be7000_stock_auto_done
 	# set by be7000-wifi-defaults on the first boot and kept across
