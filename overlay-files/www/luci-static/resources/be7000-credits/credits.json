@@ -73,6 +73,14 @@
 					"zh": "软件源中提供的 WireGuard 变体。"
 				},
 				{
+					"name": "Slava Shchipunov",
+					"site": "awg-openwrt",
+					"url": "https://github.com/Slava-Shchipunov/awg-openwrt",
+					"ru": "Пакеты AmneziaWG для OpenWrt: awg, сетевой скрипт, страница протокола в LuCI и её перевод. Пакеты AmneziaWG в фиде собраны на их основе.",
+					"en": "The AmneziaWG packages for OpenWrt: awg, the network script, the LuCI protocol page and its translation. The feed's AmneziaWG packages are built on them.",
+					"zh": "OpenWrt 的 AmneziaWG 软件包：awg、网络脚本、LuCI 协议页面及其翻译。软件源中的 AmneziaWG 软件包以此为基础构建。"
+				},
+				{
 					"name": "zapret, zapret2, ByeDPI, NetShift",
 					"site": "GitHub",
 					"url": "https://github.com/bol-van/zapret",

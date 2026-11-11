@@ -214,6 +214,7 @@ MiWRT is made from the work of others:
 - **[kravasuper](https://github.com/kravasuper/openwrt)**: the OpenWrt port to the BE7000 on Linux 6.18 (`patches/port`).
 - **dima424658** ([openwrt#20604](https://github.com/openwrt/openwrt/pull/20604)), the first BE7000 support for OpenWrt; **Kenneth Kasilag** ([openwrt#24033](https://github.com/openwrt/openwrt/pull/24033)), the UNIPHY, USXGMII and PPE offload series for IPQ9574; the **Alta Labs Route10** port ([openwrt#25322](https://github.com/openwrt/openwrt/pull/25322)).
 - **Linux** and its ath12k Wi-Fi driver; **Xiaomi**, whose board data files ship in the image as the stock firmware carries them.
+- **[Slava Shchipunov](https://github.com/Slava-Shchipunov/awg-openwrt)**: the AmneziaWG packages for OpenWrt that `awg-feed` and `awg-proto-feed` are built on (awg, the network script and the LuCI protocol page).
 - Third-party packages in the feed, built from their authors' recipes and pinned in `feeds-extra.conf`: AmneziaWG, zapret, zapret2, ByeDPI and NetShift.
 - The people who tested BE7000 boards and reported bugs, listed on System, Credits in the web interface.
 
