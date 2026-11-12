@@ -190,6 +190,7 @@ export function guest_create(c, conn, ssid, key) {
 		n++;
 	});
 	if (!n) return 'This router has no Wi-Fi radio to put a guest network on.';
+	hub.adguard_dhcp_sync(c);
 	return null;
 };
 
@@ -239,10 +240,13 @@ export function iot_create(c, conn, o) {
 		c.set('firewall', 'miwrt_iot_wan', 'src', 'iot');
 		c.set('firewall', 'miwrt_iot_wan', 'dest', 'wan');
 	}
-	for (let r in [ [ 'dhcp', 'udp', '67' ], [ 'dns', 'tcp udp', '53' ] ]) {
+	// DHCP and DNS from the router, and the announcements the discovery relay and the mDNS repeater
+	// listen for on this network (/usr/sbin/miwrt-discovery-relay, miwrt-mdns-reflector)
+	for (let r in [ [ 'dhcp', 'udp', '67', 'DHCP' ], [ 'dns', 'tcp udp', '53', 'DNS' ], [ 'mdns', 'udp', '5353', 'mDNS' ],
+			[ 'discovery', 'udp', '6666-6667', 'device discovery' ] ]) {
 		let sid = 'miwrt_iot_' + r[0];
 		c.set('firewall', sid, 'rule');
-		c.set('firewall', sid, 'name', 'IoT: ' + uc(r[0]));
+		c.set('firewall', sid, 'name', 'IoT: ' + r[3]);
 		c.set('firewall', sid, 'src', 'iot');
 		c.set('firewall', sid, 'proto', r[1]);
 		c.set('firewall', sid, 'dest_port', r[2]);
@@ -265,6 +269,7 @@ export function iot_create(c, conn, o) {
 		n++;
 	});
 	if (!n) return o.all_bands ? 'This router has no Wi-Fi radio to put an IoT network on.' : 'This router has no 2.4 GHz radio for an IoT network.';
+	hub.adguard_dhcp_sync(c);
 	return null;
 };
 
@@ -518,9 +523,37 @@ export function wake(mac) {
 
 // ---------- the address and name server (dnsmasq) ----------
 
+/* AdGuard Home on the router answers DNS for the whole network, so it is watched: a network added since
+   it was installed is told to ask the router, and when its process is gone for three passes (it is
+   started again once in between) DNS goes back to dnsmasq. An install that died half-way ends the same. */
+function adguard_tick() {
+	let recent = j => j?.state == 'running' && time() - (j.time ?? 0) < 900;
+	if (recent(hub.load(RUN + '/adguard-job.json', null))) return;   // being installed or removed
+	let sj = hub.load(RUN + '/setup-job.json', null);
+	if (recent(sj) && sj.adguard) return;                            // the setup assistant is about to install it
+	let c = cursor();
+	if (hub.adguard_dhcp_sync(c)) {
+		c.commit('dhcp');
+		writefile(RUN + '/dnsmasq-reload', '');
+	}
+	let fine = hub.load(ETC + '/adblock.json', null)?.where == 'router' && system('pidof AdGuardHome >/dev/null 2>&1') == 0;
+	if (fine) {
+		unlink(RUN + '/adguard-down');
+		return;
+	}
+	let n = +(readfile(RUN + '/adguard-down') ?? 0) + 1;
+	writefile(RUN + '/adguard-down', '' + n);
+	if (n == 1) system('/etc/init.d/adguardhome start >/dev/null 2>&1');
+	else if (n >= 3) {
+		unlink(RUN + '/adguard-down');
+		system('/usr/libexec/miwrt-adguard fallback >/dev/null 2>&1 </dev/null &');
+	}
+}
+
 /* Called on every pass. Does a reload that was asked for, and starts the server again if it has stopped:
    without it no device gets an address and lookups sent to the router fail, while everything else looks fine. */
 export function services_tick() {
+	if (stat(hub.AG_DNS_STATE)) adguard_tick();
 	if (stat(RUN + '/dnsmasq-reload')) {
 		unlink(RUN + '/dnsmasq-reload');
 		// A full stop and start, not a reload. On a reload with changed settings the service manager stops the

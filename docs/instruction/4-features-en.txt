@@ -68,6 +68,22 @@ Containers, images, networks and volumes are on Services, Dockerman. docker-comp
 
 If containers cannot reach the internet or their web interface does not open from the local network, the firewall has to allow forwarding from the docker zone. The be7000-docker setup command does it by itself, and for a Docker installed earlier there is the be7000-docker firewall command and a button on Services, "Docker: stacks". If a container still has no network after that, be7000-docker diag prints everything needed to look into it in one piece.
 
+First setup
+
+A router set up from scratch opens a setup assistant in the web interface in place of the status page. Leave the password empty on the sign-in page the first time. The assistant asks for the language and country, how the router is connected (main router or access point), the Wi-Fi name and password, a guest network, a separate network for smart-home devices, ad blocking and the router password, and then applies everything at once. Nothing changes before the last step. After an update that kept the settings the assistant does not appear.
+
+An access point that gets no address from the main router within two minutes puts the old settings back, stays reachable at its old address and opens the assistant again.
+
+To see the assistant once more, run this command and open the web interface.
+
+uci set miwrt.setup.state=pending; uci set miwrt.setup.retry=1; uci commit miwrt
+
+AdGuard Home
+
+AdGuard Home blocks ads and trackers for the whole network. It can run on the router itself or on another device in the network, a Raspberry Pi for example. The setup assistant and the Protection tab of the MiWRT app offer both.
+
+On the router it needs 32 MB of free space. A fresh install has about 19 MB free, so first join the second slot with the data partition on System, Slots, or move the settings to a USB disk, and then install it from the app. Its own page is on port 3000 of the router, the user is admin, the password is the one you chose for it at install time. Removing it in the app gives DNS back to the router. Before going back to an older firmware version, remove it first.
+
 What else is there
 
 The MiWRT theme: a sidebar layout with light and dark modes and quick search (Ctrl+K). The stock one can be brought back on System, System, Language and Style.

@@ -5,8 +5,7 @@
 			"path": "miwrt-setup/wizard"
 		},
 		"depends": {
-			"acl": [ "luci-app-miwrt-setup" ],
-			"uci": { "miwrt": { "setup": { "state": "pending" } } }
+			"acl": [ "luci-app-miwrt-setup" ]
 		}
 	}
 }

@@ -20,7 +20,8 @@ const WIFI_MARKS = { '/etc/init.d/be7000-wifi-defaults': '/etc/.be7000_secure_de
 	'/etc/init.d/miwrt-wifi-defaults': '/etc/.miwrt_wifi_defaults' };
 const LANGS = [ 'auto', 'en', 'ru', 'zh_cn' ];
 // AdGuard Home needs about 30 MB once installed (UBIFS compresses it to less); ask for room to spare
-export const ADGUARD_NEED_KB = 32 * 1024;
+const ADGUARD_NEED_KB = hub.ADGUARD_NEED_KB;
+const AG_TOOL = '/usr/libexec/miwrt-adguard';
 
 function shq(s) {
 	return `'${replace(s, "'", "'\\''")}'`;
@@ -53,13 +54,26 @@ function overlay_free_kb() {
 function root_password_set() {
 	for (let l in split(readfile('/etc/shadow') ?? '', '\n')) {
 		let f = split(l, ':');
-		if (f[0] == 'root') return length(f[1] ?? '') > 0 && f[1] != '*' && f[1] != '!';
+		if (f[0] == 'root') return length(f[1] ?? '') > 0 && !match(f[1], /^[!*]/);
 	}
 	return false;
 }
 
 function zones() {
 	return timezones ?? {};
+}
+
+/* Why AdGuard Home cannot be installed on this router, whatever mode the assistant is about to set:
+   'unsupported' (no installer on this model), 'memory', 'storage'; null when it can. */
+function adguard_blocker(ram_mb, free_kb) {
+	if (!access(AG_TOOL)) return 'unsupported';
+	if (ram_mb < 400) return 'memory';
+	if (!access('/usr/bin/AdGuardHome') && free_kb < ADGUARD_NEED_KB) return 'storage';
+	return null;
+}
+
+function ram_mb(conn) {
+	return int((conn.call('system', 'info')?.memory?.total ?? 0) / 1048576);
 }
 
 function system_sid(c) {
@@ -80,7 +94,8 @@ function main_ifaces(c) {
 }
 
 function band_of(c, w) {
-	return c.get('wireless', w.device, 'band');
+	// an MLO network sits on several radios, all of them 5 GHz
+	return c.get('wireless', list_of(w.device)[0], 'band');
 }
 
 function wan_base(dev) {
@@ -122,12 +137,8 @@ export function status() {
 
 	let ag = hub.load(ETC + '/adblock.json', null);
 	let free = overlay_free_kb();
-	let mem = conn.call('system', 'info')?.memory ?? {};
-	let ram_mb = int((mem.total ?? 0) / 1048576);
-	let why = null;
-	if (access('/usr/bin/AdGuardHome')) why = null;
-	else if (ram_mb && ram_mb < 400) why = 'memory';
-	else if (free < ADGUARD_NEED_KB) why = 'storage';
+	let ram = ram_mb(conn);
+	let why = adguard_blocker(ram, free);
 
 	return {
 		state: state(),
@@ -137,7 +148,7 @@ export function status() {
 		zonename: c.get('system', system_sid(c), 'zonename') ?? 'UTC',
 		country: radios[0]?.country ?? '',
 		imported: access('/etc/.be7000_stock_imported') == true,
-		mode: lan.proto == 'dhcp' ? 'ap' : 'router',
+		mode: hub.is_ap(c) ? 'ap' : 'router',
 		lan: { ipaddr: split(list_of(lan.ipaddr)[0] ?? '', '/')[0], netmask: lan.netmask ?? (match(list_of(lan.ipaddr)[0] ?? '', /\/24$/) ? '255.255.255.0' : null) },
 		wan: { proto: wan.proto ?? 'dhcp', username: wan.username, password: wan.password, vlan: vlan ? +vlan[1] : null,
 			ipaddr: wan.ipaddr, netmask: wan.netmask, gateway: wan.gateway, dns: list_of(wan.dns), device: base, link },
@@ -146,15 +157,24 @@ export function status() {
 		guest: extras.guest_status(),
 		iot: extras.iot_status(),
 		protection: ag ? { where: ag.where ?? 'network', url: ag.url, username: ag.username } : { where: 'none' },
-		adguard: { installed: access('/usr/bin/AdGuardHome') == true, available: why == null, why, free_kb: free, need_kb: ADGUARD_NEED_KB, ram_mb },
+		adguard: { installed: access('/usr/bin/AdGuardHome') == true, available: why == null, why, free_kb: free, need_kb: ADGUARD_NEED_KB, ram_mb: ram },
 		zones: sort(keys(zones()))
 	};
 };
 
+function normal_url(u) {
+	let url = replace(trim(u ?? ''), /\/+$/, '');
+	return match(url, /^https?:\/\//) ? url : 'http://' + url;
+}
+
+function host_of(url) {
+	let m = match(url ?? '', /^https?:\/\/([^:\/]+)/);
+	return m ? m[1] : null;
+}
+
 /* Checks an AdGuard Home address and login without saving anything. */
 export function adguard_test(b) {
-	let url = replace(trim(b?.url ?? ''), /\/+$/, '');
-	if (!match(url, /^https?:\/\//)) url = 'http://' + url;
+	let url = normal_url(b?.url);
 	if (!match(url, /^https?:\/\/[A-Za-z0-9.-]+(:[0-9]{1,5})?$/)) return { error: 'That address does not look right. Use something like 192.168.1.2:3000.' };
 	if (type(b.username) != 'string' || !length(b.username) || type(b.password) != 'string') return { error: 'Enter the user name and password of AdGuard Home.' };
 	let r = hub.ag_status({ provider: 'adguard', url, username: b.username, password: b.password });
@@ -201,7 +221,7 @@ function validate(b) {
 			if (!is_ipv4(a.gateway)) return err('mode', 'Enter the address of your main router.');
 			for (let d in list_of(a.dns)) if (!is_ipv4(d)) return err('mode', 'A DNS server must be an IPv4 address.');
 		}
-		if (b.guest?.on || b.iot?.on || b.protection?.where == 'router')
+		if (b.guest?.on || b.iot?.on || (type(b.protection) == 'object' && b.protection.where == 'router'))
 			return err('mode', 'Guest and IoT networks and AdGuard Home on the router need the router mode.');
 	}
 
@@ -223,7 +243,17 @@ function validate(b) {
 	}
 
 	let p = b.protection ?? { where: 'none' };
-	if (!(p.where in [ 'none', 'router', 'network', 'keep' ])) return err('protection', 'Choose where ads are blocked.');
+	if (type(p) != 'object' || !(p.where in [ 'none', 'router', 'network', 'keep' ])) return err('protection', 'Choose where ads are blocked.');
+	if (p.where == 'router') {
+		let why = adguard_blocker(ram_mb(connect()), overlay_free_kb());
+		if (why) return err('protection', why == 'storage' ? 'There is not enough free storage on the router for AdGuard Home.' : 'AdGuard Home cannot be installed on this router.');
+		// its own password, not the router's: it is kept where the app can use it, and typed into a page of its own
+		if (type(p.password) != 'string' || length(p.password) < 8 || length(p.password) > 72 || match(p.password, /[[:cntrl:]]/))
+			return err('protection', 'AdGuard Home needs a password of 8 to 72 characters.');
+		if (p.password == b.password) return err('protection', 'Give AdGuard Home a password of its own, not the router\'s.');
+	}
+	if (p.where == 'network' && b.mode == 'router' && p.handout !== false && !is_ipv4(host_of(normal_url(p.url))))
+		return err('protection', 'To make it the DNS server of your devices, enter the address of AdGuard Home as numbers, such as 192.168.1.2:3000.');
 
 	if (type(b.password) != 'string' || length(b.password) < 8 || length(b.password) > 128 || match(b.password, /[[:cntrl:]]/))
 		return err('password', 'The router password needs at least 8 characters.');
@@ -231,8 +261,8 @@ function validate(b) {
 }
 
 function set_password(pw) {
-	// the same way LuCI's own password page does it
-	return system(`(echo ${shq(pw)}; sleep 1; echo ${shq(pw)}) | /bin/busybox passwd root >/dev/null 2>&1`) == 0;
+	// the way LuCI's own password page does it, with printf: echo would take a password such as "-n" as an option
+	return system(`(printf '%s\n' ${shq(pw)}; sleep 1; printf '%s\n' ${shq(pw)}) | /bin/busybox passwd root >/dev/null 2>&1`) == 0;
 }
 
 function apply_region(c, r) {
@@ -253,11 +283,14 @@ function set_or_delete(c, conf, sid, opt, val) {
 function apply_router(c, w) {
 	let base = wan_base(c.get('network', 'wan', 'device'));
 	if (!base || match(base, /^@/)) return 'This router has no WAN port set up. Set the internet connection under Network, Interfaces.';
+	let was_ap = hub.is_ap(c), was_pppoe = c.get('network', 'wan', 'proto') == 'pppoe';
 	for (let i in [ 'wan', 'wan6' ]) { c.delete('network', i, 'disabled'); c.delete('network', i, 'auto'); }
 	// a router that was an access point before: its WAN port goes back to the internet side
 	let br = lan_bridge(c);
-	if (br && base) c.set('network', br, 'ports', filter(list_of(c.get('network', br, 'ports')), p => p != base));
+	if (br && base) set_or_delete(c, 'network', br, 'ports', filter(list_of(c.get('network', br, 'ports')), p => p != base));
 	for (let o in [ 'username', 'password', 'ipaddr', 'netmask', 'gateway', 'dns', 'service', 'ac' ]) c.delete('network', 'wan', o);
+	// what only a PPPoE line needed (the smaller packet size taken over from the factory firmware)
+	if (was_pppoe && w.proto != 'pppoe') for (let o in [ 'mtu', 'ipv6' ]) c.delete('network', 'wan', o);
 	c.set('network', 'wan', 'proto', w.proto);
 	c.set('network', 'wan', 'device', (w.proto == 'pppoe' && w.vlan) ? `${base}.${+w.vlan}` : base);
 	if (w.proto == 'pppoe') {
@@ -273,7 +306,7 @@ function apply_router(c, w) {
 	}
 	// a router that was an access point before: the main network gets its own address and DHCP back
 	// (the IPv6 settings are left alone otherwise: OpenWrt's defaults hand out IPv6 on the LAN)
-	if (c.get('network', 'lan', 'proto') != 'static') {
+	if (was_ap) {
 		for (let o in [ 'ipaddr', 'netmask', 'gateway', 'dns' ]) c.delete('network', 'lan', o);
 		c.set('network', 'lan', 'proto', 'static');
 		c.set('network', 'lan', 'ipaddr', '192.168.1.1');
@@ -307,7 +340,9 @@ function apply_ap(c, a) {
 		c.set('network', 'lan', 'ipaddr', a.ipaddr);
 		c.set('network', 'lan', 'netmask', a.netmask);
 		c.set('network', 'lan', 'gateway', a.gateway);
-		set_or_delete(c, 'network', 'lan', 'dns', filter(list_of(a.dns), length));
+		// without a DNS server of its own the router asks the main router, or it could not check the time or for updates
+		let dns = filter(list_of(a.dns), length);
+		c.set('network', 'lan', 'dns', length(dns) ? dns : [ a.gateway ]);
 	}
 	c.set('dhcp', 'lan', 'ignore', '1');
 	c.set('dhcp', 'lan', 'dhcpv6', 'disabled');
@@ -322,9 +357,11 @@ function apply_wifi(c, f) {
 	for (let w in ifaces) {
 		let sid = w['.name'];
 		c.set('wireless', sid, 'ssid', (f.split && band_of(c, w) != '2g') ? f.ssid5 : f.ssid);
-		c.set('wireless', sid, 'encryption', f.security);
+		// a Wi-Fi 7 MLO network keeps its own security mode, which it has to have (be7000-5g-split)
+		if (w.mlo != '1') c.set('wireless', sid, 'encryption', f.security);
 		c.set('wireless', sid, 'key', f.key);
-		c.set('wireless', sid, 'disabled', '0');
+		// the networks MLO stands in for stay parked
+		if (w.be7000_mlo_off != '1') c.set('wireless', sid, 'disabled', '0');
 	}
 	return null;
 }
@@ -370,34 +407,37 @@ function apply_iot(c, conn, n) {
 /* AdGuard Home elsewhere on the network: devices on the main network get it as their DNS server, so it
    sees each of them; the router (and with it the guest and IoT networks) asks it too. */
 function apply_dns_handout(c, ip) {
-	if (!is_ipv4(ip)) return;
+	if (!is_ipv4(ip)) return null;
+	let done = { added: [], server: ip };
 	for (let sid in [ 'lan' ]) {
 		if (c.get('dhcp', sid) != 'dhcp') continue;
 		let opts = filter(list_of(c.get('dhcp', sid, 'dhcp_option')), o => !match(o, /^6,/));
 		push(opts, '6,' + ip);
 		c.set('dhcp', sid, 'dhcp_option', opts);
+		push(done.added, { net: sid, option: '6,' + ip });
 	}
 	let dm = null;
 	c.foreach('dhcp', 'dnsmasq', s => { dm = s['.name']; return false; });
 	if (dm) {
+		done.old_noresolv = c.get('dhcp', dm, 'noresolv');
+		done.old_server = list_of(c.get('dhcp', dm, 'server'));
 		c.set('dhcp', dm, 'noresolv', '1');
 		c.set('dhcp', dm, 'server', [ ip ]);
 	}
+	return done;   // what "unlink" in the app puts back (hub.uc)
 }
 
-function host_of(url) {
-	let m = match(url ?? '', /^https?:\/\/([^:\/]+)/);
-	return m ? m[1] : null;
-}
-
-/* LuCI keeps the menu, with the result of each entry's "depends", in /tmp/luci-indexcache.*.json until
-   the menu files change; the setup entry depends on miwrt.setup.state, so the copy has to go. */
+/* LuCI keeps the menu in /tmp/luci-indexcache.*.json until the menu files change. The page is in the
+   menu at all times now (it sends a router that is set up to the overview itself), but a copy made by
+   an earlier build may still say otherwise. */
 function drop_menu_cache() {
 	system('rm -f /tmp/luci-indexcache*');
 }
 
-/* The wizard is done, or skipped: the web interface opens as usual from now on. */
-export function finish() {
+/* The wizard is done, or skipped: the web interface opens as usual from now on. "verify" is set for a
+   router that becomes an access point: until it has an address from the main router, a restart (a power
+   cut, say) goes on checking, and puts the old settings back if none comes (miwrt-setup-apply resume). */
+export function finish(verify) {
 	let c = cursor();
 	if (c.get('miwrt', 'setup') != 'setup') {
 		if (!access('/etc/config/miwrt')) writefile('/etc/config/miwrt', '');
@@ -405,6 +445,9 @@ export function finish() {
 		c.set('miwrt', 'setup', 'setup');
 	}
 	c.set('miwrt', 'setup', 'state', 'done');
+	if (verify === true) c.set('miwrt', 'setup', 'verify', '1');
+	else c.delete('miwrt', 'setup', 'verify');
+	c.delete('miwrt', 'setup', 'retry');
 	c.commit('miwrt');
 	drop_menu_cache();
 	return { ok: true };
@@ -412,24 +455,31 @@ export function finish() {
 
 const CONFIGS = [ 'network', 'wireless', 'dhcp', 'firewall', 'system', 'luci' ];
 
-/* Applies the whole wizard in one go. Everything is checked before anything changes; the settings are
-   saved to /etc/miwrt/setup-backup.tar.gz first. The network restarts a few seconds after the answer. */
+/* Applies the whole wizard in one go. Everything is checked before anything changes, and the settings
+   are saved to /etc/miwrt/setup-backup.tar.gz first. The network restarts a few seconds after the answer. */
 export function apply(b) {
+	// the assistant is for a router that has not been set up; afterwards the same call would lock out its owner
+	if (state() != 'pending') return err(null, 'This router is already set up. Change its settings in the web interface.');
+	let running = hub.load(JOB, null);
+	if (running?.state == 'running' && time() - (running.time ?? 0) < 180)
+		return err(null, 'The router is already applying your settings. Give it a minute.');
+
 	let bad = validate(b);
 	if (bad) return bad;
+	let prot = b.protection ?? { where: 'none' };
 
 	let net_ag = null;
-	if (b.protection.where == 'network') {
-		let t = adguard_test(b.protection);
+	if (prot.where == 'network') {
+		let t = adguard_test(prot);
 		if (t.error) return err('protection', t.error);
-		net_ag = { provider: 'adguard', where: 'network', url: t.url, username: b.protection.username, password: b.protection.password };
+		net_ag = { provider: 'adguard', where: 'network', url: t.url, username: prot.username, password: prot.password };
 	}
 
 	mkdir(ETC); mkdir(RUN);
-	if (system(`tar -czf ${BACKUP} -C / ${join(' ', map(CONFIGS, n => 'etc/config/' + n))} 2>/dev/null; chmod 600 ${BACKUP}`) != 0 && !access(BACKUP))
+	if (system(`tar -czf ${BACKUP} -C / ${join(' ', map(CONFIGS, n => 'etc/config/' + n))} 2>/dev/null && chmod 600 ${BACKUP}`) != 0) {
+		unlink(BACKUP);
 		return err(null, 'The router could not save a copy of its settings, so nothing was changed.');
-
-	if (!set_password(b.password)) return err('password', 'The router did not accept the new password.');
+	}
 
 	let c = cursor(), conn = connect();
 	apply_region(c, b.region);
@@ -439,14 +489,17 @@ export function apply(b) {
 		e = e ?? apply_guest(c, conn, b.guest);
 		e = e ?? apply_iot(c, conn, b.iot);
 	}
-	if (!e && net_ag && b.mode == 'router' && b.protection.handout !== false) apply_dns_handout(c, host_of(net_ag.url));
+	let handout = null;
+	if (!e && net_ag && b.mode == 'router' && prot.handout !== false) handout = apply_dns_handout(c, host_of(net_ag.url));
 	if (!e) {
 		for (let n in CONFIGS) c.save(n);
 		if (system('fw4 check >/dev/null 2>&1') != 0) e = 'The router refused the new firewall settings.';
 	}
+	// the password last of the things that can fail: nothing is kept unless everything is
+	if (!e && !set_password(b.password)) e = 'The router did not accept the new password.';
 	if (e) {
 		for (let n in CONFIGS) c.revert(n);
-		return err(null, e + ' Nothing else was changed (the new password stays).');
+		return err(null, e + ' Nothing was changed.');
 	}
 
 	for (let n in CONFIGS) c.commit(n);
@@ -454,6 +507,7 @@ export function apply(b) {
 	if (net_ag) {
 		hub.save_private(ETC + '/adblock.json', net_ag);
 		unlink(RUN + '/protection.json');
+		if (handout) hub.save(hub.AG_HANDOUT, handout);
 	}
 	if (b.mode == 'router' && b.guest?.on) {
 		let s = hub.load(ETC + '/settings.json', {});
@@ -462,18 +516,20 @@ export function apply(b) {
 	}
 
 	unlink(AG_JOB);
-	let job = { state: 'running', step: 'network', mode: b.mode, ap_proto: b.ap?.proto, adguard: b.protection.where == 'router', time: time() };
+	let job = { state: 'running', step: 'network', mode: b.mode, ap_proto: b.ap?.proto, adguard: prot.where == 'router', time: time() };
 	writefile(JOB, sprintf('%J', job));
 	if (job.adguard) {
 		writefile(AG_PASS, '');
 		system([ 'chmod', '600', AG_PASS ]);
-		writefile(AG_PASS, b.password);
+		writefile(AG_PASS, prot.password);
 	}
-	finish();
+	finish(b.mode == 'ap');
 	for (let init, mark in WIFI_MARKS) if (access(init)) writefile(mark, '');
-	hub.add_alert('router', 'Router set up', 'With the setup assistant in the web interface.', 'info', null, true);
 
+	// from here the router has to restart its network, whatever else happens
 	system('(sleep 3; /usr/libexec/miwrt-setup-apply) >/dev/null 2>&1 </dev/null &');
+	try { hub.add_alert('router', 'Router set up', 'With the setup assistant in the web interface.', 'info', null, true); }
+	catch (x) { warn(`miwrt-setup: ${x}\n`); }
 
 	let lanip = b.mode == 'router' ? split(list_of(c.get('network', 'lan', 'ipaddr'))[0] ?? '', '/')[0] : (b.ap.proto == 'static' ? b.ap.ipaddr : null);
 	return { ok: true, ssid: b.wifi.ssid, address: lanip, hostname: c.get('system', system_sid(c), 'hostname') };

@@ -6,6 +6,10 @@ MiWRT stands on the work of the [OpenWrt](https://openwrt.org) project and of Ti
 
 Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in [Releases](https://github.com/iroham/MiWRT/releases), checksums in `sha256sums.txt`, what changed in [the release notes](docs/release-notes/v2.1.0.md).
 
+<p align="center">
+  <img src="docs/images/setup-welcome.webp" alt="The setup assistant on a new router: a welcome page listing what will be set up" width="840">
+</p>
+
 ## Contents
 
 - [What MiWRT does](#what-miwrt-does)
@@ -55,24 +59,42 @@ A router set up from scratch opens a setup assistant in the web interface instea
 3. **Wi-Fi**: the network name and password (with a generator and a strength meter), one name for all bands or a separate 5 GHz name, and the security level.
 4. **Guest Wi-Fi**: a separate network for visitors, kept away from your own devices.
 5. **Smart-home network**: a separate network for plugs, cameras and other IoT devices, with or without internet.
-6. **Ad blocking**: AdGuard Home on this router, one that already runs elsewhere on the network (checked before you go on), or none. A router that cannot run it says why.
+6. **Ad blocking**: AdGuard Home on this router (with a password of its own, suggested for you), one that already runs elsewhere on the network (checked before you go on), or none. A router that cannot run it says why.
 7. **Router password**: for the web interface and SSH; it must differ from the Wi-Fi passwords.
 8. **Review**: everything on one page, each part with a Change link.
 
-Guest and smart-home networks are left out for an access point. The settings are applied in one go; the page follows the restart and says where to find the router afterwards (an access point gets a new address from the main router). The last page has a QR code for the MiWRT app and one that joins the new Wi-Fi.
+Guest and smart-home networks are left out for an access point. Nothing changes until the last step: the settings are checked and applied in one go, the page follows the restart and says where to find the router afterwards (an access point gets a new address from the main router). A page reloaded meanwhile picks the progress up again. The last page has a QR code for the MiWRT app, one that joins the new Wi-Fi, and the AdGuard Home login if it was installed.
+
+| | |
+|---|---|
+| <img src="docs/images/setup-wifi.webp" alt="Wi-Fi step: network name, password with a strength meter, security level" width="420"> | <img src="docs/images/setup-protect.webp" alt="Ad blocking step: AdGuard Home on this router, on another device, or not now" width="420"> |
+| <img src="docs/images/setup-review.webp" alt="Review step: every choice on one page, each with a Change link" width="420"> | <img src="docs/images/setup-done.webp" alt="Last page: AdGuard Home login, a QR code for the app and one for the Wi-Fi" width="420"> |
+
+<p align="center">
+  <img src="docs/images/setup-phone-welcome.webp" alt="The assistant on a phone, dark mode: welcome page" width="250">
+  &nbsp;&nbsp;
+  <img src="docs/images/setup-phone-protect.webp" alt="The assistant on a phone, dark mode: ad blocking step" width="250">
+</p>
+
+The names, addresses and passwords in these pictures are invented.
 
 - Only fresh installs see it: no root password yet, and no Wi-Fi set up by MiWRT before (`/etc/.be7000_secure_defaults` on the BE7000, `/etc/.miwrt_wifi_defaults` on the AC2100). A router updated with its settings kept, or one that came from another OpenWrt build with a password, opens as usual. The state is `miwrt.setup.state` (`pending` or `done`).
-- "Skip setup" leaves everything as it is and opens the usual interface. To see the assistant again: `uci set miwrt.setup.state=pending && uci commit miwrt && rm -f /tmp/luci-indexcache*`.
-- Before applying, the settings are saved to `/etc/miwrt/setup-backup.tar.gz`. An access point that gets no address from the main router within two minutes puts them back and stays reachable at its old address.
-- The page works on a phone and from the keyboard, follows the light or dark mode, and remembers what was entered if the browser reloads (passwords excepted).
+- "Skip setup" leaves everything as it is and opens the usual interface. Once the assistant has finished or was skipped it does not run again by itself, and its page refuses to apply anything. To see it again: `uci set miwrt.setup.state=pending; uci set miwrt.setup.retry=1; uci commit miwrt`.
+- Before applying, the settings are saved to `/etc/miwrt/setup-backup.tar.gz` (readable by root only). The new settings are staged and the firewall is checked first; if anything fails there, nothing is changed.
+- An access point that gets no address from the main router within two minutes puts the old settings back, stays reachable at its old address and opens the assistant again. The check survives a power cut: it carries on at the next boot (`miwrt.setup.verify`).
+- A smart-home network made here gets its firewall rules with it: addresses and DNS from the router, and the discovery and mDNS announcements the two relays repeat onto the main network.
+- The page works on a phone and from the keyboard, follows the light or dark mode, and remembers what was entered if the browser reloads (the router, provider and AdGuard Home passwords excepted).
 
 ### AdGuard Home on the router
 
 AdGuard Home can run on the router itself (from the setup assistant or the app's Protection tab), or anywhere else on the network, linked by its address and login. On the router (`/usr/libexec/miwrt-adguard`):
 
-- It is installed from the package feed and answers DNS on port 53 for every network of the router. dnsmasq moves to port 54 and keeps handing out addresses and local names: AdGuard Home asks it for `*.lan` and for reverse lookups. DHCP keeps telling devices to use the router.
-- Its own page is at port 3000 of the router, user name `admin`, with the password chosen in the assistant or the app.
-- It needs 400 MB of memory and 32 MB free for settings (join the spare slot under System, Slots for room), and the router mode. The BE7000 has both; the AC2100 does not, so there it can only be linked.
+- It is installed from the package feed and answers DNS on port 53 for every network of the router. dnsmasq moves to port 54 and keeps handing out addresses and local names: AdGuard Home asks it for `*.lan` and for reverse lookups. Every DHCP pool tells its devices to use the router for DNS (option 6), so lookups reach AdGuard Home and not port 54.
+- If AdGuard Home stops, the 30 s pass starts it again. If it is still not running a minute later, DNS goes back to dnsmasq so the network keeps resolving names, and an alert says so; remove it in the app and install it again to get ad blocking back. AdGuard Home itself falls back to dnsmasq when its own upstream servers do not answer.
+- Its own page is at port 3000 of the router, user name `admin`, with a password of its own chosen in the assistant or the app (8 to 72 bytes, not the router password). The router keeps it for the app's Protection tab.
+- It keeps one day of query log, to spare the flash.
+- It needs 400 MB of memory, 32 MB free for settings and packages, and the router mode. The BE7000 has the memory, but a fresh install has about 19 MB free: join the spare slot under System, Slots (about 57 MB) or keep the settings on a USB disk, then install it from the app's Protection tab. The AC2100 has too little memory, so there an AdGuard Home can only be linked.
+- Ad blocking off for a single device matches the device by its IPv4 address; a device that asks over IPv6 is still filtered.
 - It stays through MiWRT updates like any package you added. Removing it from the app puts DNS back on dnsmasq. So does removing the package by hand under System, Software (an apk hook notices at once), and a router that boots without it does the same before dnsmasq starts, so the network keeps working.
 
 ## Wi-Fi tuning
@@ -113,6 +135,10 @@ The system calls itself MiWRT in LuCI, the console banner and `/etc/openwrt_rele
 ## The app service
 
 A small service on the router that a phone app talks to. Nothing else is needed on the network, and nothing goes through a cloud. It is written in ucode and shell, lives in `overlay-files`, and uses only what the image already has (uhttpd, rpcd, umdns, nlbwmon, banIP, Lua with nixio).
+
+<p align="center">
+  <img src="docs/images/app.webp" alt="The MiWRT iPhone app with invented data: home, devices, protection and alerts" width="840">
+</p>
 
 | File | Purpose |
 |---|---|
@@ -164,7 +190,7 @@ A small service on the router that a phone app talks to. Nothing else is needed 
 | Smart plug power-on | for laptops whose Wi-Fi is off while they sleep: a Tuya plug on the charger, linked with its device ID and local key, is switched off for 45 seconds (a shorter cut is not noticed by a laptop that is off, because its charger holds its charge) to start a laptop that powers on when its charger is connected. Works from shutdown and from hibernation; with a plug linked, "sleep" on Windows means hibernate. The Windows setup can also make the PC hibernate wherever it used to sleep (idle time, lid on battery, sleep button, Start menu), for laptops that cannot be woken from sleep. The plug's power reading is taken every 5 minutes: 24 hours of readings and 60 days of energy per day are kept |
 | Maintenance | settings backup download, lights on, off or off at night, restart, firmware version, update check and install (through `miwrt-update`) |
 | Discovery relay | where an IoT network exists (`br-iot`), smart-home announcements (UDP 6666 and 6667) are repeated onto the main network so phone apps still find their devices |
-| Casting across networks | where an IoT network exists, mDNS is repeated both ways so phones on the main network find AirPlay and Chromecast devices, printers and speakers on the IoT side. Discovery only: the firewall still decides what may connect. The IoT zone needs an input rule for UDP 5353 |
+| Casting across networks | where an IoT network exists, mDNS is repeated both ways so phones on the main network find AirPlay and Chromecast devices, printers and speakers on the IoT side. Discovery only: the firewall still decides what may connect. An IoT network made by the setup assistant or the app has the input rule for UDP 5353 it needs; one made by hand needs it added |
 
 ### API
 
@@ -181,7 +207,7 @@ Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start` and `P
 | `POST /v1/settings` | `approve_new`, `watchdog`, `night`, `push` |
 | `GET /v1/wifi`, `/v1/wifi/secret?id=`, `/v1/wifi/check`; `POST /v1/wifi/<id>` | Wi-Fi: `ssid`, `key`, `enabled`, `schedule` (`enabled`, `from`, `to`, `days`) |
 | `GET`/`POST /v1/guest` | guest Wi-Fi |
-| `GET /v1/protection`, `/v1/protection/lists`, `/v1/protection/log`, `/v1/protection/check`; `POST /v1/protection/connect`, `disconnect`, `install` (`password`), `remove`, `pause`, `lists`, `rules` | ad blocker. `GET /v1/protection` has `where` (`router` or `network`) once linked; before that `can_install` and `install_blocker` (`memory`, `storage`, `mode`); `install` is the last install or removal on the router (`state`, `step`, `error`) |
+| `GET /v1/protection`, `/v1/protection/lists`, `/v1/protection/log`, `/v1/protection/check`; `POST /v1/protection/connect`, `disconnect`, `install` (`password`, 8 to 72 bytes), `remove`, `pause`, `lists`, `rules` | ad blocker. `GET /v1/protection` has `where` (`router` or `network`) once linked; before that `can_install` and `install_blocker` (`unsupported`, `mode`, `memory`, `storage`); `install` is the last install or removal on the router (`state`, `step`, `error`, `age` in seconds by the router's clock) |
 | `GET /v1/usage`, `/v1/week`, `/v1/history`, `/v1/threats`, `/v1/overview`, `/v1/diagnose`, `/v1/firmware`, `/v1/speedtests`, `/v1/iotwatch`; `POST /v1/speedtest`, `/v1/firmware/install` | insight, firmware |
 | `GET`/`POST /v1/shaping` | speed shaping: `enabled`, `down_kbit`, `up_kbit` |
 | `GET /v1/phones`; `POST /v1/phones/revoke` | paired phones |
@@ -229,7 +255,7 @@ A MiWRT image for the Xiaomi Redmi Router AC2100 is in testing: the `ac2100 imag
 
 ## Building
 
-GitHub Actions builds everything: a tag `v*` produces the images, the signed package feed on this repository's GitHub Pages and a release whose text is `docs/release-notes/<tag>.md`. The workflow needs one secret, `APK_SIGNING_KEY` (an EC P-256 private key in PEM); images trust its public key. Pushing to the branch does not build the BE7000 image; only a version tag does.
+GitHub Actions builds everything: a tag `v*` produces the images, the signed package feed on this repository's GitHub Pages and a release whose text is `docs/release-notes/<tag>.md`. The workflow needs one secret, `APK_SIGNING_KEY` (an EC P-256 private key in PEM); images trust its public key. Pushing to the branch does not build the BE7000 image; only a version tag does. Run by hand without a release tag, the workflow builds and checks everything but publishes nothing. Before anything is published it checks that every feed the image's `customfeeds.list` names was built.
 
 To build by hand, follow `.github/workflows/build.yml`: the OpenWrt tree at the commit in `patches/port/BASE`, the BE7000 port series from `patches/port` applied with `git am`, the kernel patches from `patches` copied to `target/linux/qualcommbe/patches-6.18`, the ath12k and mac80211 patches to their package, `patches/tree` applied on top, `overlay-files` as `files/`, `luci-theme-miwrt` in `package/`, then `config.buildinfo` as `.config`. A few LuCI files in `overlay-files` replace LuCI's own; `patches/luci` holds what changed in each against the pinned LuCI, to be applied again when the pin moves.
 

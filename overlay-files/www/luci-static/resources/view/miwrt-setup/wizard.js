@@ -173,7 +173,16 @@ const STR = {
 		p_none_d: 'You can add it later from the app.',
 		p_router: 'On this router',
 		p_router_d: 'MiWRT installs AdGuard Home after setup (a download of about 30 MB) and looks after it.',
-		p_router_after: 'Its own page will be http://{0}:3000, user admin, with the router password you choose in the next step.',
+		p_router_after: 'Its own page will be http://{0}:3000. You sign in there as admin with the password below; the MiWRT app uses it too.',
+		p_rpass: 'AdGuard Home password',
+		p_rpass_h: 'A password of its own, different from the router’s. 8 to 72 characters.',
+		e_rpass: 'The AdGuard Home password needs 8 to 72 characters (letters outside A–Z count as 2 or 3).',
+		e_pw_ag: 'Use a different password from the AdGuard Home one.',
+		e_ag_ip: 'To make devices ask it directly, enter its address as numbers, such as 192.168.1.2:3000, or turn that option off.',
+		e_again: 'Enter this password again: it is not kept when the page is reloaded.',
+		e_skip: 'The router did not answer. Try again.',
+		w_skip_text_pw: 'You can set everything up yourself in the web interface.',
+		p_why_unsupported: 'AdGuard Home cannot be installed on this model.',
 		p_net: 'On another device',
 		p_net_d: 'You already run AdGuard Home, for example on a Raspberry Pi.',
 		p_keep: 'Keep the current one',
@@ -198,9 +207,8 @@ const STR = {
 		pw_new: 'Router password',
 		pw_again: 'Type it again',
 		pw_h: 'At least 8 characters. A short sentence is easy to remember and hard to guess.',
-		pw_ag: 'AdGuard Home on this router will use the same password, with user admin.',
 		e_pw: 'The password needs at least 8 characters.',
-		e_pw_long: 'The password can be at most 128 characters.',
+		e_pw_long: 'The password is too long: at most 128 characters (letters outside A–Z count as 2 or 3).',
 		e_pw2: 'The passwords do not match.',
 		e_pw_wifi: 'Use a different password from the Wi-Fi one, or anyone on your Wi-Fi could change the router.',
 
@@ -248,7 +256,7 @@ const STR = {
 		d_signin: 'Sign in here later',
 		d_signin_d: 'Open http://{0} and sign in as root with your router password.',
 		d_signin_ap: 'Find “{0}” in your main router’s list of devices, open that address and sign in as root with your router password.',
-		d_ag_ok: 'AdGuard Home is running on the router. Its own page is at http://{0}:3000 (user admin, router password).',
+		d_ag_ok: 'AdGuard Home is running on the router. Its own page is at http://{0}:3000.',
 		d_ag_fail: 'AdGuard Home was not installed. {0} You can install it later from the app.',
 		agf_internet: 'The router could not reach the package feed.',
 		agf_download: 'The download or the installation failed; check that there is free space.',
@@ -400,7 +408,16 @@ const STR = {
 		p_none_d: 'Можно добавить позже в приложении.',
 		p_router: 'На этом роутере',
 		p_router_d: 'MiWRT установит AdGuard Home после настройки (загрузка около 30 МБ) и будет за ним следить.',
-		p_router_after: 'Его страница будет по адресу http://{0}:3000, пользователь admin, пароль — тот, что вы зададите для роутера на следующем шаге.',
+		p_router_after: 'Его страница будет по адресу http://{0}:3000. Вход — пользователь admin и пароль ниже; им же пользуется приложение MiWRT.',
+		p_rpass: 'Пароль AdGuard Home',
+		p_rpass_h: 'Отдельный пароль, не такой, как у роутера. От 8 до 72 символов.',
+		e_rpass: 'Пароль AdGuard Home — от 8 до 72 символов (буквы не из латиницы считаются за 2 или 3).',
+		e_pw_ag: 'Пароль должен отличаться от пароля AdGuard Home.',
+		e_ag_ip: 'Чтобы устройства обращались к нему напрямую, введите адрес цифрами, например 192.168.1.2:3000, или выключите эту настройку.',
+		e_again: 'Введите этот пароль ещё раз: при перезагрузке страницы он не сохраняется.',
+		e_skip: 'Роутер не ответил. Попробуйте ещё раз.',
+		w_skip_text_pw: 'Всё можно настроить вручную в веб-интерфейсе.',
+		p_why_unsupported: 'На этой модели AdGuard Home установить нельзя.',
 		p_net: 'На другом устройстве',
 		p_net_d: 'AdGuard Home уже работает, например на Raspberry Pi.',
 		p_keep: 'Оставить текущий',
@@ -425,9 +442,8 @@ const STR = {
 		pw_new: 'Пароль роутера',
 		pw_again: 'Повторите пароль',
 		pw_h: 'Не менее 8 символов. Короткую фразу легко запомнить и трудно подобрать.',
-		pw_ag: 'AdGuard Home на этом роутере будет использовать тот же пароль, пользователь admin.',
 		e_pw: 'Пароль должен содержать не менее 8 символов.',
-		e_pw_long: 'Пароль может содержать не более 128 символов.',
+		e_pw_long: 'Пароль слишком длинный: не более 128 символов (буквы не из латиницы считаются за 2 или 3).',
 		e_pw2: 'Пароли не совпадают.',
 		e_pw_wifi: 'Пароль должен отличаться от пароля Wi-Fi, иначе любой в вашей сети Wi-Fi сможет изменить настройки роутера.',
 
@@ -475,7 +491,7 @@ const STR = {
 		d_signin: 'Вход в веб-интерфейс',
 		d_signin_d: 'Откройте http://{0} и войдите как root с паролем роутера.',
 		d_signin_ap: 'Найдите «{0}» в списке устройств основного роутера, откройте этот адрес и войдите как root с паролем роутера.',
-		d_ag_ok: 'AdGuard Home работает на роутере. Его страница — http://{0}:3000 (пользователь admin, пароль роутера).',
+		d_ag_ok: 'AdGuard Home работает на роутере. Его страница — http://{0}:3000.',
 		d_ag_fail: 'AdGuard Home не установлен. {0} Его можно установить позже из приложения.',
 		agf_internet: 'Роутер не смог связаться с репозиторием пакетов.',
 		agf_download: 'Не удалось загрузить или установить пакет; проверьте, есть ли свободное место.',
@@ -627,7 +643,16 @@ const STR = {
 		p_none_d: '之后可在应用中添加。',
 		p_router: '在本路由器上',
 		p_router_d: '设置完成后，MiWRT 会安装 AdGuard Home（约 30 MB 下载）并负责维护。',
-		p_router_after: '其管理页面为 http://{0}:3000，用户名 admin，密码为下一步设置的路由器密码。',
+		p_router_after: '其管理页面为 http://{0}:3000。使用用户名 admin 和下方的密码登录；MiWRT 应用也使用该密码。',
+		p_rpass: 'AdGuard Home 密码',
+		p_rpass_h: '单独的密码，不能与路由器密码相同。8 到 72 个字符。',
+		e_rpass: 'AdGuard Home 密码需为 8 到 72 个字符（非英文字母占 2 或 3 个）。',
+		e_pw_ag: '请使用与 AdGuard Home 不同的密码。',
+		e_ag_ip: '要让设备直接向它查询，请输入数字形式的地址，例如 192.168.1.2:3000，或关闭该选项。',
+		e_again: '请重新输入此密码：刷新页面后不会保留。',
+		e_skip: '路由器没有响应，请重试。',
+		w_skip_text_pw: '你可以在网页界面中自行完成所有设置。',
+		p_why_unsupported: '此型号无法安装 AdGuard Home。',
 		p_net: '在其他设备上',
 		p_net_d: '你已在其他设备（例如树莓派）上运行 AdGuard Home。',
 		p_keep: '保留当前设置',
@@ -652,9 +677,8 @@ const STR = {
 		pw_new: '路由器密码',
 		pw_again: '再次输入',
 		pw_h: '至少 8 个字符。一句简短的话既好记又难猜。',
-		pw_ag: '本路由器上的 AdGuard Home 将使用相同密码，用户名为 admin。',
 		e_pw: '密码至少需要 8 个字符。',
-		e_pw_long: '密码最多 128 个字符。',
+		e_pw_long: '密码过长：最多 128 个字符（非英文字母占 2 或 3 个）。',
 		e_pw2: '两次输入的密码不一致。',
 		e_pw_wifi: '请使用与 Wi-Fi 不同的密码，否则任何连接 Wi-Fi 的人都能更改路由器设置。',
 
@@ -702,7 +726,7 @@ const STR = {
 		d_signin: '以后登录此页面',
 		d_signin_d: '打开 http://{0}，使用 root 和路由器密码登录。',
 		d_signin_ap: '在主路由器的设备列表中找到“{0}”，打开该地址，使用 root 和路由器密码登录。',
-		d_ag_ok: 'AdGuard Home 已在路由器上运行。其管理页面为 http://{0}:3000（用户名 admin，密码为路由器密码）。',
+		d_ag_ok: 'AdGuard Home 已在路由器上运行。其管理页面为 http://{0}:3000。',
 		d_ag_fail: 'AdGuard Home 未安装。{0} 之后可在应用中安装。',
 		agf_internet: '路由器无法连接软件源。',
 		agf_download: '下载或安装失败，请检查是否有足够的可用空间。',
@@ -845,8 +869,8 @@ let st = null;      // what the router reported
 let cfg = null;     // the answers
 const ui = {
 	root: null, screen: 'welcome', furthest: -1, errors: {}, banner: null, busy: false, fromReview: false,
-	focusTitle: false, reveal: { 'f-key': true, 'f-g-key': true, 'f-i-key': true }, test: { state: null, sig: null, text: null }, result: null,
-	job: null, started: 0, contact: 0, timer: null, enter: true
+	focusTitle: false, reveal: { 'f-key': true, 'f-g-key': true, 'f-i-key': true, 'f-ag-rpass': true }, test: { state: null, sig: null, text: null }, result: null,
+	job: null, started: 0, contact: 0, timer: null, enter: true, moving: false, resumed: false, lostPpass: false, shown: null
 };
 
 function browserLang() {
@@ -859,17 +883,22 @@ function uiLang() {
 	return (l == 'auto' || !STR[l]) ? browserLang() : l;
 }
 
-function browserCountry() {
-	for (const l of (navigator.languages || [ navigator.language ])) {
-		const m = /^[a-z]{2,3}[-_](?:[A-Za-z]{4}[-_])?([A-Za-z]{2})\b/.exec(l || '');
-		if (m && COUNTRIES.includes(m[1].toUpperCase())) return m[1].toUpperCase();
-	}
-	return null;
-}
-
 function browserZone() {
 	try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }
 	catch (e) { return null; }
+}
+
+function browserCountry() {
+	const zone = browserZone() || '';
+	for (const l of (navigator.languages || [ navigator.language ])) {
+		const m = /^[a-z]{2,3}[-_](?:[A-Za-z]{4}[-_])?([A-Za-z]{2})\b/.exec(l || '');
+		const cc = m && m[1].toUpperCase();
+		if (!cc || !COUNTRIES.includes(cc)) continue;
+		// "en-US" is what many browsers say anywhere in the world: believed only with an American clock
+		if (cc == 'US' && !/^(America|Pacific\/Honolulu|US)\b/.test(zone)) continue;
+		return cc;
+	}
+	return null;
 }
 
 function hasBand(b) {
@@ -892,7 +921,8 @@ function defaults() {
 	};
 	const g = st.guest || {}, io = st.iot || {}, p = st.protection || { where: 'none' };
 	return {
-		region: { lang: [ 'auto', 'en', 'ru', 'zh_cn' ].includes(st.lang) ? st.lang : 'auto', zonename: zone, country: browserCountry() || sc || '' },
+		// the country the factory firmware was set to is known; otherwise the browser's is a guess to confirm
+		region: { lang: [ 'auto', 'en', 'ru', 'zh_cn' ].includes(st.lang) ? st.lang : 'auto', zonename: zone, country: (st.imported && sc) || browserCountry() || sc || '' },
 		mode: st.mode == 'ap' ? 'ap' : 'router',
 		wan: {
 			proto: [ 'dhcp', 'pppoe', 'static' ].includes(w.proto) ? w.proto : 'dhcp',
@@ -907,7 +937,7 @@ function defaults() {
 		},
 		guest: { on: !!g.enabled, ssid: g.ssid || cut(base, ' Guest'), key: g.key || randomKey() },
 		iot: { on: !!io.ours, ssid: io.ssid || cut(base, ' IoT'), key: io.key || randomKey(), internet: io.ours ? io.internet !== false : true, all_bands: false },
-		protection: { where: p.where == 'none' ? 'none' : 'keep', url: p.where == 'network' ? (p.url || '') : '', username: p.where == 'network' ? (p.username || '') : 'admin', password: '', handout: true },
+		protection: { where: p.where == 'none' ? 'none' : 'keep', url: p.where == 'network' ? (p.url || '') : '', username: p.where == 'network' ? (p.username || '') : 'admin', password: '', handout: true, rpass: randomKey() },
 		password: '', password2: ''
 	};
 }
@@ -918,8 +948,10 @@ function save() {
 		const c = JSON.parse(JSON.stringify(cfg));
 		c.password = c.password2 = '';
 		c.wan.password = '';
-		c.protection.password = '';
-		sessionStorage.setItem(KEEP, JSON.stringify({ cfg: c, screen: ui.screen, furthest: ui.furthest }));
+		c.protection.password = c.protection.rpass = '';
+		// a provider password typed here is gone after a reload: remembered, so that it is asked for again
+		const ppass = cfg.mode == 'router' && cfg.wan.proto == 'pppoe' && cfg.wan.password !== (st.wan?.password || '');
+		sessionStorage.setItem(KEEP, JSON.stringify({ cfg: c, screen: ui.screen, furthest: ui.furthest, ppass }));
 	}
 	catch (e) {}
 }
@@ -932,7 +964,13 @@ function restore() {
 			if (k.cfg[s] != null && typeof cfg[s] == 'object') Object.assign(cfg[s], k.cfg[s]);
 			else if (k.cfg[s] != null) cfg[s] = k.cfg[s];
 		cfg.wan.password = st.wan?.password || '';
+		cfg.protection.password = '';
+		cfg.protection.rpass = randomKey();
 		if (ORDER.includes(k.screen)) ui.screen = k.screen;
+		if (k.ppass && cfg.mode == 'router' && cfg.wan.proto == 'pppoe' && ui.screen != 'welcome') {
+			cfg.wan.password = '';
+			ui.lostPpass = true;
+		}
 		ui.furthest = Math.max(-1, Math.min(+k.furthest || -1, ORDER.length - 1));
 	}
 	catch (e) {}
@@ -970,6 +1008,8 @@ function vStatic(e, o, gwField) {
 	if (!isIp(o.gateway)) e[gwField] = t('e_ip');
 	if (!dnsList(o.dns).every(isIp)) e['f-dns'] = t('e_dns');
 }
+
+const agHost = u => (/^(?:https?:\/\/)?([^:\/]+)/.exec(String(u ?? '').trim()) || [])[1];
 
 function agAvailable() {
 	if (cfg.mode == 'ap') return 'mode';
@@ -1035,8 +1075,14 @@ const VALIDATE = {
 		const e = {}, p = cfg.protection;
 		if (p.where == 'network') {
 			if (!/^(https?:\/\/)?[A-Za-z0-9.-]+(:\d{1,5})?\/?$/.test(p.url.trim())) e['f-ag-url'] = t('e_ag_url');
+			// handing it out as the DNS server takes an address; a name would have to be looked up through it
+			else if (cfg.mode == 'router' && p.handout && !isIp(agHost(p.url))) e['f-ag-url'] = t('e_ag_ip');
 			if (!p.username) e['f-ag-user'] = t('e_ag_login');
 			if (!p.password) e['f-ag-pass'] = t('e_ag_login');
+		}
+		if (p.where == 'router' && cfg.mode == 'router') {
+			if (p.rpass.length < 8 || bytes(p.rpass) > 72) e['f-ag-rpass'] = t('e_rpass');
+			else if (CTRL.test(p.rpass)) e['f-ag-rpass'] = t('e_chars');
 		}
 		return e;
 	},
@@ -1044,8 +1090,9 @@ const VALIDATE = {
 		const e = {};
 		const pw = cfg.password;
 		if (pw.length < 8) e['f-pw'] = t('e_pw');
-		else if (pw.length > 128) e['f-pw'] = t('e_pw_long');
+		else if (bytes(pw) > 128) e['f-pw'] = t('e_pw_long');
 		else if (CTRL.test(pw)) e['f-pw'] = t('e_chars');
+		else if (cfg.mode == 'router' && cfg.protection.where == 'router' && pw == cfg.protection.rpass) e['f-pw'] = t('e_pw_ag');
 		else if (pw == cfg.wifi.key || (guestOn() && pw == cfg.guest.key) || (iotOn() && pw == cfg.iot.key)) e['f-pw'] = t('e_pw_wifi');
 		if (!e['f-pw'] && cfg.password2 != pw) e['f-pw2'] = t('e_pw2');
 		return e;
@@ -1076,8 +1123,13 @@ function clearError(id, el) {
 	const box = el.closest('.mws-field');
 	box?.classList.remove('is-invalid');
 	document.getElementById(id + '-err')?.remove();
-	const ref = [ id + '-hint' ].filter(x => document.getElementById(x)).join(' ');
+	const ref = [ id + '-hint', id + '-meter' ].filter(x => document.getElementById(x)).join(' ');
 	if (ref) el.setAttribute('aria-describedby', ref); else el.removeAttribute('aria-describedby');
+	// "check the highlighted fields" has nothing left to point at
+	if (!Object.keys(ui.errors).length && ui.banner) {
+		ui.banner = null;
+		document.querySelector('.mws-banner-slot')?.replaceChildren();
+	}
 }
 
 /* one labelled input: o = { id, label, value, set, hint, type, secret, reveal, auto, mode, ph, max, extra, meter, optional } */
@@ -1103,9 +1155,9 @@ function field(o) {
 	const tools = [];
 	if (secret)
 		tools.push(h('button', {
-			type: 'button', class: 'mws-tool', 'aria-label': shown ? t('hide') : t('show'), title: shown ? t('hide') : t('show'),
+			type: 'button', class: 'mws-tool', id: o.id + '-eye', 'aria-label': shown ? t('hide') : t('show'), title: shown ? t('hide') : t('show'),
 			'aria-pressed': shown ? 'true' : 'false', 'aria-controls': o.id,
-			onclick: () => { ui.reveal[o.id] = !shown; render(o.id); }
+			onclick: () => { ui.reveal[o.id] = !shown; render(o.id + '-eye'); }
 		}, icon(shown ? 'eyeoff' : 'eye')));
 	const gen = o.generate ? h('button', {
 		type: 'button', class: 'mws-link is-small', onclick: () => {
@@ -1335,7 +1387,7 @@ const STEP = {
 		const p = cfg.protection;
 		const why = agAvailable();
 		const mb = kb => Math.floor((kb || 0) / 1024);
-		const reason = why == 'mode' ? t('p_why_mode') : why == 'memory' ? t('p_why_memory')
+		const reason = why == 'mode' ? t('p_why_mode') : why == 'memory' ? t('p_why_memory') : why == 'unsupported' ? t('p_why_unsupported')
 			: why ? t('p_why_storage', mb(st.adguard?.need_kb), mb(st.adguard?.free_kb)) : null;
 		const items = [];
 		const had = st.protection?.where && st.protection.where != 'none';
@@ -1346,7 +1398,10 @@ const STEP = {
 		}
 		if (!had) items.push({ value: 'none', title: t('p_none'), desc: t('p_none_d') });
 		const out = [ choices('ag', t('p_title'), p.where, items, v => { p.where = v; ui.errors = {}; }) ];
-		if (p.where == 'router') out.push(note('info', t('p_router_after', routerAddr())));
+		if (p.where == 'router') out.push(h('div', { class: 'mws-group' }, [
+			note('info', t('p_router_after', routerAddr())),
+			field({ id: 'f-ag-rpass', label: t('p_rpass'), value: p.rpass, set: v => { p.rpass = v; }, secret: true, generate: true, meter: true, auto: 'off', max: 72, hint: t('p_rpass_h') })
+		]));
 		if (p.where == 'network') {
 			const sig = p.url.trim() + '\n' + p.username + '\n' + p.password;
 			const tested = ui.test.sig == sig ? ui.test : { state: null };
@@ -1357,12 +1412,12 @@ const STEP = {
 					field({ id: 'f-ag-pass', label: t('p_pass'), value: p.password, set: v => { p.password = v; }, secret: true, auto: 'off' })
 				]),
 				h('div', { class: 'mws-test' }, [
-					h('button', { type: 'button', class: 'mws-btn is-quiet', disabled: tested.state == 'busy', onclick: () => testAdguard() },
+					h('button', { type: 'button', class: 'mws-btn is-quiet', id: 'mws-test-btn', disabled: tested.state == 'busy', onclick: () => testAdguard() },
 						tested.state == 'busy' ? [ h('span', { class: 'mws-spin', 'aria-hidden': 'true' }), t('p_testing') ] : [ icon('link'), t('p_test') ]),
 					h('div', { 'aria-live': 'polite', class: 'mws-test-out' },
 						tested.state == 'ok' ? note('ok', tested.text) : tested.state == 'fail' ? note('warn', tested.text) : null)
 				]),
-				cfg.mode == 'router' ? toggle('f-ag-handout', t('p_handout'), t('p_handout_d'), p.handout, v => { p.handout = v; }) : null
+				cfg.mode == 'router' ? toggle('f-ag-handout', t('p_handout'), t('p_handout_d'), p.handout, v => { p.handout = v; if (ui.errors['f-ag-url']) ui.errors = {}; }) : null
 			]));
 		}
 		return out;
@@ -1371,8 +1426,7 @@ const STEP = {
 	password() {
 		return [
 			field({ id: 'f-pw', label: t('pw_new'), value: cfg.password, set: v => { cfg.password = v; }, secret: true, auto: 'new-password', meter: true, hint: t('pw_h'), max: 128 }),
-			field({ id: 'f-pw2', label: t('pw_again'), value: cfg.password2, set: v => { cfg.password2 = v; }, secret: true, auto: 'new-password', max: 128 }),
-			cfg.mode == 'router' && cfg.protection.where == 'router' ? note('info', t('pw_ag')) : null
+			field({ id: 'f-pw2', label: t('pw_again'), value: cfg.password2, set: v => { cfg.password2 = v; }, secret: true, auto: 'new-password', max: 128 })
 		];
 	},
 
@@ -1389,6 +1443,7 @@ const STEP = {
 			const w = cfg.wan;
 			const how = w.proto == 'dhcp' ? t('m_dhcp') : w.proto == 'pppoe' ? 'PPPoE · ' + w.username + (w.vlan ? ' · VLAN ' + w.vlan : '') : w.ipaddr + ' · ' + w.gateway;
 			conn = [ [ t('v_mode'), t('m_router') ], [ t('m_inet'), how ] ];
+			if (w.proto == 'pppoe' && w.password) conn.push([ t('m_pass'), w.password, true ]);
 		}
 		else
 			conn = [ [ t('v_mode'), t('m_ap') ], [ t('m_ap_addr'), cfg.ap.proto == 'dhcp' ? t('v_addr_auto') : cfg.ap.ipaddr ] ];
@@ -1405,7 +1460,8 @@ const STEP = {
 		const p = cfg.protection;
 		const ag = p.where == 'router' ? t('p_router') : p.where == 'network' ? t('p_net') + ' · ' + p.url.trim()
 			: p.where == 'keep' ? t('p_keep_d', st.protection?.url || '') : t('p_none');
-		rows.push([ 'protect', t('s_protect'), [ [ 'AdGuard Home', ag ] ] ]);
+		rows.push([ 'protect', t('s_protect'), [ [ 'AdGuard Home', ag ] ].concat(p.where == 'router' && cfg.mode == 'router'
+			? [ [ t('p_user'), 'admin' ], [ t('p_rpass'), p.rpass, true ] ] : []) ]);
 		rows.push([ 'password', t('s_password'), [ [ t('pw_new'), t('v_set') ] ] ]);
 
 		return [
@@ -1414,9 +1470,9 @@ const STEP = {
 					h('h2', { id: 'rv-' + step }, title),
 					h('button', { type: 'button', class: 'mws-link', 'aria-label': t('change') + ': ' + title, onclick: () => go(step, true) }, t('change'))
 				]),
-				h('dl', {}, items.map(([ k, v, secret ]) => [
+				h('dl', {}, items.map(([ k, v, secret ], n) => [
 					h('dt', {}, k),
-					h('dd', { class: secret ? 'mws-secret' : null }, secret ? revealable('rv-k-' + k, v, dots(v)) : v)
+					h('dd', { class: secret ? 'mws-secret' : null }, secret ? revealable('rv-' + step + '-' + n, v, dots(v)) : v)
 				]))
 			]))),
 			note('warn', t('v_warn', f.ssid))
@@ -1440,8 +1496,8 @@ function revealable(id, value, masked) {
 	return [
 		h('span', { class: 'mws-mono' }, shown ? value : masked),
 		h('button', {
-			type: 'button', class: 'mws-tool is-inline', 'aria-label': shown ? t('hide') : t('show'), title: shown ? t('hide') : t('show'),
-			'aria-pressed': shown ? 'true' : 'false', onclick: () => { ui.reveal[id] = !shown; render(); }
+			type: 'button', class: 'mws-tool is-inline', id: id + '-eye', 'aria-label': shown ? t('hide') : t('show'), title: shown ? t('hide') : t('show'),
+			'aria-pressed': shown ? 'true' : 'false', onclick: () => { ui.reveal[id] = !shown; render(id + '-eye'); }
 		}, icon(shown ? 'eyeoff' : 'eye'))
 	];
 }
@@ -1476,17 +1532,26 @@ function showErrors(e) {
 }
 
 async function next() {
-	const s = ui.screen;
-	if (s == 'welcome') return go(steps()[0]);
-	if (s == 'review') return apply();
-	const e = VALIDATE[s]();
-	if (Object.keys(e).length) return showErrors(e);
-	if (s == 'protect' && cfg.protection.where == 'network') {
-		if (!(await testAdguard())) return;
+	// a second tap while the first is still being checked would skip a page
+	if (ui.moving) return;
+	ui.moving = true;
+	try {
+		const s = ui.screen;
+		if (s == 'welcome') return go(steps()[0]);
+		if (s == 'review') return await apply();
+		const e = VALIDATE[s]();
+		if (Object.keys(e).length) return showErrors(e);
+		if (s == 'protect' && cfg.protection.where == 'network') {
+			if (!(await testAdguard())) return;
+			if (ui.screen != s) return;
+		}
+		if (ui.fromReview) return go('review');
+		const list = steps();
+		go(list[list.indexOf(s) + 1] || 'review');
 	}
-	if (ui.fromReview) return go('review');
-	const list = steps();
-	go(list[list.indexOf(s) + 1] || 'review');
+	finally {
+		ui.moving = false;
+	}
 }
 
 function back() {
@@ -1547,7 +1612,8 @@ function buildConfig() {
 		iot: iotOn() ? { on: true, ssid: cfg.iot.ssid, key: cfg.iot.key, internet: !!cfg.iot.internet, all_bands: !!cfg.iot.all_bands } : { on: false },
 		protection: p.where == 'network'
 			? { where: 'network', url: p.url.trim(), username: p.username, password: p.password, handout: r ? !!p.handout : false }
-			: { where: (p.where == 'router' && !r) ? 'none' : p.where },
+			: (p.where == 'router' && r) ? { where: 'router', password: p.rpass }
+			: { where: p.where == 'router' ? 'none' : p.where },
 		password: cfg.password
 	};
 }
@@ -1577,7 +1643,8 @@ async function apply() {
 		if (step && steps().includes(step)) {
 			go(step, true);
 			ui.banner = msg;
-			if (step == 'protect') ui.test = { state: 'fail', sig: null, text: msg };
+			if (step == 'protect' && cfg.protection.where == 'network')
+				ui.test = { state: 'fail', sig: cfg.protection.url.trim() + '\n' + cfg.protection.username + '\n' + cfg.protection.password, text: msg };
 		}
 		else ui.banner = msg;
 		render();
@@ -1590,8 +1657,15 @@ async function apply() {
 	ui.job = null;
 	ui.focusTitle = true;
 	ui.enter = true;
+	ui.shown = null;
 	render();
 	ui.timer = setTimeout(poll, 4000);
+}
+
+/* how long the router has been silent, as the kind of help the progress page shows for it */
+function quiet() {
+	const silent = Date.now() - ui.contact;
+	return (cfg.mode == 'ap' && silent > 20000) ? 'ap' : silent > 120000 ? 'lost' : silent > 8000 ? 'wait' : '';
 }
 
 /* the job is read with a short timeout of its own: while the network restarts, requests just fail */
@@ -1629,20 +1703,36 @@ async function poll() {
 		render();
 		return;
 	}
-	render();
+	// drawn again only when something to show has changed: a page rebuilt every two seconds cannot be
+	// read by a screen reader, and a password on it cannot be selected
+	const now = JSON.stringify([ ui.job, quiet() ], (k, v) => (k == 'time' || k == 'age') ? undefined : v);
+	if (now != ui.shown) {
+		ui.shown = now;
+		render();
+	}
 	ui.timer = setTimeout(poll, 2000);
 }
 
 function skip() {
 	const dlg = h('dialog', { class: 'mws-dialog', 'aria-labelledby': 'mws-dlg-t', 'aria-describedby': 'mws-dlg-d' }, [
 		h('h2', { id: 'mws-dlg-t' }, t('w_skip_q')),
-		h('p', { id: 'mws-dlg-d' }, t('w_skip_text')),
+		h('p', { id: 'mws-dlg-d' }, t(st.password_set ? 'w_skip_text_pw' : 'w_skip_text')),
+		h('p', { class: 'mws-err', id: 'mws-dlg-e', role: 'alert', hidden: true }),
 		h('div', { class: 'mws-dialog-actions' }, [
 			h('button', { type: 'button', class: 'mws-btn is-quiet', onclick: () => dlg.close() }, t('w_skip_no')),
 			h('button', {
 				type: 'button', class: 'mws-btn is-danger', onclick: async ev => {
-					ev.target.disabled = true;
-					try { await callSkip(); } catch (e) {}
+					const btn = ev.currentTarget;
+					btn.disabled = true;
+					let r = null;
+					try { r = await callSkip(); } catch (e) {}
+					if (!r || !r.ok) {
+						// not skipped: leaving now would only come straight back here
+						const out = document.getElementById('mws-dlg-e');
+						if (out) { out.textContent = t('e_skip'); out.hidden = false; }
+						btn.disabled = false;
+						return;
+					}
 					forget();
 					location.href = L.url('admin/status/overview');
 				}
@@ -1744,7 +1834,7 @@ function stepScreen() {
 					]),
 					art(ART[s], 'mws-head-art')
 				]),
-				h('div', { class: 'mws-banner-slot', 'aria-live': 'assertive' }, ui.banner ? note('warn', ui.banner) : null),
+				h('div', { class: 'mws-banner-slot' }, ui.banner ? h('div', { role: 'alert' }, note('warn', ui.banner)) : null),
 				h('div', { class: 'mws-fields' }, STEP[s]()),
 				h('div', { class: 'mws-actions' }, [
 					ui.fromReview ? h('span') : h('button', { type: 'button', class: 'mws-btn is-quiet', onclick: back, disabled: ui.busy }, [ icon('left'), t('back') ]),
@@ -1790,16 +1880,15 @@ function joinCard(title, text) {
 }
 
 function applyScreen() {
-	const silent = Date.now() - ui.contact;
-	const ap = cfg.mode == 'ap';
+	const q = quiet();
 	let help = null;
-	if (ap && silent > 20000)
-		help = note('info', cfg.ap.proto == 'static'
+	if (q == 'ap')
+		help = note('info', (cfg.ap.proto == 'static' && cfg.ap.ipaddr)
 			? [ t('a_lost_ap_static', cfg.ap.ipaddr), ' ', h('a', { href: 'http://' + cfg.ap.ipaddr + '/' }, t('a_open', cfg.ap.ipaddr)) ]
 			: t('a_lost_ap', ui.result?.hostname || st.hostname || 'MiWRT'));
-	else if (silent > 120000)
+	else if (q == 'lost')
 		help = note('warn', [ h('strong', {}, t('a_lost')), ' ', t('a_lost_router', cfg.wifi.ssid, ui.result?.address || routerAddr()) ]);
-	else if (silent > 8000)
+	else if (q == 'wait')
 		help = h('p', { class: 'mws-wait' }, t('a_wait'));
 	return h('div', { class: 'mws-shell is-single' }, h('main', { class: 'mws-main' }, h('div', { class: 'mws-card' + (ui.enter ? ' is-enter' : '') }, [
 		h('h1', { id: 'mws-title', tabindex: '-1' }, t('a_title')),
@@ -1815,7 +1904,8 @@ function failedScreen() {
 	return h('div', { class: 'mws-shell is-single' }, h('main', { class: 'mws-main' }, h('div', { class: 'mws-card' + (ui.enter ? ' is-enter' : '') }, [
 		h('h1', { id: 'mws-title', tabindex: '-1' }, t('a_failed')),
 		note('warn', text),
-		h('div', { class: 'mws-actions' }, [
+		// the settings from before are back and the assistant can run again; not so when they could not be put back
+		(ui.resumed && st.state != 'pending') ? null : h('div', { class: 'mws-actions' }, [
 			h('span'),
 			h('button', { type: 'button', class: 'mws-btn is-primary', onclick: () => { cfg.password = cfg.password2 = ''; go('mode'); } }, [ t('a_retry'), icon('right') ])
 		])
@@ -1827,7 +1917,10 @@ function doneScreen() {
 	const addr = ui.result?.address;
 	const signin = addr ? t('d_signin_d', addr) : t('d_signin_ap', ui.result?.hostname || st.hostname || 'MiWRT');
 	const agNote = !ui.job?.setup?.adguard ? null
-		: ag?.state == 'done' ? note('ok', t('d_ag_ok', addr || routerAddr()))
+		: ag?.state == 'done' ? note('ok', [ t('d_ag_ok', addr || routerAddr()),
+			// after a reload the password that was chosen is no longer known here
+			ui.resumed ? null : h('dl', { class: 'mws-kv' }, [ h('dt', {}, t('p_user')), h('dd', { class: 'mws-mono' }, 'admin'),
+				h('dt', {}, t('p_rpass')), h('dd', { class: 'mws-mono' }, cfg.protection.rpass) ]) ])
 		: note('warn', t('d_ag_fail', t(ag?.step == 'internet' ? 'agf_internet' : ag?.step == 'download' ? 'agf_download' : 'agf_other')));
 	return h('div', { class: 'mws-shell is-single' }, h('main', { class: 'mws-main' }, h('div', { class: 'mws-card is-done' + (ui.enter ? ' is-enter' : '') }, [
 		h('div', { class: 'mws-done-mark', 'aria-hidden': 'true' }, icon('check')),
@@ -1901,22 +1994,51 @@ return view.extend({
 			link.onload = link.onerror = () => resolve();
 			document.head.appendChild(link);
 		});
-		return Promise.all([ callStatus(), css ]);
+		return Promise.all([ callStatus(), css, Promise.resolve().then(fetchJob).catch(() => null) ]);
 	},
 
-	render([ status ]) {
+	render([ status, , job ]) {
 		st = (status && typeof status == 'object') ? status : {};
 		st.wan = st.wan || {};
 		st.wifi = st.wifi || {};
 		cfg = defaults();
 		if (st.state == 'pending') restore();
-		else forget();
+		else {
+			// the router is set up. A page reloaded while the settings were being applied goes on showing
+			// that; anyone else has no business here.
+			forget();
+			const s = job && job.setup;
+			if (!s || typeof s != 'object') {
+				location.replace(L.url('admin/status/overview'));
+				return h('div');
+			}
+			ui.resumed = true;
+			ui.job = job;
+			ui.result = { address: s.address || st.lan?.ipaddr || null, hostname: st.hostname };
+			ui.started = ui.contact = Date.now();
+			ui.screen = (s.state == 'done' && s.step == 'done') ? 'done' : s.state == 'failed' ? 'failed' : 'apply';
+			if (ui.screen == 'apply') ui.timer = setTimeout(poll, 2000);
+		}
 		lang = uiLang();
+		if (ui.lostPpass) {
+			ui.fromReview = (ui.screen == 'review');
+			ui.screen = 'mode';
+			ui.errors = { 'f-ppass': t('e_again') };
+			ui.banner = t('e_fix');
+		}
 		for (const a of new Set(Object.values(ART))) new Image().src = L.resource('miwrt-setup/' + a + '.webp');
 		document.documentElement.classList.add('mws-lock');
 		ui.root = h('div', { class: 'mws', id: 'mws' });
 		ui.focusTitle = true;
 		render();
+		// the page is not in the document yet, so the heading could not take the focus above
+		const first = () => {
+			if (!ui.root.isConnected) return;
+			const el = (ui.lostPpass && document.getElementById('f-ppass')) || document.getElementById('mws-title');
+			if (!document.activeElement || document.activeElement == document.body) el?.focus({ preventScroll: true });
+		};
+		requestAnimationFrame(() => requestAnimationFrame(first));
+		setTimeout(first, 300);
 		return ui.root;
 	},
 

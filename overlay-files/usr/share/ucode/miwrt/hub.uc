@@ -636,6 +636,32 @@ function watchdog(s, rt) {
 	system('logger -t miwrt-hubd "Wi-Fi core stuck, restarting the router"; (sleep 5; reboot) >/dev/null 2>&1 &');
 }
 
+/* The router's lights off, or back the way they were. */
+export function set_leds(on) {
+	if (!on) {
+		if (!stat(ETC + '/leds-off')) {
+			let saved = [];
+			for (let l in (lsdir('/sys/class/leds') ?? [])) {
+				let m = match(readfile(`/sys/class/leds/${l}/trigger`) ?? '', /\[([^\]]+)\]/);
+				push(saved, { led: l, trigger: m ? m[1] : 'none', brightness: read_trim(`/sys/class/leds/${l}/brightness`) });
+			}
+			save(ETC + '/leds.saved', saved);
+			writefile(ETC + '/leds-off', '');
+		}
+		for (let l in (lsdir('/sys/class/leds') ?? [])) {
+			writefile(`/sys/class/leds/${l}/trigger`, 'none');
+			writefile(`/sys/class/leds/${l}/brightness`, '0');
+		}
+	} else if (stat(ETC + '/leds-off')) {
+		for (let x in load(ETC + '/leds.saved', [])) {
+			if (!match(x.led, /^[A-Za-z0-9:._-]+$/) || !stat(`/sys/class/leds/${x.led}`)) continue;
+			writefile(`/sys/class/leds/${x.led}/trigger`, x.trigger);
+			if (x.trigger == 'none') writefile(`/sys/class/leds/${x.led}/brightness`, x.brightness);
+		}
+		unlink(ETC + '/leds-off');
+	}
+};
+
 // One pass: collect, detect changes, refresh the cached answers the app reads.
 function tick_unlocked() {
 	mkdir(ETC); mkdir(RUN);
@@ -951,31 +977,6 @@ export function usage_history() {
 	return map(load(USAGE, []), h => ({ day: h.day, total: h.total, top: map(h.top, t => ({ ...t, name: names[t.mac] ?? t.mac })) }));
 };
 
-export function set_leds(on) {
-	if (!on) {
-		if (!stat(ETC + '/leds-off')) {
-			let saved = [];
-			for (let l in (lsdir('/sys/class/leds') ?? [])) {
-				let m = match(readfile(`/sys/class/leds/${l}/trigger`) ?? '', /\[([^\]]+)\]/);
-				push(saved, { led: l, trigger: m ? m[1] : 'none', brightness: read_trim(`/sys/class/leds/${l}/brightness`) });
-			}
-			save(ETC + '/leds.saved', saved);
-			writefile(ETC + '/leds-off', '');
-		}
-		for (let l in (lsdir('/sys/class/leds') ?? [])) {
-			writefile(`/sys/class/leds/${l}/trigger`, 'none');
-			writefile(`/sys/class/leds/${l}/brightness`, '0');
-		}
-	} else if (stat(ETC + '/leds-off')) {
-		for (let x in load(ETC + '/leds.saved', [])) {
-			if (!match(x.led, /^[A-Za-z0-9:._-]+$/) || !stat(`/sys/class/leds/${x.led}`)) continue;
-			writefile(`/sys/class/leds/${x.led}/trigger`, x.trigger);
-			if (x.trigger == 'none') writefile(`/sys/class/leds/${x.led}/brightness`, x.brightness);
-		}
-		unlink(ETC + '/leds-off');
-	}
-};
-
 /* Re-apply what must survive a reboot (the lights; names and the pause list live in config files). */
 export function boot() {
 	mkdir(ETC); mkdir(RUN);
@@ -998,6 +999,146 @@ function ag() {
 	return load(ADBLOCK, null);
 }
 
+function list_of(v) {
+	return type(v) == 'array' ? v : (v != null ? [ v ] : []);
+}
+
+/* An access point: the setup assistant gave the LAN an address from the main router, or a fixed one
+   with this router's own DHCP server and WAN switched off. */
+export function is_ap(c) {
+	return c.get('network', 'lan', 'proto') == 'dhcp'
+		|| (c.get('dhcp', 'lan', 'ignore') == '1' && c.get('network', 'wan', 'disabled') == '1');
+};
+
+/* What changed in the DHCP and DNS settings for AdGuard Home on the router (see /usr/libexec/miwrt-adguard) */
+export const AG_DNS_STATE = ETC + '/adguard-dns.json';
+/* The same for one elsewhere on the network that the setup assistant handed out as DNS server */
+export const AG_HANDOUT = ETC + '/adguard-handout.json';
+
+/* While AdGuard Home on the router answers DNS, dnsmasq sits on another port and no longer tells devices
+   to ask the router. So every network that gets its addresses here says it itself: DHCP option 6 with
+   0.0.0.0, which dnsmasq replaces with the router's own address on that network. A network that names a
+   DNS server of its own keeps it. Returns true when something was added; the caller commits "dhcp". */
+export function adguard_dhcp_sync(c) {
+	let st = load(AG_DNS_STATE, null);
+	if (type(st) != 'object') return false;
+	let added = st.added ?? [], n = 0;
+	c.foreach('dhcp', 'dhcp', s => {
+		if (s.ignore == '1' || s.dhcpv4 == 'disabled') return;
+		let opts = list_of(s.dhcp_option);
+		if (length(filter(opts, o => match(o, /^(6|option:dns-server),/)))) return;
+		push(opts, '6,0.0.0.0');
+		c.set('dhcp', s['.name'], 'dhcp_option', opts);
+		push(added, { net: s['.name'], option: '6,0.0.0.0' });
+		n++;
+	});
+	if (n) {
+		st.added = added;
+		save(AG_DNS_STATE, st);
+	}
+	return n > 0;
+};
+
+/* Undoes what the setup assistant changed to hand out an AdGuard Home elsewhere on the network as the
+   DNS server: without it, devices would keep asking a machine the router no longer knows about. */
+function handout_undo() {
+	let h = load(AG_HANDOUT, null);
+	if (type(h) != 'object') return;
+	let c = cursor(), dm = null;
+	c.foreach('dhcp', 'dnsmasq', s => { dm = s['.name']; return false; });
+	for (let a in (h.added ?? [])) {
+		let opts = filter(list_of(c.get('dhcp', a.net, 'dhcp_option')), o => o != a.option);
+		if (length(opts)) c.set('dhcp', a.net, 'dhcp_option', opts);
+		else c.delete('dhcp', a.net, 'dhcp_option');
+	}
+	// the router's own forwarding, only if it still is what the assistant set
+	if (dm && h.server && sprintf('%J', list_of(c.get('dhcp', dm, 'server'))) == sprintf('%J', [ h.server ])) {
+		if (length(h.old_server ?? [])) c.set('dhcp', dm, 'server', h.old_server);
+		else c.delete('dhcp', dm, 'server');
+		if (h.old_noresolv != null) c.set('dhcp', dm, 'noresolv', h.old_noresolv);
+		else c.delete('dhcp', dm, 'noresolv');
+	}
+	c.commit('dhcp');
+	unlink(AG_HANDOUT);
+	writefile(RUN + '/dnsmasq-reload', '');   // the next pass restarts dnsmasq
+}
+
+// ---------- AdGuard Home on the router itself (/usr/libexec/miwrt-adguard does the work) ----------
+
+const AG_TOOL = '/usr/libexec/miwrt-adguard';
+
+export const ADGUARD_NEED_KB = 32 * 1024;
+
+/* Can AdGuard Home be installed here? null when it can, else why not: 'unsupported' (this model does
+   not have the installer), 'mode' (access point), 'memory' (below 400 MB), 'storage' (below 32 MB free). */
+export function ag_install_blocker() {
+	if (!access(AG_TOOL)) return 'unsupported';
+	if (is_ap(cursor())) return 'mode';
+	let mem = connect().call('system', 'info')?.memory?.total ?? 0;
+	if (mem < 400 * 1048576) return 'memory';
+	let out = run('df -k /overlay 2>/dev/null');
+	let m = match(out, /\n\S+\s+[0-9]+\s+[0-9]+\s+([0-9]+)\s/);
+	if (!access('/usr/bin/AdGuardHome') && (!m || +m[1] < ADGUARD_NEED_KB)) return 'storage';
+	return null;
+};
+
+/* The last install or removal, with its age by the router's clock (a phone's clock may differ). One
+   that has reported nothing for 15 minutes has died: it is shown as failed and a new one may start. */
+function ag_job() {
+	let j = load(RUN + '/adguard-job.json', null);
+	if (type(j) != 'object') return null;
+	j.age = max(0, time() - (j.time ?? 0));
+	if (j.state == 'running' && j.age >= 900) {
+		j.state = 'failed';
+		j.error = (j.step == 'remove') ? 'The router stopped before AdGuard Home was removed. Try again.'
+			: 'The router stopped before AdGuard Home was set up. Try again.';
+	}
+	return j;
+}
+
+function ag_job_running() {
+	return ag_job()?.state == 'running';
+}
+
+/* Installs AdGuard Home on the router and links it. Runs in the background; GET /v1/protection shows
+   the progress under "install". The password is the one for AdGuard Home's own web page (user admin). */
+export function protection_install(b) {
+	if (ag()) return 'An ad blocker is already linked. Unlink it first.';
+	let why = ag_install_blocker();
+	if (why == 'unsupported') return 'AdGuard Home cannot be installed on this router.';
+	if (why == 'mode') return 'This router is an access point. AdGuard Home on the router needs the router mode.';
+	if (why == 'memory') return 'This router does not have enough memory for AdGuard Home.';
+	if (why == 'storage') return 'There is not enough room for AdGuard Home. Join the spare slot under System, Slots, or keep the settings on a USB disk, then try again.';
+	let pw = b?.password;
+	// AdGuard Home stores the password with bcrypt, which takes 72 bytes at most
+	if (type(pw) != 'string' || length(pw) < 8 || length(pw) > 72 || match(pw, /[[:cntrl:]]/)) return 'Choose a password of 8 to 72 characters for AdGuard Home.';
+	// two requests at the same moment start one install
+	return locked(() => {
+		let j = ag_job();
+		if (j?.state == 'running') return (j.step == 'remove') ? 'AdGuard Home is still being removed. Try again in a minute.' : null;
+		mkdir(RUN);
+		let f = RUN + '/adguard-pass';
+		writefile(f, '');
+		system([ 'chmod', '600', f ]);
+		writefile(f, pw);
+		save(RUN + '/adguard-job.json', { state: 'running', step: 'internet', time: time() });
+		system(`(${AG_TOOL} install ${f}) >/dev/null 2>&1 </dev/null &`);
+		return null;
+	});
+};
+
+/* Stops and removes AdGuard Home from the router; the router answers DNS itself again. */
+export function protection_remove() {
+	return locked(() => {
+		if (ag_job_running()) return 'AdGuard Home is still being set up. Try again in a minute.';
+		if (ag()?.where != 'router' && !access('/usr/bin/AdGuardHome')) return 'AdGuard Home is not installed on this router.';
+		save(RUN + '/adguard-job.json', { state: 'running', step: 'remove', time: time() });
+		system(`(${AG_TOOL} remove) >/dev/null 2>&1 </dev/null &`);
+		unlink(RUN + '/protection.json');
+		return null;
+	});
+};
+
 /* Is AdGuard Home answering at cfg.url with that login? { version, protection_enabled } or { error }. */
 export function ag_status(cfg) {
 	let r = ag_call(cfg, '/control/status');
@@ -1017,6 +1158,7 @@ export function protection_connect(b) {
 	if (r.code != 200) return r.error;
 	if (!r.data || !('protection_enabled' in r.data)) return 'Something answers at that address, but it is not AdGuard Home.';
 	if (ag()?.where == 'router') return 'AdGuard Home runs on this router. Remove it first.';
+	if (ag_job_running()) return 'AdGuard Home is being set up on this router. Try again in a minute.';
 	save_private(ADBLOCK, cfg);
 	unlink(RUN + '/protection.json');
 	add_alert('dns', 'Ad blocker linked', `AdGuard Home ${r.data.version ?? ''} at ${replace(url, /^https?:\/\//, '')}.`, 'info');
@@ -1027,62 +1169,7 @@ export function protection_disconnect() {
 	if (ag()?.where == 'router') return protection_remove();
 	unlink(ADBLOCK);
 	unlink(RUN + '/protection.json');
-	return null;
-};
-
-// ---------- AdGuard Home on the router itself (/usr/libexec/miwrt-adguard does the work) ----------
-
-const AG_TOOL = '/usr/libexec/miwrt-adguard';
-
-/* Can AdGuard Home be installed here? null when it can, else why not ('memory', 'storage', 'mode', 'installed'). */
-function ag_install_blocker() {
-	let c = cursor();
-	if (c.get('network', 'lan', 'proto') == 'dhcp') return 'mode';
-	let mem = connect().call('system', 'info')?.memory?.total ?? 0;
-	if (mem && mem < 400 * 1048576) return 'memory';
-	let out = run('df -k /overlay 2>/dev/null');
-	let m = match(out, /\n\S+\s+[0-9]+\s+[0-9]+\s+([0-9]+)\s/);
-	if (!access('/usr/bin/AdGuardHome') && (!m || +m[1] < 32 * 1024)) return 'storage';
-	return null;
-}
-
-function ag_job() {
-	return load(RUN + '/adguard-job.json', null);
-}
-
-function ag_job_running() {
-	let j = ag_job();
-	return j?.state == 'running' && time() - (j.time ?? 0) < 900;
-}
-
-/* Installs AdGuard Home on the router and links it. Runs in the background; GET /v1/protection shows
-   the progress under "install". The password is the one for AdGuard Home's own web page (user admin). */
-export function protection_install(b) {
-	if (ag()) return 'An ad blocker is already linked. Unlink it first.';
-	if (ag_job_running()) return null;
-	let why = ag_install_blocker();
-	if (why == 'mode') return 'This router is an access point. AdGuard Home on the router needs the router mode.';
-	if (why == 'memory') return 'This router does not have enough memory for AdGuard Home.';
-	if (why == 'storage') return 'There is not enough room for AdGuard Home. Join the spare slot under System, Slots, or keep the settings on a USB disk, then try again.';
-	let pw = b?.password;
-	if (type(pw) != 'string' || length(pw) < 8 || length(pw) > 128 || match(pw, /[[:cntrl:]]/)) return 'Choose a password of at least 8 characters for AdGuard Home.';
-	mkdir(RUN);
-	let f = RUN + '/adguard-pass';
-	writefile(f, '');
-	system([ 'chmod', '600', f ]);
-	writefile(f, pw);
-	save(RUN + '/adguard-job.json', { state: 'running', step: 'internet', time: time() });
-	system(`(${AG_TOOL} install ${f}) >/dev/null 2>&1 </dev/null &`);
-	return null;
-};
-
-/* Stops and removes AdGuard Home from the router; the router answers DNS itself again. */
-export function protection_remove() {
-	if (ag()?.where != 'router' && !access('/usr/bin/AdGuardHome')) return 'AdGuard Home is not installed on this router.';
-	if (ag_job_running()) return 'AdGuard Home is still being set up. Try again in a minute.';
-	save(RUN + '/adguard-job.json', { state: 'running', step: 'remove', time: time() });
-	system(`(${AG_TOOL} remove) >/dev/null 2>&1 </dev/null &`);
-	unlink(RUN + '/protection.json');
+	handout_undo();
 	return null;
 };
 
@@ -1125,9 +1212,15 @@ function protection_fresh() {
 
 /* The overview is asked for by every open app every few seconds; the ad blocker is only asked every 15 s. */
 export function protection() {
-	let st = stat(RUN + '/protection.json');
-	// while an install or removal runs, every answer is fresh so the app sees each step
-	if (st && time() - st.mtime < 15 && !ag_job_running()) return load(RUN + '/protection.json', { configured: false });
+	let st = stat(RUN + '/protection.json'), job = ag_job();
+	// while an install or removal runs, and after it ended until an answer newer than its end is kept,
+	// every answer is fresh, so the app sees each step and the outcome at once
+	let busy = job && (job.state == 'running' || (job.time ?? 0) >= (st?.mtime ?? 0));
+	if (st && time() - st.mtime < 15 && !busy) {
+		let kept = load(RUN + '/protection.json', { configured: false });
+		kept.install = job;
+		return kept;
+	}
 	let out = protection_fresh();
 	save(RUN + '/protection.json', out);
 	return out;

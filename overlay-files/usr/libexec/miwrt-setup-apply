@@ -3,14 +3,25 @@
 # changed, checks that an access point got an address from the main router (and puts the old settings
 # back if it did not), then installs AdGuard Home if that was chosen.
 # Progress for the wizard page: /tmp/miwrt/setup-job.json
+#
+# "resume" is how /etc/init.d/miwrt calls it at boot when the router was restarted (a power cut, say)
+# before an access point had its address: the check goes on from there.
 
 JOB=/tmp/miwrt/setup-job.json
 BACKUP=/etc/miwrt/setup-backup.tar.gz
+mkdir -p /tmp/miwrt
 
-mode=$(jsonfilter -i "$JOB" -e '@.mode' 2>/dev/null)
-ap_proto=$(jsonfilter -i "$JOB" -e '@.ap_proto' 2>/dev/null)
-adguard=$(jsonfilter -i "$JOB" -e '@.adguard' 2>/dev/null)
-[ "$adguard" = true ] || adguard=false
+if [ "$1" = resume ]; then
+	[ "$(uci -q get miwrt.setup.verify)" = 1 ] || exit 0
+	mode=ap
+	ap_proto=$(uci -q get network.lan.proto)
+	adguard=false
+else
+	mode=$(jsonfilter -i "$JOB" -e '@.mode' 2>/dev/null)
+	ap_proto=$(jsonfilter -i "$JOB" -e '@.ap_proto' 2>/dev/null)
+	adguard=$(jsonfilter -i "$JOB" -e '@.adguard' 2>/dev/null)
+	[ "$adguard" = true ] || adguard=false
+fi
 address=
 
 put() {
@@ -27,9 +38,17 @@ restart_all() {
 	/etc/init.d/odhcpd restart >/dev/null 2>&1
 }
 
-put running network
-restart_all
-logger -t miwrt-setup "settings from the setup assistant applied ($mode)"
+verified() {
+	uci -q delete miwrt.setup.verify && uci -q commit miwrt
+}
+
+if [ "$1" = resume ]; then
+	put running address
+else
+	put running network
+	restart_all
+	logger -t miwrt-setup "settings from the setup assistant applied ($mode)"
+fi
 
 if [ "$mode" = ap ]; then
 	put running address
@@ -42,14 +61,28 @@ if [ "$mode" = ap ]; then
 	if [ -z "$address" ]; then
 		# no main router answered: back to the settings from before, so the router stays reachable
 		put running restore
-		tar -xzf "$BACKUP" -C / 2>/dev/null
-		uci -q set miwrt.setup.state=pending && uci -q commit miwrt
-		rm -f /tmp/luci-indexcache*
-		restart_all
-		logger -t miwrt-setup "access point got no address from the main router, previous settings restored"
-		put failed address "No main router gave this router an address. Check that the cable from your main router is in the WAN port. The settings from before are back."
+		if tar -xzf "$BACKUP" -C / 2>/dev/null; then
+			uci -q set miwrt.setup.state=pending
+			uci -q set miwrt.setup.retry=1   # the web interface opens the assistant again (it has a password now)
+			uci -q delete miwrt.setup.verify
+			uci -q commit miwrt
+			rm -f /tmp/luci-indexcache*
+			restart_all
+			logger -t miwrt-setup "access point got no address from the main router, previous settings restored"
+			put failed address "No main router gave this router an address. Check that the cable from your main router is in the WAN port. The settings from before are back."
+		else
+			# without the copy there is nothing to go back to; the check runs again at the next start
+			logger -t miwrt-setup "access point got no address from the main router, and the saved settings could not be read"
+			put failed address "No main router gave this router an address, and the settings from before could not be put back. Connect the cable from your main router to the WAN port and restart the router."
+		fi
 		exit 1
 	fi
+	verified
+fi
+
+# the smart-home discovery relays start with the service, and only where an IoT network exists
+if [ "$1" != resume ] && [ -d /sys/class/net/br-iot ]; then
+	/etc/init.d/miwrt restart >/dev/null 2>&1
 fi
 
 if [ "$adguard" = true ]; then

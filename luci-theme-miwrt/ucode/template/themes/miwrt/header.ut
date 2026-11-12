@@ -5,16 +5,20 @@
 
 {%
 	import { getuid, getspnam } from 'luci.core';
+	import { cursor } from 'uci';
 
 	const boardinfo = ubus.call('system', 'board') ?? {};
 	const hostname = striptags(boardinfo.hostname ?? '?');
 	const model = striptags(boardinfo.model ?? '');
 
-	// a router set up from scratch opens the setup assistant instead of the overview, until it is done
-	// or skipped (the menu entry only exists while miwrt.setup.state is "pending")
+	// A router set up from scratch opens the setup assistant instead of the overview, until it is done or
+	// skipped. Only while it has no password: one that got its settings from a backup, or was set up by
+	// hand, is left alone. "retry" is set when an access point found no main router and went back.
 	const page = join('/', ctx.path ?? []);
 	const on_setup = (page == 'admin/setup');
-	const setup_url = (!blank_page && (page == 'admin' || page == 'admin/status/overview') && dispatcher.lookup('admin/setup')?.node?.satisfied)
+	const setup = cursor().get_all('miwrt', 'setup') ?? {};
+	const setup_due = (setup.state == 'pending' && (setup.retry == '1' || getspnam('root')?.pwdp === ''));
+	const setup_url = (!blank_page && setup_due && (page == 'admin' || page == 'admin/status/overview') && dispatcher.lookup('admin/setup'))
 		? dispatcher.build_url('admin/setup') : null;
 
 	http.prepare_content('text/html; charset=UTF-8');
@@ -65,7 +69,7 @@
 		{% if (!blank_page): %}
 		<a class="mw-skip" href="#maincontent">{{ _('Skip to content') }}</a>
 		<div class="mw-app">
-			<aside class="mw-side" id="mw-side">
+			<aside class="mw-side" id="mw-side"{% if (on_setup): %} inert{% endif %}>
 				<a class="mw-brand" href="{{ dispatcher.build_url() }}"{% if (model): %} title="{{ model }}"{% endif %}>
 					<img class="mw-brand-mark" src="{{ media }}/logo.svg" alt="" width="32" height="32">
 					<span class="mw-brand-text">
@@ -84,7 +88,7 @@
 			<div class="mw-scrim" id="mw-scrim"></div>
 
 			<div class="mw-main">
-				<header class="mw-top">
+				<header class="mw-top"{% if (on_setup): %} inert{% endif %}>
 					<button type="button" class="mw-icon-btn mw-menu-btn" id="mw-menu-btn" aria-controls="mw-side" aria-expanded="false" aria-label="Menu">
 						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></svg>
 					</button>

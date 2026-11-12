@@ -66,7 +66,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 340
 
     steps:
@@ -332,7 +332,7 @@ jobs:
           git clone --branch gh-pages --single-branch \
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" pages
           cd pages
-          for d in awg awgproto miwrt base byedpi luci netshift packages zapret zapret2; do
+          for d in awg awgproto base byedpi luci netshift packages zapret zapret2; do
             [ -d "../owrt/bin/packages/$ARCH/$d" ] || continue
             mkdir -p "feed/$FEED_BASE/$ARCH/$d"
             rsync -a --delete "../owrt/bin/packages/$ARCH/$d/" "feed/$FEED_BASE/$ARCH/$d/"
@@ -340,6 +340,11 @@ jobs:
           cp "../owrt/bin/packages/$ARCH/sha256sums" "feed/$FEED_BASE/$ARCH/sha256sums"
           mkdir -p "feed/targets/$TARGET/$VERMAGIC/packages"
           rsync -a --delete "../owrt/bin/targets/$TARGET/packages/" "feed/targets/$TARGET/$VERMAGIC/packages/"
+          # Every feed the image lists has to be here: "apk update" on the router
+          # fails as a whole when one of them answers 404.
+          for u in $(sed -n 's|^https://[^/]*/[^/]*/\(feed/.*/packages\.adb\)$|\1|p' ../owrt/files/etc/apk/repositories.d/customfeeds.list); do
+            [ -f "$u" ] || { echo "::error::the image lists $u, which this build did not make"; exit 1; }
+          done
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A feed
@@ -359,8 +364,10 @@ jobs:
             done
           fi
 
+      # A release comes from a tag or from the release_tag input, never from a
+      # branch that happens to be named like one.
       - name: Package the release
-        if: startsWith(env.REL_TAG, 'v') || startsWith(env.REL_TAG, 'debug-')
+        if: (github.ref_type == 'tag' || inputs.release_tag != '') && (startsWith(env.REL_TAG, 'v') || startsWith(env.REL_TAG, 'debug-'))
         run: |
           TAG="$REL_TAG"
           case "$TAG" in
@@ -387,7 +394,7 @@ jobs:
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
 
       - name: Publish the release
-        if: startsWith(env.REL_TAG, 'v') || startsWith(env.REL_TAG, 'debug-')
+        if: (github.ref_type == 'tag' || inputs.release_tag != '') && (startsWith(env.REL_TAG, 'v') || startsWith(env.REL_TAG, 'debug-'))
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -420,7 +427,7 @@ jobs:
       # Pages host that already serves the package feed usually is not. Keep
       # the three newest releases there.
       - name: Mirror the image on GitHub Pages
-        if: startsWith(env.REL_TAG, 'v')
+        if: (github.ref_type == 'tag' || inputs.release_tag != '') && startsWith(env.REL_TAG, 'v')
         run: |
           git clone --filter=blob:none --no-checkout --depth 1 --branch gh-pages \
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" mirror

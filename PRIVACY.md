@@ -33,6 +33,7 @@ Notifications are off until you switch them on, and can be switched off again at
 - Firmware check: asks GitHub for the latest release of this project. The router also asks by itself once a day, so it can show a notice; this can be switched off on System, Build update.
 - Packages you install yourself from the feed (for example zapret or AmneziaWG) contact servers of their own choosing; they are not covered by this text.
 - Ad blocker link: if you link an AdGuard Home, the router talks to it on your network with the login you entered. That login is stored on the router.
+- AdGuard Home on the router: if you install it, the router downloads the package from this project's feed. AdGuard Home then answers your network's DNS lookups by asking the DNS servers set on its own page (Quad9 over HTTPS unless you change them) and downloads its block lists from their publishers. It keeps one day of lookups on the router, for the app's Protection tab; nothing of it is sent to us. AdGuard Home is a separate program with [its own privacy policy](https://adguard.com/en/privacy/home.html).
 
 ## Children
 
