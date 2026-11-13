@@ -291,6 +291,35 @@ cmd_revert() {
 	if [ "$do_reboot" = 1 ]; then sync; reboot; fi
 }
 
+# The disk the settings name is plugged in but is not /overlay yet. After a
+# firmware update that is the boot before the router reboots onto it, and the
+# only moment its upper/ can be changed: files of a mounted overlay must not
+# be moved from under it. So do here what the preinit hooks do for the
+# built-in volumes before USB is up (78_be7000_overlay_refresh,
+# 79_be7000_stale_modules): when the settings on the disk last ran with
+# another image, move its old copies of image files to .be7000-replaced/ on
+# the disk, let the image's first-boot scripts run again, and set modules of
+# another kernel aside. be7000-romsync does the rest once the disk is /overlay.
+# A disk whose settings already ran with this image is left untouched.
+# $1 UUID of the disk
+prepare_disk() {
+	local uuid="$1" dev mnt lib="${BE7000_IMAGE_LIB:-/lib/functions/be7000-image.sh}"
+	[ -n "$uuid" ] && [ -r "$lib" ] || return 0
+	dev="$(block info 2>/dev/null | awk -F: -v u="$uuid" 'index(tolower($0), "uuid=\"" tolower(u) "\"") { print $1; exit }')"
+	[ -n "$dev" ] || return 0
+	dev_in_use "$dev" && return 0
+	mnt="${BE7000_RESET_TMP:-/tmp}/extroot-prepare.$$"
+	mkdir -p "$mnt" || return 0
+	mount -o rw,noatime "$dev" "$mnt" 2>/dev/null || { rmdir "$mnt"; return 0; }
+	. "$lib"
+	BE7000_IMAGE_ROOT="${BE7000_IMAGE_ROM:-/rom}"
+	be7000_refresh_volume "$mnt" || true
+	be7000_stale_modules_volume "$mnt" || true
+	sync
+	umount "$mnt" 2>/dev/null && rmdir "$mnt" 2>/dev/null || true
+	return 0
+}
+
 # Boot check, from /etc/init.d/be7000-extroot. A sysupgrade creates the
 # slot's rootfs_data anew, and with it goes the extroot entry fstools reads:
 # the router then comes up on the shared volume and the disk sits unused,
@@ -329,6 +358,8 @@ cmd_boot_sync() {
 				block info 2>/dev/null | grep -qi "$extuuid" && { useful=1; break; }
 				sleep 2
 			done
+			# the next boot mounts it as /overlay: get it ready for this image
+			if [ $useful = 1 ]; then prepare_disk "$extuuid"; fi
 		fi
 		# the spare slot given over to /overlay, attached as ubi2 in preinit
 		if [ $useful = 0 ] && [ "$(uci -q get fstab.slotstorage.enabled)" = 1 ] &&
@@ -390,6 +421,7 @@ cmd_boot_sync() {
 	[ -n "$mnt" ] && { umount "$mnt"; rmdir "$mnt"; }
 
 	if [ "$changed" = 1 ] && [ "${en:-1}" = 1 ] && block info 2>/dev/null | grep -q "UUID=\"$uuid\""; then
+		prepare_disk "$uuid"
 		logger -t be7000-extroot "the disk is here, rebooting once to put /overlay on it"
 		. /lib/functions/be7000-bootcount.sh && be7000_bootcount_clear
 		( sleep 5; reboot ) </dev/null >/dev/null 2>&1 &

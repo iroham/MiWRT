@@ -1,9 +1,17 @@
 #!/bin/sh
+# Runs on a fresh install and again after every firmware update. The MiWRT
+# theme becomes the one in use when it is new on this router, or when the
+# theme the settings name is not installed any more. A theme the user chose
+# stays.
 
-uci -q get luci.themes.MiWRT >/dev/null || uci set luci.themes.MiWRT=/luci-static/miwrt
+new=0
+uci -q get luci.themes.MiWRT >/dev/null || { uci set luci.themes.MiWRT=/luci-static/miwrt; new=1; }
 
 if [ "$PKG_UPGRADE" != 1 ]; then
-	uci set luci.main.mediaurlbase=/luci-static/miwrt
+	cur=$(uci -q get luci.main.mediaurlbase)
+	if [ "$new" = 1 ] || [ -z "$cur" ] || [ ! -d "${IPKG_INSTROOT}/www$cur" ]; then
+		uci set luci.main.mediaurlbase=/luci-static/miwrt
+	fi
 fi
 
 uci commit luci

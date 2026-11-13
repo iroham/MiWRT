@@ -1,5 +1,8 @@
 #!/bin/sh
 # MiWRT app service: the firewall hook for paused devices, and start at boot.
+# Runs on a fresh install and again after every firmware update. The service
+# is switched on the first time only: the image ships its rc.d link, so it
+# stays on by itself, and a service the user switched off stays off.
 if [ "$(uci -q get firewall.miwrt_block)" != "include" ]; then
 	uci set firewall.miwrt_block=include
 	uci set firewall.miwrt_block.type='nftables'
@@ -7,7 +10,7 @@ if [ "$(uci -q get firewall.miwrt_block)" != "include" ]; then
 	uci set firewall.miwrt_block.position='chain-prepend'
 	uci set firewall.miwrt_block.chain='forward'
 	uci commit firewall
+	/etc/init.d/miwrt enable
 fi
 [ -f /etc/miwrt/blocked.nft ] || { mkdir -p /etc/miwrt; : > /etc/miwrt/blocked.nft; }
-/etc/init.d/miwrt enable
 exit 0
