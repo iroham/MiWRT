@@ -169,7 +169,9 @@ jobs:
             echo "run=${{ github.run_id }}"
           } > out/ac2100-build-metadata.txt
           cat out/ac2100-build-metadata.txt
-          (cd out && sha256sum openwrt-* > "$SUMS")
+          # the checksum list names the files a release carries and nothing else
+          (cd out && sha256sum "$DEVICE-squashfs-kernel1.bin" "$DEVICE-squashfs-rootfs0.bin" \
+             "$DEVICE-squashfs-sysupgrade.bin" "$DEVICE.manifest" > "$SUMS")
           if [ "${SIGNED:-0}" = 1 ]; then
             # the list is signed with the key every image carries, so a router can
             # tell that an update really comes from this build
