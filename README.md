@@ -130,6 +130,14 @@ The 5 GHz driver (ath12k) keeps its tables valid while the radio firmware restar
 
 An update erases the running slot and then writes the new image into it. MiWRT checks that write for the `kernel` and `ubi_rootfs` volumes, tries it a second time if it fails, and logs every step to `/etc/miwrt/last-upgrade.log` on the settings volume, which survives the update. If both tries fail, the boot is pointed at the factory slot at once (unless that slot holds settings and packages, in which case the boot variables are left as they are and the log says so). Getting back from the factory firmware is described in `docs/instruction/3-rollback-and-problems-en.txt`.
 
+Settings on the data partition, on the joined spare slot or on a USB disk outlive an update, and so does everything else that collected there: copies of image files left by a package upgrade or put there by hand, and apk's own record of what is installed. Left alone, those copies would hide the new image's files and apk would go on describing the old image. So the settings remember the build they last ran with (`BUILD` and `VERSION` from `/etc/miwrt-release`, kept in `/etc/.be7000_image`), and the first boot of any other build cleans up, whether or not the kernel changed:
+
+- Before the volume is mounted, every file in it that the new image also has is moved to `.be7000-replaced/` on the same volume; nothing is deleted, and a later update replaces that batch only when it has files of its own to put there. Settings stay where they are: `/etc/config`, the conffiles of packages, whatever `/etc/sysupgrade.conf` and `/lib/upgrade/keep.d` list, `/root`, passwords and keys, and the record of files you deleted. This step covers the data partition and the joined spare slot; a USB disk is not read that early.
+- `be7000-romsync` then puts the image's package database in place of the old copy, keeps the packages you had added in the world file and installs them again from the feed once the internet is up. `be7000-feeds` takes feed lines of an earlier image out of `customfeeds.list` and adds the ones this image ships; a feed you added yourself stays.
+- Kernel modules from an earlier image are set aside only when the kernel itself changed.
+
+The note is part of the settings, so joining or releasing the spare slot or moving to a USB disk takes it along and is not mistaken for a new firmware. A router that keeps its settings inside the firmware slot is not affected: an update wipes that space and restores the settings backup, as on any OpenWrt.
+
 The system calls itself MiWRT in LuCI, the console banner and `/etc/openwrt_release`; the default hostname is `MiWRT`. Image file names stay `openwrt-qualcommbe-ipq95xx-xiaomi_be7000-…`, which the installer and the update page look up by name.
 
 ## The app service
@@ -259,7 +267,7 @@ GitHub Actions builds everything: a tag `v*` produces the images for both router
 
 To build by hand, follow `.github/workflows/build.yml`: the OpenWrt tree at the commit in `patches/port/BASE`, the BE7000 port series from `patches/port` applied with `git am`, the kernel patches from `patches` copied to `target/linux/qualcommbe/patches-6.18`, the ath12k and mac80211 patches to their package, `patches/tree` applied on top, `overlay-files` as `files/`, `luci-theme-miwrt` in `package/`, then `config.buildinfo` as `.config`. A few LuCI files in `overlay-files` replace LuCI's own; `patches/luci` holds what changed in each against the pinned LuCI, to be applied again when the pin moves.
 
-Checks that run on a desktop shell: `scripts/test-factory-reset.sh`, `scripts/test-factory-reset-writers.sh` and `scripts/test-slot-storage-preinit.sh` exercise the boot and reset scripts; `scripts/i18n-check.sh` checks that every interface string has its English and Chinese translation and that the `.lmo` files match the `.po` files.
+Checks that run on a desktop shell: `scripts/test-factory-reset.sh`, `scripts/test-factory-reset-writers.sh` and `scripts/test-slot-storage-preinit.sh` exercise the boot and reset scripts; `scripts/test-image-change.sh` builds a made-up image and settings volume and checks what an update moves, keeps and reinstalls; `scripts/i18n-check.sh` checks that every interface string has its English and Chinese translation and that the `.lmo` files match the `.po` files.
 
 ## Credits and licence
 

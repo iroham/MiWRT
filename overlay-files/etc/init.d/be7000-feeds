@@ -16,9 +16,11 @@
 START=97
 
 LIST=/etc/apk/repositories.d/customfeeds.list
+ROM_LIST=/rom$LIST
+RELEASE=/rom/etc/miwrt-release
 
 rom_kernel_hash() {
-	sed -n 's/^KERNEL=//p' /rom/etc/miwrt-release 2>/dev/null | head -1
+	sed -n 's/^KERNEL=//p' "$RELEASE" 2>/dev/null | head -1
 }
 
 # customfeeds.list is a conffile, so a router upgraded from an older image keeps
@@ -26,16 +28,39 @@ rom_kernel_hash() {
 # (the ROM's copy already carries the right base and kernel hash).
 add_new_feeds() {
 	local l
-	[ -r /rom$LIST ] || return 0
-	grep -E '^https?://' /rom$LIST | while read -r l; do
+	[ -r "$ROM_LIST" ] || return 0
+	grep -E '^https?://' "$ROM_LIST" | while read -r l; do
 		grep -qxF "$l" "$LIST" || { echo "$l" >> "$LIST"; logger -t be7000-feeds "added feed $l"; }
 	done
+}
+
+# The other way round: lines of an earlier image that this one no longer
+# ships, such as a feed that was dropped or one served from another address.
+# apk asks every listed feed, so one dead line makes every update end in an
+# error. Only lines shaped like this firmware's own feeds are looked at, after
+# the base and the kernel hash were brought up to date above; a feed the user
+# added is some other address and stays. What is taken out goes to the log.
+OWN_FEED='/feed/([A-Za-z0-9._-]+/)?aarch64_cortex-a73/[A-Za-z0-9._-]+/packages\.adb$|/feed/targets/qualcommbe/ipq95xx/([0-9a-f]{32}/)?packages/packages\.adb$'
+
+drop_old_feeds() {
+	local l
+	# an image that names no feed of its own says nothing about the old ones
+	grep -E '^https?://' "$ROM_LIST" 2>/dev/null | grep -qE "$OWN_FEED" || return 0
+	grep -E '^https?://' "$LIST" | grep -E "$OWN_FEED" | grep -vxFf "$ROM_LIST" > /tmp/be7000-feeds.old || :
+	if [ -s /tmp/be7000-feeds.old ]; then
+		grep -vxFf /tmp/be7000-feeds.old "$LIST" > /tmp/be7000-feeds.list || :
+		cat /tmp/be7000-feeds.list > "$LIST"
+		while read -r l; do
+			logger -t be7000-feeds "removed feed $l, this image does not ship it"
+		done < /tmp/be7000-feeds.old
+	fi
+	rm -f /tmp/be7000-feeds.old /tmp/be7000-feeds.list
 }
 
 start() {
 	[ -f "$LIST" ] || return 0
 	local base
-	base=$(sed -n 's/^FEED=//p' /rom/etc/miwrt-release 2>/dev/null | head -1)
+	base=$(sed -n 's/^FEED=//p' "$RELEASE" 2>/dev/null | head -1)
 	if [ -n "$base" ] && ! grep -q "feed/$base/aarch64_cortex-a73/" "$LIST"; then
 		sed -i -E "s|feed/[A-Za-z0-9._-]+/aarch64_cortex-a73/|feed/$base/aarch64_cortex-a73/|" "$LIST"
 		logger -t be7000-feeds "package feeds now feed/$base"
@@ -50,5 +75,6 @@ start() {
 			logger -t be7000-feeds "kernel module feed now $want"
 		}
 	fi
+	drop_old_feeds
 	add_new_feeds
 }

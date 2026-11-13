@@ -16,22 +16,42 @@
 # stay. Nothing is deleted: the moved files go to .be7000-replaced/ at the
 # root of the volume, replacing the previous batch.
 #
-# The image changed when the overlay's apk database names another kernel
-# than the ROM's; be7000-romsync uses the same test later on.
+# The image changed when the settings last ran with another build: the note
+# in upper/etc/.be7000_image says which, see /lib/functions/be7000-image.sh;
+# be7000-romsync asks the same question later on. Old kernel modules are the
+# business of 79_be7000_stale_modules, which looks at the kernel alone.
+#
+# .be7000-replaced/.image names the image a batch was made for. The first boot
+# after an update can run on the slot's own overlay and reboot (bigoverlay),
+# or stop before be7000-romsync notes the new image in the settings; the next
+# boot then finds the same change again, and must not replace the batch with
+# what little is left to move. be7000-romsync removes the file when it is done.
 
+if [ -r /lib/functions/be7000-image.sh ]; then
+	. /lib/functions/be7000-image.sh
+else
+	# without the library nothing is known about the image: leave it all alone
+	be7000_image_changed() { return 1; }
+	be7000_image_id() { :; }
+	be7000_image_seen() { :; }
+fi
+
+# the image: preinit runs before the overlay is mounted, so it is /
+BE7000_IMAGE_ROOT=""
 BE7000_KEEP=/tmp/be7000-refresh.keep
+BE7000_FILES=/tmp/be7000-refresh.files
 
-be7000_kernel_of() {
-	grep -oE 'kernel=[0-9.]+~[0-9a-f]{32}' "$1" 2>/dev/null | head -1
+be7000_refresh_log() {
+	echo "- be7000: $* -" > /dev/kmsg 2>/dev/null
 }
 
 be7000_keep_list() {
 	local up="$1"
-	{
-		cat /lib/apk/packages/*.conffiles "$up"/lib/apk/packages/*.conffiles
-		cat /etc/sysupgrade.conf "$up"/etc/sysupgrade.conf
-		cat /lib/upgrade/keep.d/* "$up"/lib/upgrade/keep.d/*
-	} 2>/dev/null | sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e '/^$/d' -e 's|^/||' -e 's|/$||' | sort -u > "$BE7000_KEEP"
+	# one cat for all of them: lists that do not exist are simply skipped
+	cat "$BE7000_IMAGE_ROOT"/lib/apk/packages/*.conffiles "$up"/lib/apk/packages/*.conffiles \
+		"$BE7000_IMAGE_ROOT/etc/sysupgrade.conf" "$up/etc/sysupgrade.conf" \
+		"$BE7000_IMAGE_ROOT"/lib/upgrade/keep.d/* "$up"/lib/upgrade/keep.d/* 2>/dev/null |
+		sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e '/^$/d' -e 's|^/||' -e 's|/$||' | sort -u > "$BE7000_KEEP"
 }
 
 # $1 relative path; kept when listed itself or below a listed directory
@@ -53,38 +73,47 @@ be7000_replaced_by_image() {
 	etc/luci-uploads/*|etc/sysupgrade.conf|etc/rc.local|etc/crontabs/*|etc/be7000-reinstall)
 		return 1 ;;
 	esac
-	[ -e "/$1" ] || [ -L "/$1" ] || return 1
+	[ -e "$BE7000_IMAGE_ROOT/$1" ] || [ -L "$BE7000_IMAGE_ROOT/$1" ] || return 1
 	be7000_is_kept "$1" && return 1
 	return 0
 }
 
-# $1 upper dir, $2 where the moved files go; the image is / (preinit runs
-# before the overlay is mounted)
+# $1 upper dir, $2 where the moved files go. The previous batch is replaced
+# only when there is something to put in its place.
 be7000_refresh_upper() {
 	local up="$1" stash="$2" f n=0
 	[ -d "$up" ] || return 0
 	be7000_keep_list "$up"
-	rm -rf "$stash"
-	(cd "$up" && find . \( -type f -o -type l \)) | sed 's|^\./||' > /tmp/be7000-refresh.files
+	(cd "$up" && find . \( -type f -o -type l \)) | sed 's|^\./||' > "$BE7000_FILES"
 	while read -r f; do
 		be7000_replaced_by_image "$f" || continue
+		[ "$n" = 0 ] && rm -rf "$stash"
 		mkdir -p "$stash/$(dirname "$f")"
 		mv "$up/$f" "$stash/$f" && n=$((n + 1))
-	done < /tmp/be7000-refresh.files
-	rm -f /tmp/be7000-refresh.files "$BE7000_KEEP"
-	echo "- be7000: moved $n copies of image files out of $up -" > /dev/kmsg
+	done < "$BE7000_FILES"
+	rm -f "$BE7000_FILES" "$BE7000_KEEP"
+	be7000_refresh_log "moved $n copies of image files out of $up"
+}
+
+# $1 root of a mounted settings volume
+be7000_refresh_volume() {
+	local vol="$1" stash="$1/.be7000-replaced" id seen
+	local mark="$1/upper/$BE7000_IMAGE_MARK"
+	be7000_image_changed "$BE7000_IMAGE_ROOT" "$mark" "$vol/upper/lib/apk/db/installed" || return 0
+	id=$(be7000_image_id "$BE7000_IMAGE_ROOT")
+	[ "$(cat "$stash/.image" 2>/dev/null)" = "$id" ] && return 0
+	seen=$(be7000_image_seen "$mark")
+	be7000_refresh_log "the image is $id, the settings on this volume last ran with ${seen:-an older one}"
+	be7000_refresh_upper "$vol/upper" "$stash"
+	mkdir -p "$stash" && echo "$id" > "$stash/.image"
+	sync
 }
 
 be7000_overlay_refresh_vol() {
-	local dev="$1" mnt=/tmp/be7000-refresh rom_k ov_k
+	local dev="$1" mnt=/tmp/be7000-refresh
 	mkdir -p "$mnt"
 	mount -t ubifs -o noatime "$dev" "$mnt" 2>/dev/null || return 0
-	rom_k=$(be7000_kernel_of /lib/apk/db/installed)
-	ov_k=$(be7000_kernel_of "$mnt/upper/lib/apk/db/installed")
-	if [ -n "$rom_k" ] && [ -n "$ov_k" ] && [ "$rom_k" != "$ov_k" ]; then
-		be7000_refresh_upper "$mnt/upper" "$mnt/.be7000-replaced"
-		sync
-	fi
+	be7000_refresh_volume "$mnt"
 	umount "$mnt"
 	rmdir "$mnt" 2>/dev/null
 }
