@@ -19,18 +19,19 @@ MIN_FREE_MB=1024
 
 die() { echo "$*" >&2; exit 1; }
 
-# Messages follow the LuCI language.
-LANG_UI=ru
+# Messages follow the LuCI language (luci.main.lang): Russian for ru*,
+# Chinese for zh*, English for everything else, "auto" included.
+LANG_UI=en
 case "$(uci -q get luci.main.lang)" in
-	en*) LANG_UI=en ;;
+	ru*) LANG_UI=ru ;;
 	zh*) LANG_UI=zh ;;
 esac
 # t <russian> <english> <chinese>
 t() {
 	case "$LANG_UI" in
-		en) echo "$2" ;;
+		ru) echo "$1" ;;
 		zh) echo "$3" ;;
-		*) echo "$1" ;;
+		*) echo "$2" ;;
 	esac
 }
 

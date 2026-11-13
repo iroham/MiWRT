@@ -1,8 +1,8 @@
 #!/usr/bin/ucode
 // Builds /etc/banner: the MiWRT logo from /rom/etc/banner, the version
 // line and the credits from the same JSON the LuCI page (System, Credits)
-// shows. English when LuCI is set to English (luci.main.lang), Russian
-// otherwise.
+// shows. Russian when LuCI is set to Russian (luci.main.lang is ru*),
+// English otherwise, "auto" included.
 
 import { readfile, writefile, popen } from 'fs';
 
@@ -14,7 +14,7 @@ const ver = match(readfile('/etc/miwrt-release') ?? '', /VERSION=([^\n]+)/)?.[1]
 const rev = match(rel, /DISTRIB_REVISION='([^']*)'/)?.[1];
 const board = trim(readfile('/tmp/sysinfo/model') ?? '') || 'Xiaomi BE7000';
 const p = popen('uci -q get luci.main.lang');
-const lang = match(trim(p?.read('all') ?? ''), /^en/) ? 'en' : 'ru';
+const lang = match(trim(p?.read('all') ?? ''), /^ru/) ? 'ru' : 'en';
 p?.close();
 
 const T = {

@@ -80,11 +80,13 @@ newer() {
 	[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]
 }
 
-# messages that reach LuCI follow its language (luci.main.lang)
-EN=0
-case "$(uci -q get luci.main.lang)" in en*) EN=1 ;; esac
+# Messages are English unless LuCI is set to Russian (luci.main.lang is
+# ru*). The default, "auto", means English here: it follows the browser,
+# and a command has none to ask.
+RU=0
+case "$(uci -q get luci.main.lang)" in ru*) RU=1 ;; esac
 # t <russian> <english>
-t() { [ "$EN" = 1 ] && echo "$2" || echo "$1"; }
+t() { [ "$RU" = 1 ] && echo "$1" || echo "$2"; }
 
 fail() {
 	if [ "$JSON" = 1 ]; then
