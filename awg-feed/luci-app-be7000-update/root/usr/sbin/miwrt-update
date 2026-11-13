@@ -10,9 +10,11 @@
 #
 # Settings are kept across the upgrade (plain sysupgrade). The installed
 # version comes from /etc/miwrt-release, which CI writes into the image; a
-# build without it is "dev" and never offers itself an upgrade. The same file names the image this router runs
-# (DEVICE=...) and the tag prefix of its releases (TAG_PREFIX=...), so a
-# router only ever sees releases and images meant for its own model.
+# build without it is "dev" and never offers itself an upgrade. One release
+# carries the images of every model. The same file names the image this
+# router runs (DEVICE=...), the tag prefix of the releases (TAG_PREFIX=...)
+# and, for a model whose checksum list has a name of its own, that name
+# (SUMS=...), so a router only ever takes the files meant for its own model.
 
 REPO="iroham/MiWRT"
 API="https://api.github.com/repos/$REPO/releases?per_page=30"
@@ -51,6 +53,11 @@ TAG_PREFIX=$(installed_field TAG_PREFIX)
 # a router in a testing programme takes pre-releases too (PRERELEASE_OK=1 in the release file)
 PRERELEASE_OK=$(installed_field PRERELEASE_OK)
 TAG_PREFIX_RE=$(printf '%s' "$TAG_PREFIX" | sed 's/[][\.*^$+?(){}|/]/\\&/g')
+# The signed checksum list of this model's images in a release:
+# sha256sums.txt for the BE7000, a name of its own for another model
+SUMS_NAME=$(installed_field SUMS)
+case "$SUMS_NAME" in ''|*[!A-Za-z0-9._-]*) SUMS_NAME=sha256sums.txt ;; esac
+SUMS_NAME_RE=$(printf '%s' "$SUMS_NAME" | sed 's/\./\\./g')
 
 json_escape() {
 	# Escape every line before joining them. If the input is joined first,
@@ -60,7 +67,7 @@ json_escape() {
 		sed -e ':a;N;$!ba;s/\n/\\n/g'
 }
 
-# "2.0.0" from "v2.0.0", also from "ac2100-v2.0.0"
+# "2.0.0" from "v2.0.0"
 tag_to_version() {
 	local t=${1#"$TAG_PREFIX"}
 	echo "${t%%-*}"
@@ -113,7 +120,7 @@ do_check() {
 		draft=$(jsonfilter -i "$release" -e '@.draft' 2>/dev/null)
 		prerelease=$(jsonfilter -i "$release" -e '@.prerelease' 2>/dev/null)
 		img_url=$(jsonfilter -i "$release" -e '@.assets[*].browser_download_url' 2>/dev/null | grep -- "/$DEVICE-squashfs-sysupgrade\.bin$" | head -1)
-		sums_url=$(jsonfilter -i "$release" -e '@.assets[*].browser_download_url' 2>/dev/null | grep -- '/sha256sums\.txt$' | head -1)
+		sums_url=$(jsonfilter -i "$release" -e '@.assets[*].browser_download_url' 2>/dev/null | grep -- "/$SUMS_NAME_RE\$" | head -1)
 		if printf '%s\n' "$tag" | grep -Eq "^$TAG_PREFIX_RE[0-9]+\.[0-9]+(\.[0-9]+)?([.-][0-9A-Za-z][0-9A-Za-z.-]*)?\$" &&
 			[ "$draft" != true ] && { [ "$prerelease" != true ] || [ "$PRERELEASE_OK" = 1 ]; } &&
 			[ -n "$img_url" ] && [ -n "$sums_url" ]; then
@@ -144,7 +151,7 @@ do_download() {
 	local url sums
 	url=$(jsonfilter -i "$STATE" -e '@.image_url')
 	sums=$(jsonfilter -i "$STATE" -e '@.sums_url')
-	[ -n "$url" ] && [ -n "$sums" ] || fail "$(t "в релизе нет sysupgrade.bin или sha256sums.txt" "the release has no sysupgrade.bin or sha256sums.txt")"
+	[ -n "$url" ] && [ -n "$sums" ] || fail "$(t "в релизе нет sysupgrade.bin или $SUMS_NAME" "the release has no sysupgrade.bin or $SUMS_NAME")"
 	mkdir -p "$DIR"
 	# /tmp is RAM; make sure the image fits with room to spare for sysupgrade
 	local free
@@ -154,7 +161,7 @@ do_download() {
 	# of the key this image was built with. A release someone else managed to upload does not have it.
 	local base="https://github.com/$REPO/releases/download/"
 	case "$url" in "$base"*) ;; *) fail "$(t "образ лежит не в релизах проекта" "the image is not in this project's releases")" ;; esac
-	case "$sums" in "$base"*) ;; *) fail "$(t "sha256sums.txt лежит не в релизах проекта" "sha256sums.txt is not in this project's releases")" ;; esac
+	case "$sums" in "$base"*) ;; *) fail "$(t "$SUMS_NAME лежит не в релизах проекта" "$SUMS_NAME is not in this project's releases")" ;; esac
 	# The release files are also mirrored on the project's GitHub Pages next
 	# to the package feed, signature included. github.com itself is often slow
 	# or unreachable from where the routers are, the Pages host usually is not,
@@ -162,12 +169,12 @@ do_download() {
 	local tag mirror
 	tag=$(jsonfilter -i "$STATE" -e '@.tag')
 	mirror="https://${REPO%%/*}.github.io/${REPO#*/}/firmware/$tag"
-	if fetch "$mirror/sha256sums.txt" "$SUMS" && fetch "$mirror/sha256sums.txt.sig" "$SUMS.sig" && fetch "$mirror/${url##*/}" "$IMG"; then
+	if fetch "$mirror/$SUMS_NAME" "$SUMS" && fetch "$mirror/$SUMS_NAME.sig" "$SUMS.sig" && fetch "$mirror/${url##*/}" "$IMG"; then
 		:
 	else
 		rm -f "$IMG" "$SUMS" "$SUMS.sig"
-		fetch "$sums" "$SUMS" || fail "$(t "не удалось скачать sha256sums.txt" "could not download sha256sums.txt")"
-		fetch "$sums.sig" "$SUMS.sig" || fail "$(t "у релиза нет подписи (sha256sums.txt.sig)" "the release is not signed (no sha256sums.txt.sig)")"
+		fetch "$sums" "$SUMS" || fail "$(t "не удалось скачать $SUMS_NAME" "could not download $SUMS_NAME")"
+		fetch "$sums.sig" "$SUMS.sig" || fail "$(t "у релиза нет подписи ($SUMS_NAME.sig)" "the release is not signed (no $SUMS_NAME.sig)")"
 		fetch "$url" "$IMG" || { rm -f "$IMG"; fail "$(t "не удалось скачать образ" "could not download the image")"; }
 	fi
 	local pub=/rom/etc/apk/keys/public-key.pem

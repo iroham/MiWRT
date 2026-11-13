@@ -8,7 +8,7 @@
 #   scripts/ac2100/assemble-files.sh OUT VERSION TAG BUILD OPENWRT
 #     OUT      directory to create (must not exist or be empty)
 #     VERSION  "2.0.0" for a release, "dev" otherwise
-#     TAG      the git tag the image is built from, or empty
+#     TAG      the release tag the image is built for (v2.1.0), or empty
 #     BUILD    a build identifier (the CI run id)
 #     OPENWRT  the OpenWrt release the ImageBuilder came from, e.g. 25.12.6
 set -eu
@@ -16,7 +16,10 @@ set -eu
 OUT=$1 VERSION=$2 TAG=${3:-} BUILD=${4:-} OPENWRT=$5
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 DEVICE=openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100
-TAG_PREFIX=ac2100-v
+# releases carry the same tags as the BE7000 ones (v2.1.0) and hold the files
+# of both routers; this router's checksum list has a name of its own there
+TAG_PREFIX=v
+SUMS=sha256sums-ac2100.txt
 MODEL="Redmi AC2100"
 
 [ -d "$OUT" ] && [ -n "$(ls -A "$OUT")" ] && { echo "$OUT is not empty" >&2; exit 1; }
@@ -113,10 +116,9 @@ mkdir -p "$OUT/etc"
 	echo "BUILD=$BUILD"
 	echo "DEVICE=$DEVICE"
 	echo "TAG_PREFIX=$TAG_PREFIX"
+	echo "SUMS=$SUMS"
 	echo "MODEL=$MODEL"
 	echo "BASE=OpenWrt $OPENWRT"
-	# every AC2100 release is a pre-release until it has been tested on a real router
-	echo "PRERELEASE_OK=1"
 } > "$OUT/etc/miwrt-release"
 
 # the shared scripts expect to be executable and the app's state directory to be private

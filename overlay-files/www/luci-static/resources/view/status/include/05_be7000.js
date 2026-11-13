@@ -14,11 +14,11 @@ var LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="6
 
 // what the card says under the name, per router model (system board "model")
 var MODELS = [
-	{ match: /Redmi Router AC2100/i, prefix: 'ac2100-v',
+	{ match: /Redmi Router AC2100/i,
 	  sub: { ru: 'Прошивка и приложение для телефона для Xiaomi Redmi Router AC2100 на базе OpenWrt 25.12',
 	         en: 'Firmware and phone app for the Xiaomi Redmi Router AC2100, built on OpenWrt 25.12',
 	         zh: '基于 OpenWrt 25.12 的小米 Redmi Router AC2100 固件与手机应用' } },
-	{ match: /./, prefix: 'v',
+	{ match: /./,
 	  sub: { ru: 'Прошивка и приложение для телефона для Xiaomi BE7000 на базе OpenWrt, ядро 6.18',
 	         en: 'Firmware and phone app for the Xiaomi BE7000, built on OpenWrt, kernel 6.18',
 	         zh: '基于 OpenWrt 的小米 BE7000 固件与手机应用，内核 6.18' } }
@@ -147,7 +147,7 @@ return baseclass.extend({
 			E('div', { 'class': 'be7k-links' }, [
 				link(REPO, 'code', tx.github, 'be7k-main'),
 				link(REPO + '/releases', 'tag', tx.releases),
-				link(REPO + '/blob/main/docs/release-notes/' + model.prefix + ver.replace(/\s.*$/, '') + '.md', 'notes', tx.notes),
+				link(REPO + '/blob/main/docs/release-notes/v' + ver.replace(/\s.*$/, '') + '.md', 'notes', tx.notes),
 				link(REPO + '/issues', 'bug', tx.issues),
 				link(REPO + '/blob/main/PRIVACY.md', 'lock', tx.privacy),
 				link(L.url('admin/system/be7000-update'), 'update', tx.update),

@@ -7,10 +7,10 @@ name: ac2100 image
 # the BE7000 image.
 #
 # Every run builds, verifies and keeps the image as a workflow artifact. A
-# push of an ac2100-v* tag also signs the checksum list with the MiWRT key,
-# publishes a GitHub pre-release (every AC2100 release stays a pre-release
-# until the image has been tested on a real router) and
-# mirrors the image on GitHub Pages for miwrt-update.
+# push of a v* tag, the same tag build.yml releases the BE7000 image for, also
+# signs the checksum list with the MiWRT key, puts the files into that tag's
+# GitHub release next to the BE7000 ones and mirrors the image on GitHub
+# Pages for miwrt-update. Both routers carry one version number.
 
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ on:
         description: "Expected SHA-256 of the ImageBuilder archive (empty: trust downloads.openwrt.org's sha256sums and print the hash to pin)"
         default: ""
       release_tag:
-        description: "Publish a pre-release under this tag (ac2100-vX.Y.Z); the tag is created on the built commit if it does not exist. Empty: build only"
+        description: "Put the image into the release of this tag (vX.Y.Z); release and tag are created on the built commit if they do not exist. Empty: build only"
         default: ""
   push:
     branches: [ main ]
@@ -30,7 +30,7 @@ on:
       - "overlay-ac2100/**"
       - "scripts/ac2100/**"
       - ".github/workflows/build-ac2100.yml"
-    tags: [ "ac2100-v*" ]
+    tags: [ "v*" ]
 
 concurrency:
   group: ac2100-image-${{ github.ref }}
@@ -39,18 +39,22 @@ concurrency:
 env:
   OPENWRT: ${{ inputs.openwrt || '25.12.6' }}
   IB_SHA256: ${{ inputs.imagebuilder_sha256 || '' }}
-  # the release tag: from a pushed ac2100-v* tag, or from the dispatch input
-  # (the tag is then created by the release step on the commit that was built)
-  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/ac2100-v') && github.ref_name) || '' }}
+  # the release tag: from a pushed v* tag, or from the dispatch input (a tag
+  # that does not exist yet is created by the release step on the built commit)
+  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
   TARGET: ramips/mt7621
   PROFILE: xiaomi_redmi-router-ac2100
   DEVICE: openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100
+  # a release holds the files of both routers: the BE7000 list is
+  # sha256sums.txt, this router's has a name of its own
+  SUMS: sha256sums-ac2100.txt
 
 jobs:
   image:
     runs-on: ubuntu-24.04
-    # the release step creates the tag and the GitHub release, the mirror step
-    # pushes to gh-pages: both need write access to contents with the job token
+    # the release step writes to the GitHub release (and creates it and its tag
+    # when they do not exist), the mirror step pushes to gh-pages: both need
+    # write access to contents with the job token
     permissions:
       contents: write
     steps:
@@ -96,8 +100,9 @@ jobs:
           set -eu
           TAG="$RELEASE_TAG"
           if [ -n "$TAG" ]; then
-            printf '%s\n' "$TAG" | grep -Eq '^ac2100-v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::release tag must look like ac2100-v2.0.0, got '$TAG'"; exit 1; }
-            VER="${TAG#ac2100-v}"
+            printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+(\.[0-9]+)*(-[0-9A-Za-z][0-9A-Za-z.-]*)?$' || { echo "::error::release tag must look like v2.1.0, got '$TAG'"; exit 1; }
+            # the version is the tag without the "v" and without a suffix, as in build.yml
+            VER="${TAG#v}"; VER="${VER%%-*}"
           else
             VER=dev
           fi
@@ -162,14 +167,14 @@ jobs:
             echo "commit=${{ github.sha }}"
             echo "ref=${{ github.ref_name }}"
             echo "run=${{ github.run_id }}"
-          } > out/build-metadata.txt
-          cat out/build-metadata.txt
-          (cd out && sha256sum openwrt-* > sha256sums.txt)
+          } > out/ac2100-build-metadata.txt
+          cat out/ac2100-build-metadata.txt
+          (cd out && sha256sum openwrt-* > "$SUMS")
           if [ "${SIGNED:-0}" = 1 ]; then
             # the list is signed with the key every image carries, so a router can
             # tell that an update really comes from this build
-            openssl dgst -sha256 -sign "$RUNNER_TEMP/private-key.pem" -out out/sha256sums.txt.sig out/sha256sums.txt
-            openssl dgst -sha256 -verify ib/files/etc/apk/keys/public-key.pem -signature out/sha256sums.txt.sig out/sha256sums.txt
+            openssl dgst -sha256 -sign "$RUNNER_TEMP/private-key.pem" -out "out/$SUMS.sig" "out/$SUMS"
+            openssl dgst -sha256 -verify ib/files/etc/apk/keys/public-key.pem -signature "out/$SUMS.sig" "out/$SUMS"
           fi
           ls -la out
 
@@ -200,7 +205,7 @@ jobs:
             echo '```'
             ls -la openwrt-*
             echo
-            cat build-metadata.txt
+            cat ac2100-build-metadata.txt
             echo
             echo "$(wc -l < "$DEVICE.manifest") packages"
             echo '```'
@@ -214,7 +219,7 @@ jobs:
           ZIP="miwrt-ac2100-v$VER.zip"
           mkdir -p out/zip
           cp out/"$DEVICE"-squashfs-kernel1.bin out/"$DEVICE"-squashfs-rootfs0.bin out/"$DEVICE"-squashfs-sysupgrade.bin \
-             out/sha256sums.txt out/sha256sums.txt.sig out/build-metadata.txt \
+             "out/$SUMS" "out/$SUMS.sig" out/ac2100-build-metadata.txt \
              docs/instruction/ac2100/*.txt scripts/ac2100/hw-report.sh out/zip/
           sed -i "1s/^MiWRT [0-9][0-9.]*/MiWRT $VER/" out/zip/*.txt
           (cd out/zip && zip -q -X "../$ZIP" ./*)
@@ -222,33 +227,35 @@ jobs:
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
           sha256sum "out/$ZIP"
 
-      - name: Publish the pre-release
+      # One release per tag holds the files of both routers. It is made by
+      # whichever build gets there first, this one or build.yml, with the same
+      # title and text; the other one adds its files.
+      - name: Publish in the release
         if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           cd out
-          notes=../docs/release-notes/$RELEASE_TAG.md
-          if [ -f "$notes" ]; then
-            printf '\n\nSHA-256 of %s\n%s\n' "$ZIP" "$(sha256sum "$ZIP" | cut -d' ' -f1)" >> "$notes"
-            args=(--notes-file "$notes")
-          else
-            args=(--generate-notes)
-          fi
+          R="${{ github.repository }}"
           assets=("$ZIP" "$DEVICE-squashfs-kernel1.bin" "$DEVICE-squashfs-rootfs0.bin" "$DEVICE-squashfs-sysupgrade.bin" \
-                  "$DEVICE.manifest" build-metadata.txt sha256sums.txt sha256sums.txt.sig)
-          if gh release view "$RELEASE_TAG" -R "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" -R "${{ github.repository }}" --clobber "${assets[@]}"
-          else
+                  "$DEVICE.manifest" ac2100-build-metadata.txt "$SUMS" "$SUMS.sig")
+          if ! gh release view "$RELEASE_TAG" -R "$R" >/dev/null 2>&1; then
+            notes=../docs/release-notes/$RELEASE_TAG.md
+            if [ -f "$notes" ]; then args=(--notes-file "$notes"); else args=(--generate-notes); fi
             # --target creates the tag on the built commit when it does not exist yet
-            gh release create "$RELEASE_TAG" -R "${{ github.repository }}" --prerelease --target "${{ github.sha }}" \
-              --title "MiWRT $VER for the Redmi AC2100" "${args[@]}" "${assets[@]}"
+            gh release create "$RELEASE_TAG" -R "$R" --target "${{ github.sha }}" --title "MiWRT $VER" "${args[@]}" ||
+              gh release view "$RELEASE_TAG" -R "$R" >/dev/null   # the other build made it at the same moment
           fi
+          gh release upload "$RELEASE_TAG" -R "$R" --clobber "${assets[@]}"
+          # the text ends with the checksum of each archive: add this one's,
+          # in place of the line an earlier run of this build left
+          ../scripts/release-notes-sum.sh "$ZIP" "$(gh release view "$RELEASE_TAG" -R "$R" --json body --jq .body)" > "$RUNNER_TEMP/body.md"
+          gh release edit "$RELEASE_TAG" -R "$R" --notes-file "$RUNNER_TEMP/body.md"
 
       # miwrt-update tries firmware/<tag>/ on GitHub Pages before github.com.
-      # Same layout as the BE7000 mirror in build.yml; the three newest
-      # AC2100 tags are kept, the BE7000 ones are not touched.
+      # The directory is the one build.yml mirrors the BE7000 image into; the
+      # three newest releases are kept.
       - name: Mirror the image on GitHub Pages
         if: env.RELEASE_TAG != ''
         run: |
@@ -264,11 +271,11 @@ jobs:
             git fetch -q --filter=blob:none --depth 1 origin gh-pages
             git checkout -q -B gh-pages FETCH_HEAD
             mkdir -p "firmware/$tag"
-            cp "../out/$DEVICE-squashfs-sysupgrade.bin" ../out/sha256sums.txt ../out/sha256sums.txt.sig "firmware/$tag/"
-            ls -d firmware/ac2100-v* | sort -V | head -n -3 | xargs -r git rm -rq
+            cp "../out/$DEVICE-squashfs-sysupgrade.bin" "../out/$SUMS" "../out/$SUMS.sig" "firmware/$tag/"
+            ls -d firmware/v* | sort -V | head -n -3 | xargs -r git rm -rq
             git add -A firmware
             git diff --cached --quiet && exit 0
-            git commit -q -m "firmware: $tag image mirror"
+            git commit -q -m "firmware: $tag image mirror, Redmi AC2100"
             git push -q origin gh-pages && exit 0
             sleep $((i * 10))
           done

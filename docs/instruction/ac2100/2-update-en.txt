@@ -7,10 +7,11 @@ read 3-recovery-and-problems-en.txt once before the first update.
 
 From the web interface
   System, Build update checks GitHub for a newer MiWRT for this router and
-  installs it with one button. It takes only releases made for the Redmi
-  AC2100 (their tags start with ac2100-v) and checks that the checksum list
-  carries the signature of the key this image was built with. While MiWRT
-  for this router is in testing, pre-releases are offered too.
+  installs it with one button. A MiWRT release has the same version for
+  every router and holds the files of each; the page takes only the image
+  for the Redmi AC2100 and checks that its checksum list,
+  sha256sums-ac2100.txt, carries the signature of the key this image was
+  built with.
 
 From the command line
       miwrt-update check
@@ -21,7 +22,7 @@ By hand
   openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
   from the release, or over SSH:
       sysupgrade -v /tmp/openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
-  Check the file against sha256sums.txt first.
+  Check the file against sha256sums-ac2100.txt first.
 
 What an update keeps
   Everything under /etc/config, the app's data in /etc/miwrt, which services

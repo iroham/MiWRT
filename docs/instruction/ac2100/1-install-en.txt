@@ -16,7 +16,7 @@ What you need
   - The two files from the release:
     openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-kernel1.bin
     openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-rootfs0.bin
-    and sha256sums.txt to check them.
+    and sha256sums-ac2100.txt to check them.
   - A computer on the router's LAN with a cable, and a shell on stock (below).
   - A way back. Stock is not kept on the flash, but the stock bootloader loads
     a stock image over TFTP (see 3-recovery-and-problems-en.txt). Have a stock
@@ -34,7 +34,7 @@ Step 2. Copy the two files to /tmp and check them
       # from your computer (adjust to the wiki's transfer method)
       cat openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-kernel1.bin > /tmp/kernel1.bin
       cat openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-rootfs0.bin > /tmp/rootfs0.bin
-      sha256sum /tmp/kernel1.bin /tmp/rootfs0.bin    # compare with sha256sums.txt
+      sha256sum /tmp/kernel1.bin /tmp/rootfs0.bin    # compare with sha256sums-ac2100.txt
 
 Step 3. Write OpenWrt and point the bootloader at it
   OpenWrt takes the second kernel slot (kernel1) and the rootfs that starts at

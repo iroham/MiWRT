@@ -8,6 +8,7 @@ set -u
 
 DIR=$1
 DEVICE=openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100
+SUMS=sha256sums-ac2100.txt
 BOARD=xiaomi_redmi-router-ac2100     # the profile name, as sysupgrade's CONTROL file carries it
 KERNEL_MAX=$((4 * 1024 * 1024))     # the kernel partition is 4 MiB
 fail=0
@@ -24,7 +25,7 @@ for f in *; do
 	esac
 done
 
-for f in "$DEVICE-squashfs-sysupgrade.bin" "$DEVICE-squashfs-kernel1.bin" "$DEVICE-squashfs-rootfs0.bin" "$DEVICE.manifest" sha256sums.txt; do
+for f in "$DEVICE-squashfs-sysupgrade.bin" "$DEVICE-squashfs-kernel1.bin" "$DEVICE-squashfs-rootfs0.bin" "$DEVICE.manifest" "$SUMS"; do
 	[ -s "$f" ] && ok "present: $f ($(wc -c < "$f") bytes)" || bad "missing or empty: $f"
 done
 
@@ -54,11 +55,11 @@ if [ -s "$DEVICE.manifest" ]; then
 fi
 
 # checksums over the shipped files, and their signature where one was made
-if [ -s sha256sums.txt ]; then
-	sha256sum -c --quiet sha256sums.txt && ok "sha256sums.txt verifies" || bad "sha256sums.txt does not verify"
+if [ -s "$SUMS" ]; then
+	sha256sum -c --quiet "$SUMS" && ok "$SUMS verifies" || bad "$SUMS does not verify"
 fi
-if [ -s sha256sums.txt.sig ]; then
-	[ -s "${PUBKEY:-/nonexistent}" ] && { openssl dgst -sha256 -verify "$PUBKEY" -signature sha256sums.txt.sig sha256sums.txt >/dev/null 2>&1 && ok "signature verifies with $PUBKEY" || bad "signature does not verify"; }
+if [ -s "$SUMS.sig" ]; then
+	[ -s "${PUBKEY:-/nonexistent}" ] && { openssl dgst -sha256 -verify "$PUBKEY" -signature "$SUMS.sig" "$SUMS" >/dev/null 2>&1 && ok "signature verifies with $PUBKEY" || bad "signature does not verify"; }
 fi
 
 [ "$fail" = 0 ] && echo "verify-image: all checks passed" || { echo "verify-image: FAILED" >&2; exit 1; }

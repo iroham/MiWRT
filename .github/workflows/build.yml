@@ -7,7 +7,8 @@ name: Build
 #     the signed feed straight to the gh-pages branch;
 #   - on a v* tag it does the same and also builds the firmware, packs the
 #     archive with the installer and the instruction, and publishes a GitHub
-#     Release with all of it attached.
+#     Release with all of it attached. The Redmi AC2100 image of the same tag
+#     is built by build-ac2100.yml and lands in the same release.
 #
 # Nothing goes through Actions artifacts: the feed lands in git, the images
 # land in the release, and that is all the storage this uses.
@@ -408,10 +409,16 @@ jobs:
           fi
           assets=("$ZIP" "$DEVICE-squashfs-factory.ubi" \
                   "$DEVICE-squashfs-sysupgrade.bin" "$DEVICE.manifest" sha256sums.txt sha256sums.txt.sig)
-          # A release for this tag may already exist (created by hand, or a
-          # rerun): then just replace its files rather than fail at the end.
+          # The release of this tag may already exist: the Redmi AC2100 build
+          # (build-ac2100.yml) runs for the same tag, is much faster and puts
+          # its files into the same release; or it was made by hand or by an
+          # earlier run. Then add the files, and the checksum of this archive
+          # to the text, rather than fail at the end.
           if gh release view "$REL_TAG" -R "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$REL_TAG" -R "${{ github.repository }}" --clobber "${assets[@]}"
+            { ../repo/scripts/release-notes-sum.sh "$ZIP" "$(gh release view "$REL_TAG" -R "${{ github.repository }}" --json body --jq .body)" > body.md &&
+              gh release edit "$REL_TAG" -R "${{ github.repository }}" --notes-file body.md; } ||
+              echo "::warning::could not add the checksum of $ZIP to the release text"
           else
             case "$REL_TAG" in
               # --target creates the tag on the built commit when it does not exist yet

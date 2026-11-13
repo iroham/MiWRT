@@ -4,7 +4,7 @@ OpenWrt firmware for the Xiaomi BE7000 (board RC06, Qualcomm IPQ9554), tuned to 
 
 MiWRT stands on the work of the [OpenWrt](https://openwrt.org) project and of Timofey Maykov, whose Beam WRT firmware for the BE7000 is where MiWRT began. Everyone else whose work is in it is listed under [Credits](#credits-and-licence).
 
-Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in [Releases](https://github.com/iroham/MiWRT/releases), checksums in `sha256sums.txt`, what changed in [the release notes](docs/release-notes/v2.1.0.md).
+Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in [Releases](https://github.com/iroham/MiWRT/releases), checksums in `sha256sums.txt` (`sha256sums-ac2100.txt` for the Redmi AC2100), what changed in [the release notes](docs/release-notes/v2.1.0.md).
 
 <p align="center">
   <img src="docs/images/setup-welcome.webp" alt="The setup assistant on a new router: a welcome page listing what will be set up" width="840">
@@ -251,11 +251,11 @@ Never write to the bootloader partitions `0:APPSBL` and `0:APPSBL_1`.
 
 ## Redmi AC2100
 
-A MiWRT image for the Xiaomi Redmi Router AC2100 is in testing: the `ac2100 image` workflow builds it with the official OpenWrt ImageBuilder from `overlay-ac2100/` and the shared MiWRT files; nothing in the BE7000 build changes for it. Tags `ac2100-v*` publish signed pre-releases. The install, update and recovery texts are in [docs/instruction/ac2100](docs/instruction/ac2100/); they say what to verify first.
+A MiWRT image for the Xiaomi Redmi Router AC2100 is in testing: the `ac2100 image` workflow builds it with the official OpenWrt ImageBuilder from `overlay-ac2100/` and the shared MiWRT files; nothing in the BE7000 build changes for it. It carries the same version as the BE7000 image and is released with it: a tag `v*` starts both builds, and both put their files into the release of that tag. The AC2100 files are the ones with `ac2100` in the name: the `kernel1`, `rootfs0` and `sysupgrade` images, `miwrt-ac2100-v<version>.zip` with the texts, and `sha256sums-ac2100.txt` with its signature. The install, update and recovery texts are in [docs/instruction/ac2100](docs/instruction/ac2100/); they say what to verify first.
 
 ## Building
 
-GitHub Actions builds everything: a tag `v*` produces the images, the signed package feed on this repository's GitHub Pages and a release whose text is `docs/release-notes/<tag>.md`. The workflow needs one secret, `APK_SIGNING_KEY` (an EC P-256 private key in PEM); images trust its public key. Pushing to the branch does not build the BE7000 image; only a version tag does. Run by hand, the workflow builds the packages and publishes the feed but no release; with `warm` ticked it builds only the image and publishes nothing. Before the feed is published it checks that every feed the image's `customfeeds.list` names was built.
+GitHub Actions builds everything: a tag `v*` produces the images for both routers, the signed package feed on this repository's GitHub Pages and one release whose text is `docs/release-notes/<tag>.md`. The Redmi AC2100 image takes about ten minutes and the BE7000 one well over an hour, so the release appears with the AC2100 files first and the BE7000 files join it when their build ends. The workflow needs one secret, `APK_SIGNING_KEY` (an EC P-256 private key in PEM); images trust its public key. Pushing to the branch does not build the BE7000 image; only a version tag does. Run by hand, the workflow builds the packages and publishes the feed but no release; with `warm` ticked it builds only the image and publishes nothing. Before the feed is published it checks that every feed the image's `customfeeds.list` names was built.
 
 To build by hand, follow `.github/workflows/build.yml`: the OpenWrt tree at the commit in `patches/port/BASE`, the BE7000 port series from `patches/port` applied with `git am`, the kernel patches from `patches` copied to `target/linux/qualcommbe/patches-6.18`, the ath12k and mac80211 patches to their package, `patches/tree` applied on top, `overlay-files` as `files/`, `luci-theme-miwrt` in `package/`, then `config.buildinfo` as `.config`. A few LuCI files in `overlay-files` replace LuCI's own; `patches/luci` holds what changed in each against the pinned LuCI, to be applied again when the pin moves.
 
