@@ -1,0 +1,62 @@
+Subject: base-files: a service stopped from inside its own cgroup is started again
+
+procd puts every service into a cgroup of its own and, since 2026-09,
+ends all processes in it when the service stops. An SSH session lives in
+dropbear's cgroup and a command started from LuCI in rpcd's, so
+"/etc/init.d/dropbear restart" typed over SSH ended the session and the
+init script with it between the stop and the start: SSH stayed down until
+the next boot. The same happened to rpcd restarted from System, Startup.
+
+Before a stop, the init script now leaves the service's cgroup together
+with the processes it was started from. The processes procd itself runs
+for the service stay where they are. Nothing changes for a stop that
+comes from anywhere else.
+
+--- a/package/base-files/files/etc/rc.common
++++ b/package/base-files/files/etc/rc.common
+@@ -153,7 +153,45 @@
+ 		_procd_ubus_call list
+ 	}
+ 
++	# procd ends every process in a service's cgroup when the service stops.
++	# A stop asked for from inside that cgroup (dropbear from an SSH session,
++	# rpcd from a LuCI page) ended this script as well: "restart" never got
++	# to its start, and the service stayed down until the next boot. Step out
++	# before stopping, together with the processes this script was started
++	# from; the processes procd runs for the service stay where they are.
++	procd_leave_cgroup() {
++		local name="$1" root=/sys/fs/cgroup/cgroup.procs
++		local cg pid=$$ own
++
++		[ -w "$root" ] || return 0
++		read -r cg < /proc/$$/cgroup || return 0
++		case "$cg" in
++		"0::/services/$name/"*) ;;
++		*) return 0 ;;
++		esac
++
++		own=" $(ubus call service list "{\"name\":\"$name\"}" |
++			jsonfilter -e '@[*].instances[*].pid' | tr '\n' ' ') "
++
++		while [ "${pid:-0}" -gt 1 ]; do
++			case "$own" in
++			*" $pid "*) break ;;
++			esac
++			read -r cg < /proc/$pid/cgroup || break
++			case "$cg" in
++			"0::/services/$name/"*) ;;
++			*) break ;;
++			esac
++			echo "$pid" > "$root" || break
++			pid=$(sed -n 's/^PPid:[[:space:]]*//p' /proc/$pid/status)
++		done
++
++		# the terminal may go away with the session it belonged to
++		trap '' HUP
++	} 2>/dev/null
++
+ 	stop() {
++		procd_leave_cgroup "$(basename ${basescript:-$initscript})"
+ 		procd_lock
+ 		stop_service "$@"
+ 		procd_kill "$(basename ${basescript:-$initscript})" "$1"
