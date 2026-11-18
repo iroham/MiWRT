@@ -12,3 +12,4 @@ Notes for the release after 2.1.0. Rename this file to the tag (`v<version>.md`)
 
 - The first boot of this release on a router updated from 2.1.0 or older does the clean-up once, for everything that collected so far.
 - Files you listed in `/etc/sysupgrade.conf` are yours to keep: they are never moved, also when the new firmware ships a newer copy.
+- Redmi AC2100: the image is still in testing. 2.1.0 was installed once from the stock firmware (2.0.23) on one router and ran; the texts in the archive now say what that showed and what is not tested yet, tell you to back up the flash first, explain how to reach the stock firmware's old SSH server, and say that the default Wi-Fi password is the serial number without the slash.

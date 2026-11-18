@@ -1,7 +1,17 @@
-MiWRT 2.0.0 for the Xiaomi Redmi Router AC2100: installing from the stock firmware
+MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: installing from the stock firmware
 
-STATUS: TESTING. The MiWRT project has not yet flashed this image on a router.
-The flash commands in step 3 are the ones OpenWrt's own support commit for
+STATUS: TESTING. The MiWRT project has done this install once, on one router:
+from stock firmware 2.0.23 to MiWRT 2.1.0, on 18 November 2026, with exactly
+the steps below.
+  What that run showed: the router booted on the first try in about a minute
+  and came back after a reboot; both radios came up (MT7603E on 2.4 GHz,
+  MT7615E on 5 GHz) and heard neighbouring networks; the MAC addresses matched
+  the Factory partition; the web interface and the app service answered;
+  hw-report.sh ran.
+  Not tested yet: internet on the WAN port, the updater and the package feeds,
+  a Wi-Fi client, the setup assistant in a browser, sysupgrade to a later
+  version, TFTP recovery. No recovery path has been exercised.
+The flash commands in step 4 are the ones OpenWrt's own support commit for
 this device gives (ramips: Add support for Xiaomi Redmi Router AC2100, April
 2020) and OpenWrt users have followed since. The way to get a shell on stock
 depends on the stock version and is kept current on the OpenWrt wiki page for
@@ -19,24 +29,53 @@ What you need
     and sha256sums-ac2100.txt to check them.
   - A computer on the router's LAN with a cable, and a shell on stock (below).
   - A way back. Stock is not kept on the flash, but the stock bootloader loads
-    a stock image over TFTP (see 3-recovery-and-problems-en.txt). Have a stock
-    image and a TFTP server ready before you flash.
+    a stock image over TFTP (see 3-recovery-and-problems-en.txt). Have a
+    backup of the flash (step 2), a stock image and a TFTP server ready
+    before you flash.
 
 Step 1. Get a shell on the stock firmware
-  Stock has no SSH. The OpenWrt wiki page documents the current way in for each
-  stock version. Follow it, copy a static busybox onto the router if the wiki's
-  method needs one, and start telnetd as it describes. Then confirm the model
-  before touching the flash:
+  Stock has no SSH or telnet open as shipped. The OpenWrt wiki page documents
+  the current way in for each stock version. Follow it, copy a static busybox
+  onto the router if the wiki's method needs one, and start telnetd or stock's
+  own SSH server as it describes. Then confirm the model before touching the
+  flash:
       nvram get model           # RM2100
       cat /proc/mtd             # kernel0, kernel1, rootfs0, rootfs1, overlay
 
-Step 2. Copy the two files to /tmp and check them
+  If you go in over stock's SSH server: it is an old dropbear, and a current
+  OpenSSH client does not talk to it without help.
+  - Connecting: add -o HostKeyAlgorithms=+ssh-rsa, or the client refuses the
+    router's host key.
+  - Signing in with a key: only an RSA key works, and it goes into
+    /etc/dropbear/authorized_keys on the router. An ed25519 key is not
+    understood. If the RSA key is refused as well, add
+    -o PubkeyAcceptedAlgorithms=+ssh-rsa.
+  - Copying files: scp needs -O (the old scp protocol).
+      ssh -o HostKeyAlgorithms=+ssh-rsa root@<router>
+      scp -O -o HostKeyAlgorithms=+ssh-rsa <file> root@<router>:/tmp/
+
+Step 2. Back up the flash
+  Do this before anything is written. At the least keep Bdata and Factory:
+  they hold what belongs to this one router (serial number, MAC addresses,
+  radio calibration), and no stock image brings them back. Look up their
+  numbers in /proc/mtd and copy each partition to your computer, for example
+  over SSH:
+      ssh -o HostKeyAlgorithms=+ssh-rsa root@<router> 'cat /dev/mtd<N>ro' > Factory.bin
+  Copying every partition the same way costs a few minutes more and is the
+  better backup. Check that each file has the size /proc/mtd gives for its
+  partition. Keep the files to yourself: they contain this router's serial
+  number and MAC addresses.
+  Xiaomi's stock firmware images for the RM2100 can be downloaded. Fetch one
+  now and keep it next to the backup: recovery needs it, and a router that
+  does not boot cannot fetch it for you.
+
+Step 3. Copy the two files to /tmp and check them
       # from your computer (adjust to the wiki's transfer method)
       cat openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-kernel1.bin > /tmp/kernel1.bin
       cat openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-rootfs0.bin > /tmp/rootfs0.bin
       sha256sum /tmp/kernel1.bin /tmp/rootfs0.bin    # compare with sha256sums-ac2100.txt
 
-Step 3. Write OpenWrt and point the bootloader at it
+Step 4. Write OpenWrt and point the bootloader at it
   OpenWrt takes the second kernel slot (kernel1) and the rootfs that starts at
   rootfs0, which is why the stock first kernel is left in place. These are the
   steps from the OpenWrt support commit, verbatim:
@@ -46,21 +85,25 @@ Step 3. Write OpenWrt and point the bootloader at it
       nvram set flag_try_sys1_failed=1
       nvram commit
       mtd -r write /tmp/rootfs0.bin rootfs0
-  The last command reboots. The first boot takes two to three minutes: UBI is
-  formatted and the Wi-Fi defaults are applied about half a minute in.
+  The last command reboots. On the project's router the first boot took about
+  one minute; allow three. UBI is formatted and the Wi-Fi defaults are applied
+  about half a minute in.
 
-Step 4. First contact
+Step 5. First contact
   - By cable: the router is 192.168.1.1, user root, no password. Signing in
     opens the setup assistant: region, internet, Wi-Fi, guest and smart-home
     networks, and a root password (the app pairs with that password). Skipped,
     set the password under System, Administration.
-  - By Wi-Fi: both bands come up as "MiWRT" with this router's serial number
-    (on the label) as the password. If the serial could not be read the
-    password is miwrt-ac2100 and the system log says so. Change it.
+  - By Wi-Fi: both bands come up as "MiWRT". The password is this router's
+    serial number WITHOUT the slash. The label prints the serial as five
+    digits, a slash and eight more characters; type the digits and the eight
+    characters as printed and leave the slash out. If the serial could not be
+    read the password is miwrt-ac2100 and the system log says so. Change it.
   - Status, Overview and the console greeting show
-    "MiWRT 2.0.0 ... (Redmi AC2100, OpenWrt 25.12.6)"; scripts see OpenWrt 25.12.6.
+    "MiWRT <version> ... (Redmi AC2100, OpenWrt 25.12.6)"; scripts see
+    OpenWrt 25.12.6.
 
-Step 5. Run the hardware report and keep it
+Step 6. Run the hardware report and keep it
       sh /path/to/hw-report.sh > /tmp/report.txt
   (hw-report.sh is in the release archive; copy it across with the wiki's
   transfer method) and attach the report to an issue.

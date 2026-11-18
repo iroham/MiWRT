@@ -1,12 +1,16 @@
-MiWRT 2.0.0 for the Xiaomi Redmi Router AC2100: recovery and problems
+MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: recovery and problems
 
-STATUS: TESTING. The MiWRT project has not exercised these paths on a router.
+STATUS: TESTING. The MiWRT project has installed this image once, on one
+router (stock 2.0.23 to MiWRT 2.1.0, see 1-install-en.txt). That install
+booted on the first try, so the project has still not exercised any recovery
+path on a router: not TFTP, not Breed, not the way back to stock.
 The TFTP recovery below is the one OpenWrt's own support commit for this
 device describes; compare with the current OpenWrt wiki page before relying
 on it.
 
 The router does not come up after flashing
-  - Wait three minutes on the first boot; UBI formatting takes time.
+  - Wait three minutes on the first boot; UBI formatting takes time. (The
+    project's router was up after about one minute.)
   - Status LED amber and no network after five minutes: the kernel did not
     start. The most likely causes are a kernel1.bin written to the wrong
     partition or boot flags not set. Recovery is below.
@@ -38,6 +42,9 @@ Going back to the stock firmware
   The stock firmware is not kept on the flash. Going back means flashing a
   stock image through one of the recovery paths above, with the stock
   partition layout. The MiWRT project has no tested procedure for this yet.
+  What it starts from is the backup of the flash taken before the install
+  (1-install-en.txt, step 2: at least Bdata and Factory) and a stock image
+  for the RM2100, which Xiaomi offers for download.
 
 Wi-Fi is up but slow for one device
   The 5 GHz chip (MT7615) has known per-client slowness with some devices on
@@ -50,6 +57,25 @@ The router resets under load
   offloading on. Hardware offloading is off by default in MiWRT for that
   reason; if you turned it on, turn it off and watch again. Keep the output
   of hw-report.sh from before and after.
+
+Seen on the project's router, and what it means
+  One Redmi AC2100, MiWRT 2.1.0, a computer on a LAN port and nothing else
+  connected. All of this showed on a router whose install went well, so
+  seeing it on yours does not by itself mean the install went wrong.
+  - Memory: about 36 MB of 118 MB free at idle. There is little room for
+    added packages that keep running; this is why an AdGuard Home can only
+    be linked on this router, not installed on it.
+  - Kernel log: a warning that the ECC used for the NAND flash (4b/512B) is
+    weaker than the one the chip asks for. It comes from OpenWrt's kernel
+    for this board, which MiWRT uses unchanged. The project has not seen a
+    fault follow from it and has not looked further into it.
+  - Kernel log: UBI found 2 bad eraseblocks on that router and set them
+    aside, as it is made to. A few bad blocks are normal for NAND flash; the
+    number differs from router to router.
+  - System log when Wi-Fi starts:
+        netifd: radio0: command failed: Not supported (-122)
+    Both radios came up after it and heard neighbouring networks. No Wi-Fi
+    client has been connected yet, so whether the line matters there is open.
 
 Factory reset
   Hold the reset button for ten seconds with the router running, or
