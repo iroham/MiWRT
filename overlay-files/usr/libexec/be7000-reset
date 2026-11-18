@@ -1,0 +1,298 @@
+#!/bin/sh
+# The factory reset that waits in rootfs_data, for System, Storage.
+#
+#   be7000-reset status    what waits, and why it has not finished
+#   be7000-reset cancel    drop it
+#
+# A reset of an /overlay that lives outside the firmware slot is a job that
+# /sbin/firstboot leaves in the slot's rootfs_data and that the preinit hook
+# 78_be7000_factory_reset carries out on the next boot. Until then the hook
+# keeps fstab away from mount_root, so the router comes up on the slot's own
+# small storage, and the tools that move /overlay refuse to work. With the
+# disk gone that state does not end by itself: every boot waits for the disk
+# and goes on without it.
+#
+# status reads the job and the one-word reason the hook left in it. cancel is
+# for a job whose target is a disk:
+#
+#   - The router already runs from the slot (the usual case): the job is set
+#     aside and bigoverlay is switched off in the settings in use, so the next
+#     boot does not move /overlay to the data partition and bring back the
+#     settings that were there before the disk. What runs now keeps running.
+#     The disk is not touched: no mount, no write.
+#   - The router has not restarted since the reset was asked for and still
+#     runs from the disk: fstab goes back into rootfs_data when a service has
+#     removed it meanwhile, the token is taken off the disk, the job is set
+#     aside. Everything is as it was before.
+#
+# A job for the built-in storage is not cancelled here. It can only be stuck
+# on a write that failed half way, and pointing the router back at such a
+# volume could start it from a half-made overlay.
+#
+# The job is not deleted but renamed (.be7000_factory_reset_cancelled, in the
+# root of rootfs_data): it holds the fstab that named the disk.
+
+JOB=.be7000_factory_reset
+MARK=.be7000_factory_reset_token
+KEPT=.be7000_factory_reset_cancelled
+
+RST_PROC_MOUNTS="${BE7000_RESET_PROC_MOUNTS:-/proc/mounts}"
+RST_SYS_UBI="${BE7000_RESET_SYS_UBI:-/sys/class/ubi}"
+RST_SYS_BLOCK="${BE7000_RESET_SYS_BLOCK:-/sys/block}"
+RST_TMP="${BE7000_RESET_TMP:-/tmp}"
+RST_OVERLAY="${BE7000_RESET_OVERLAY:-/overlay}"
+RST_CONFIG="${BE7000_RESET_CONFIG:-/etc/config}"
+RST_ROM_CONFIG="${BE7000_RESET_ROM_CONFIG:-/rom/etc/config}"
+
+. "${BE7000_FSTAB_LIB:-/lib/functions/be7000-fstab.sh}"
+
+RD_DEV=
+RD_NAMED=
+RD_DIR=
+RD_MNT=
+
+jstr() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n'; }
+
+err() { printf '{"ok":false,"error":"%s"}\n' "$(jstr "$*")"; }
+
+# One regular one-line job field. Job files are data, never shell input.
+rst_field() {
+	local f="$1" v
+	[ -f "$f" ] && [ ! -L "$f" ] || return 1
+	[ "$(wc -l < "$f" 2>/dev/null | tr -d '[:space:]')" = 1 ] || return 1
+	IFS= read -r v < "$f" || return 1
+	printf '%s\n' "$v"
+}
+
+rst_uuid_valid() {
+	[ -n "$1" ] && [ "${#1}" -le 64 ] || return 1
+	case "$1" in *[!0-9A-Za-z-]*) return 1 ;; esac
+	return 0
+}
+
+rst_device_valid() {
+	case "$1" in /dev/*|ubi[0-9]*:*) ;; *) return 1 ;; esac
+	case "$1" in *[!A-Za-z0-9_./:+-]*) return 1 ;; esac
+	case "$1" in *..*|*//*|*/./*) return 1 ;; esac
+	return 0
+}
+
+# The block device whose filesystem has this UUID, nothing when none has.
+rst_by_uuid() {
+	block info 2>/dev/null | awk -F: -v u="$1" \
+		'index(tolower($0), " uuid=\"" tolower(u) "\"") { print $1; exit }'
+}
+
+rst_find_rd() {
+	local n vol
+	for n in "$RST_SYS_UBI"/ubi*_*/name; do
+		[ -e "$n" ] || continue
+		if [ "$(cat "$n" 2>/dev/null)" = rootfs_data ]; then
+			vol="$(basename "$(dirname "$n")")"
+			RD_DEV="/dev/$vol"
+			RD_NAMED="${vol%%_*}:rootfs_data"
+			return 0
+		fi
+	done
+	return 1
+}
+
+rst_overlay_src() { awk -v o="$RST_OVERLAY" '$2 == o { print $1; exit }' "$RST_PROC_MOUNTS" 2>/dev/null; }
+
+# /overlay is the slot's own rootfs_data
+rst_inslot() {
+	case "$(rst_overlay_src)" in
+	"$RD_DEV"|"$RD_NAMED") return 0 ;;
+	esac
+	return 1
+}
+
+# Find rootfs_data where it is mounted, or mount it. $1 ro or rw
+rst_open() {
+	rst_find_rd || return 1
+	RD_MNT=
+	RD_DIR="$(awk -v d="$RD_DEV" -v n="$RD_NAMED" '$1 == d || $1 == n { print $2; exit }' "$RST_PROC_MOUNTS" 2>/dev/null)"
+	[ -z "$RD_DIR" ] || return 0
+	RD_MNT="$RST_TMP/be7000-reset-tool.$$"
+	mkdir -p "$RD_MNT" || { RD_MNT=; return 1; }
+	if ! mount -t ubifs -o "$1,noatime" "$RD_DEV" "$RD_MNT" 2>/dev/null; then
+		rmdir "$RD_MNT" 2>/dev/null
+		RD_MNT=
+		return 1
+	fi
+	RD_DIR="$RD_MNT"
+}
+
+rst_close() {
+	[ -n "$RD_MNT" ] || return 0
+	sync
+	umount "$RD_MNT" 2>/dev/null || return 1
+	rmdir "$RD_MNT" 2>/dev/null
+	RD_MNT=
+	return 0
+}
+
+# disk: a filesystem on a USB disk; internal: a volume of the built-in flash
+rst_kind() {
+	case "$1" in
+	/dev/ubi*|ubi[0-9]*:*) echo internal ;;
+	/dev/*) echo disk ;;
+	*) echo unknown ;;
+	esac
+}
+
+cmd_status() {
+	local job device fstype uuid why kind dev=""
+	local tried=false inslot=false present=false disks=false cancellable=false n
+	if ! rst_open ro; then
+		echo '{"pending":false,"error":"cannot look into rootfs_data"}'
+		return 0
+	fi
+	job="$RD_DIR/$JOB"
+	if [ ! -e "$job" ] && [ ! -L "$job" ]; then
+		rst_close
+		echo '{"pending":false}'
+		return 0
+	fi
+	device=$(rst_field "$job/device") || device=
+	rst_device_valid "$device" || device=
+	fstype=$(rst_field "$job/fstype") || fstype=
+	case "$fstype" in ubifs|ext4|f2fs|btrfs|ntfs|ntfs3) ;; *) fstype= ;; esac
+	uuid=$(rst_field "$job/uuid") || uuid=
+	rst_uuid_valid "$uuid" || uuid=
+	why=$(rst_field "$job/why") || why=
+	case "$why" in absent|mount|token|write|internal) ;; *) why= ;; esac
+	# the hook writes this marker the first time it handles the job
+	[ -f "$job/extroot-blocked" ] && tried=true
+	rst_close
+	rst_inslot && inslot=true
+
+	kind=$(rst_kind "$device")
+	case "$kind" in
+	internal)
+		[ -e "$device" ] && { present=true; dev="$device"; } ;;
+	disk)
+		cancellable=true
+		if [ -n "$uuid" ]; then
+			dev=$(rst_by_uuid "$uuid")
+			rst_device_valid "$dev" || dev=
+		elif [ -b "$device" ]; then
+			dev="$device"
+		fi
+		[ -n "$dev" ] && present=true ;;
+	esac
+	for n in "$RST_SYS_BLOCK"/sd*; do
+		[ -e "$n" ] && { disks=true; break; }
+	done
+
+	printf '{"pending":true,"kind":"%s","device":"%s","uuid":"%s","fstype":"%s","why":"%s","tried":%s,"inslot":%s,"present":%s,"now":"%s","disks":%s,"cancellable":%s}\n' \
+		"$kind" "$(jstr "$device")" "$(jstr "$uuid")" "$fstype" "$why" "$tried" "$inslot" "$present" "$(jstr "$dev")" "$disks" "$cancellable"
+}
+
+# bigoverlay off in the settings in use, read back from the file
+rst_bigoverlay_off() {
+	if [ ! -f "$RST_CONFIG/bigoverlay" ]; then
+		cp "$RST_ROM_CONFIG/bigoverlay" "$RST_CONFIG/bigoverlay" 2>/dev/null || return 1
+	fi
+	uci -q -c "$RST_CONFIG" set bigoverlay.main.enabled='0' || return 1
+	uci -q -c "$RST_CONFIG" commit bigoverlay || return 1
+	sync
+	[ "$(be7000_config_get "$RST_CONFIG" bigoverlay main.enabled)" = 0 ]
+}
+
+# fstab back into rootfs_data, when it is not there any more: the copy the
+# hook saved if it has run, else the copy of the settings the job carries
+# (the one the hook itself puts back after a reset).
+# $1 job directory, $2 mounted rootfs_data
+rst_put_fstab() {
+	local job="$1" cfg="$2/upper/etc/config" src new
+	if [ -e "$cfg/fstab" ] || [ -L "$cfg/fstab" ]; then
+		[ -f "$cfg/fstab" ] && [ ! -L "$cfg/fstab" ]
+		return $?
+	fi
+	src="$job/rootfs-fstab.saved"
+	[ -f "$src" ] && [ ! -L "$src" ] || src="$job/config/fstab"
+	[ -f "$src" ] && [ ! -L "$src" ] || return 1
+	mkdir -p "$cfg" || return 1
+	new="$cfg/.fstab.be7000-reset-cancel"
+	cp "$src" "$new" || return 1
+	cmp -s "$src" "$new" || return 1
+	mv -f "$new" "$cfg/fstab" || return 1
+	sync
+	cmp -s "$src" "$cfg/fstab"
+}
+
+cmd_cancel() {
+	local job kept device uuid token state ov dev mark
+	if ! rst_open rw; then
+		err "cannot open rootfs_data"
+		return 1
+	fi
+	job="$RD_DIR/$JOB"
+	kept="$RD_DIR/$KEPT"
+	if [ ! -d "$job" ] || [ -L "$job" ]; then
+		rst_close
+		err "no factory reset is waiting"
+		return 1
+	fi
+	device=$(rst_field "$job/device") || device=
+	rst_device_valid "$device" || device=
+	token=$(rst_field "$job/token") || token=
+	uuid=$(rst_field "$job/uuid") || uuid=
+	rst_uuid_valid "$uuid" || uuid=
+	if [ "$(rst_kind "$device")" != disk ]; then
+		rst_close
+		err "only a reset that waits for a disk can be cancelled here"
+		return 1
+	fi
+
+	if rst_inslot; then
+		rst_bigoverlay_off || {
+			rst_close
+			err "could not switch bigoverlay off in the settings, nothing was changed"
+			return 1
+		}
+		state=internal
+	else
+		ov=$(rst_overlay_src)
+		dev="$device"
+		[ -z "$uuid" ] || dev=$(rst_by_uuid "$uuid")
+		if [ -z "$ov" ] || [ "$ov" != "$dev" ]; then
+			rst_close
+			err "/overlay is on ${ov:-an unknown device}, not on the disk the reset waits for; restart the router first"
+			return 1
+		fi
+		rst_put_fstab "$job" "$RD_DIR" || {
+			rst_close
+			err "could not put fstab back into rootfs_data, nothing was changed"
+			return 1
+		}
+		state=unscheduled
+	fi
+
+	# a job set aside by an earlier cancel makes room for this one
+	if [ -e "$kept" ] || [ -L "$kept" ]; then
+		rm -rf "${RD_DIR:?}/${KEPT:?}"
+	fi
+	if [ -e "$kept" ] || [ -L "$kept" ] || ! mv "$job" "$kept"; then
+		rst_close
+		err "could not set the reset job aside"
+		return 1
+	fi
+	sync
+	mark="$RST_OVERLAY/$MARK"
+	if [ "$state" = unscheduled ] && [ -n "$token" ] && [ -f "$mark" ] && [ ! -L "$mark" ] &&
+	   [ "$(cat "$mark" 2>/dev/null)" = "$token" ]; then
+		rm -f "${RST_OVERLAY:?}/${MARK:?}"
+		sync
+	fi
+	rst_close
+	logger -t be7000-reset "factory reset of $device cancelled ($state), the job is kept as $KEPT in rootfs_data"
+	printf '{"ok":true,"state":"%s"}\n' "$state"
+}
+
+case "${1:-}" in
+status) cmd_status ;;
+cancel) cmd_cancel ;;
+*) echo "usage: $0 status | cancel" >&2; exit 1 ;;
+esac

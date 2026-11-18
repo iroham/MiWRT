@@ -55,7 +55,8 @@ done
 # --- the rest of what MiWRT adds to LuCI and the system on every router ---
 # Overview card with the version and links (model-aware), the credits page,
 # the "State" LED trigger with its watcher, the network-restart offer after a
-# package adds a netifd protocol, and the SSH greeting with the credits
+# package adds a netifd protocol, the SSH greeting with the credits, and the
+# class that follows the router when its own address is changed in LuCI
 take overlay-files/www/luci-static/resources/view/status/include/05_be7000.js   www/luci-static/resources/view/status/include/05_be7000.js
 take overlay-files/www/luci-static/resources/view/be7000-credits/credits.js     www/luci-static/resources/view/be7000-credits/credits.js
 take overlay-files/www/luci-static/resources/be7000-credits/credits.json         www/luci-static/resources/be7000-credits/credits.json
@@ -73,6 +74,7 @@ take overlay-files/usr/share/rpcd/acl.d/luci-app-be7000-netifd.json             
 take overlay-files/usr/libexec/be7000-banner                                     usr/libexec/be7000-banner
 take overlay-files/etc/init.d/be7000-banner                                      etc/init.d/be7000-banner
 take overlay-files/etc/rc.d/S96be7000-banner                                     etc/rc.d/S96be7000-banner
+take overlay-files/www/luci-static/resources/preload/lanmove.js                  www/luci-static/resources/preload/lanmove.js
 
 # --- the setup assistant a fresh install opens with (AdGuard Home on the router itself is
 #     BE7000 only: it needs more memory than this router has, and the assistant says so) ---

@@ -364,6 +364,7 @@ grep -E 'be7000-image|miwrt-release' "$mod" >/dev/null && fail "the module hook 
 
 command sed -e '/be7000-factory-reset-guard\.sh/d' -e '/^YES=0$/,$d' \
 	"$ROOT/overlay-files/usr/sbin/be7000-extroot" > "$TMP/extroot-functions"
+BE7000_FSTAB_LIB="$ROOT/overlay-files/lib/functions/be7000-fstab.sh"
 . "$TMP/extroot-functions"
 BE7000_IMAGE_LIB="$TMP/image-lib.sh"
 BE7000_IMAGE_ROM="$NEW"

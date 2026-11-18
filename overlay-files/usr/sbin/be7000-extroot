@@ -17,6 +17,7 @@ LABEL=be7000_overlay
 MNT=/tmp/extroot.$$
 
 . /lib/functions/be7000-factory-reset-guard.sh
+. "${BE7000_FSTAB_LIB:-/lib/functions/be7000-fstab.sh}"
 
 die() { echo "$*" >&2; exit 1; }
 
@@ -43,12 +44,16 @@ bigoverlay_dev() {
 	return 1
 }
 
-# Run "uci -c <dir> batch" with stdin on the config dir of the overlay volume
-# <dev>. When /overlay is that volume, it is the live /etc/config.
+# Run "uci batch" with stdin on the fstab of the overlay volume <dev>, then the
+# check "$2 <config dir> ..." (see be7000_fstab_batch: a missing fstab is made
+# first, and a change the check does not find in the file is taken back and
+# counts as failed). When /overlay is that volume, it is the live /etc/config.
+# $1 volume, $2 check function ("" for none), then its arguments
 with_volume_config() {
 	local dev="$1" dir mnt="" rc=0
+	shift
 	if [ "$dev" = "$(current_overlay_device)" ]; then
-		uci -q batch
+		be7000_fstab_batch /etc/config "$@"
 		return $?
 	fi
 	dir="$(mount | awk -v d="$dev" '$1 == d { print $3; exit }')"
@@ -58,11 +63,13 @@ with_volume_config() {
 		mount -t ubifs "$dev" "$mnt" || { rmdir "$mnt"; echo "cannot mount $dev" >&2; return 1; }
 		dir="$mnt"
 	fi
-	mkdir -p "$dir/upper/etc/config"
-	[ -f "$dir/upper/etc/config/fstab" ] || cp /rom/etc/config/fstab "$dir/upper/etc/config/fstab" 2>/dev/null || : > "$dir/upper/etc/config/fstab"
-	uci -q -c "$dir/upper/etc/config" get fstab.@global[0] >/dev/null ||
-		{ uci -q -c "$dir/upper/etc/config" add fstab global >/dev/null && uci -q -c "$dir/upper/etc/config" commit fstab; } || true
-	uci -q -c "$dir/upper/etc/config" batch || rc=1
+	if [ "$1" = extroot_gone ] && [ ! -e "$dir/upper/etc/config/fstab" ]; then
+		# nothing to take out, and no reason to make the file (or an upper/
+		# directory inside a volume that is not used as an overlay)
+		:
+	else
+		be7000_fstab_batch "$dir/upper/etc/config" "$@" || rc=1
+	fi
 	sync
 	[ -n "$mnt" ] && { umount "$mnt"; rmdir "$mnt"; }
 	return $rc
@@ -72,8 +79,41 @@ with_rootfs_data() {
 	local dev
 	be7000_factory_reset_pending && { echo "factory reset is pending" >&2; return 1; }
 	dev="$(rootfs_data_dev)" || { echo "rootfs_data volume not found" >&2; return 1; }
-	with_volume_config "$dev"
+	with_volume_config "$dev" "$@"
 }
+
+# The extroot entry for the disk with UUID $1, as "uci batch" input. USB disks
+# need a few seconds to show up in preinit, hence delay_root: 15 seconds, or
+# the longer wait someone has set in the live settings.
+# $1 UUID, $2 delay_root of the live settings, $3 enabled (1 when left out)
+extroot_batch() {
+	local wait="${2:-0}"
+	[ "$wait" -ge 15 ] 2>/dev/null || wait=15
+	cat <<-EOT
+		set fstab.extroot=mount
+		set fstab.extroot.target='/overlay'
+		set fstab.extroot.uuid='$1'
+		set fstab.extroot.fstype='ext4'
+		set fstab.extroot.options='rw,noatime'
+		set fstab.extroot.enabled='${3:-1}'
+		set fstab.@global[0].delay_root='$wait'
+		commit fstab
+	EOT
+}
+
+# delay_root as the live settings have it
+live_delay() { be7000_fstab_get /etc/config '@global[0].delay_root' || true; }
+
+# The file in config dir $1 names the disk with UUID $2 as /overlay.
+# $3 the value "enabled" has to have, 1 when left out
+extroot_written() {
+	local d
+	be7000_fstab_has "$1" extroot target /overlay uuid "$2" fstype ext4 enabled "${3:-1}" || return 1
+	d="$(be7000_fstab_get "$1" '@global[0].delay_root')" || return 1
+	[ "${d:-0}" -ge 15 ] 2>/dev/null
+}
+
+extroot_gone() { be7000_fstab_lacks "$1" extroot; }
 
 current_overlay_device() {
 	mount | awk '$3 == "/overlay" { print $1; exit }'
@@ -192,7 +232,7 @@ cmd_status_json() {
 }
 
 cmd_use() {
-	local dev="$1" yes="$2" do_reboot="$3" uuid
+	local dev="$1" yes="$2" do_reboot="$3" uuid before
 	be7000_factory_reset_pending && die "factory reset is pending; extroot changes are deferred"
 	[ -n "$dev" ] || die "usage: be7000-extroot use <device> [--yes] [--reboot]"
 	[ -b "$dev" ] || die "$dev is not a block device"
@@ -212,29 +252,34 @@ cmd_use() {
 
 	command -v mkfs.ext4 >/dev/null || die "mkfs.ext4 is missing"
 
+	# Before anything is erased: the two files this has to write exist and
+	# take a change. A router without /etc/config/fstab used to get as far as
+	# "Done" here with nothing written, and came back up on internal storage.
+	be7000_fstab_ensure /etc/config || die "cannot create /etc/config/fstab, nothing was changed"
+	with_rootfs_data "" </dev/null || die "cannot prepare fstab in rootfs_data, nothing was changed"
+	before=/tmp/extroot-fstab-before.$$
+	cp /etc/config/fstab "$before" || die "cannot keep a copy of /etc/config/fstab, nothing was changed"
+
 	echo "Formatting $dev"
 	mkfs.ext4 -q -F -L "$LABEL" "$dev"
 
 	mkdir -p "$MNT"
-	mount "$dev" "$MNT" || die "cannot mount $dev"
+	mount "$dev" "$MNT" || { rm -f "$before"; rmdir "$MNT" 2>/dev/null || true; die "cannot mount $dev after formatting it; the router's settings were not changed"; }
 
-	uuid="$(block info "$dev" 2>/dev/null | sed -n 's/.*UUID="\([^"]*\)".*/\1/p')"
-	[ -n "$uuid" ] || die "cannot read the UUID of $dev"
+	# from the whole list first: asked about one device, block answers for
+	# some kinds of device only
+	uuid="$(block info 2>/dev/null | awk -v d="$dev:" '$1 == d {
+		if (match($0, / UUID="[^"]*"/)) print substr($0, RSTART + 7, RLENGTH - 8)
+		exit
+	}')"
+	[ -n "$uuid" ] || uuid="$(block info "$dev" 2>/dev/null | sed -n 's/.*UUID="\([^"]*\)".*/\1/p' | head -n 1)"
+	[ -n "$uuid" ] || use_failed "$before" "cannot read the UUID of $dev"
 
 	# Settings first, so the copy on the disk already has its fstab entry.
-	uci -q batch <<-EOT
-		set fstab.extroot=mount
-		set fstab.extroot.target='/overlay'
-		set fstab.extroot.uuid='$uuid'
-		set fstab.extroot.fstype='ext4'
-		set fstab.extroot.options='rw,noatime'
-		set fstab.extroot.enabled='1'
-		commit fstab
-	EOT
-	# USB disks need a few seconds to show up in preinit.
-	[ "$(uci -q get fstab.@global[0].delay_root)" -ge 15 ] 2>/dev/null || {
-		uci -q set fstab.@global[0].delay_root='15' && uci -q commit fstab
-	}
+	extroot_batch "$uuid" "$(live_delay)" |
+		be7000_fstab_batch /etc/config extroot_written "$uuid" ||
+		use_failed "$before" "the extroot entry did not reach /etc/config/fstab"
+
 	echo "Copying the current overlay across"
 	# /overlay holds upper/ and work/; copy the contents, not the mount point.
 	cp -a /overlay/. "$MNT"/ 2>/dev/null || true
@@ -246,6 +291,12 @@ cmd_use() {
 	[ -f "$MNT/upper/etc/config/bigoverlay" ] || cp /rom/etc/config/bigoverlay "$MNT/upper/etc/config/" 2>/dev/null || true
 	uci -q -c "$MNT/upper/etc/config" set bigoverlay.main.enabled='0' && uci -q -c "$MNT/upper/etc/config" commit bigoverlay || true
 	sync
+	# the copy is what the router runs from after the reboot: it has to name
+	# the disk too, and to keep bigoverlay off
+	extroot_written "$MNT/upper/etc/config" "$uuid" ||
+		use_failed "$before" "the copy of the settings on $dev has no extroot entry (is the disk full?)"
+	[ "$(uci -q -c "$MNT/upper/etc/config" get bigoverlay.main.enabled || true)" = 0 ] ||
+		use_failed "$before" "could not switch bigoverlay off in the copy of the settings on $dev"
 	umount "$MNT"
 	rmdir "$MNT"
 
@@ -253,19 +304,28 @@ cmd_use() {
 	# This is the fstab fstools actually reads at boot. The extroot entry sorts
 	# before bigoverlay (UUID against "ubi1_*"), so it wins while the disk is
 	# there; without the disk the router boots on the slot's small overlay.
-	with_rootfs_data <<-EOT || die "could not write the extroot entry into rootfs_data"
-		set fstab.extroot=mount
-		set fstab.extroot.target='/overlay'
-		set fstab.extroot.uuid='$uuid'
-		set fstab.extroot.fstype='ext4'
-		set fstab.extroot.options='rw,noatime'
-		set fstab.extroot.enabled='1'
-		set fstab.@global[0].delay_root='15'
-		commit fstab
-	EOT
+	extroot_batch "$uuid" "$(live_delay)" | with_rootfs_data extroot_written "$uuid" ||
+		use_failed "$before" "could not write the extroot entry into rootfs_data"
+	rm -f "$before"
 
 	echo "Done. The change takes effect on the next boot."
 	if [ "$do_reboot" = 1 ]; then sync; reboot; fi
+}
+
+# A step of "use" after the format did not hold: the settings go back to what
+# they were, so the next boot does not land on a disk that was only half set
+# up, and the reason is said.
+# $1 copy of /etc/config/fstab from before, $2 reason
+use_failed() {
+	umount "$MNT" 2>/dev/null || true
+	rmdir "$MNT" 2>/dev/null || true
+	if [ -f "$1" ]; then
+		uci -q revert fstab 2>/dev/null || true
+		cat "$1" > /etc/config/fstab 2>/dev/null || true
+		rm -f "$1"
+		sync
+	fi
+	die "$2. The disk was formatted, but the router's settings are as they were before and /overlay stays where it is."
 }
 
 cmd_revert() {
@@ -277,14 +337,17 @@ cmd_revert() {
 		echo "Re-run with --yes to go ahead."
 		exit 1
 	fi
-	uci -q delete fstab.extroot
-	uci -q commit fstab
-	printf 'delete fstab.extroot\ncommit fstab\n' | with_rootfs_data || die "could not remove the extroot entry from rootfs_data"
+	# rootfs_data first: that is the copy fstools reads, and when it cannot be
+	# changed the live settings stay as they are too, so the two do not differ
+	printf 'delete fstab.extroot\ncommit fstab\n' | with_rootfs_data extroot_gone ||
+		die "could not remove the extroot entry from rootfs_data, nothing was changed"
+	printf 'delete fstab.extroot\ncommit fstab\n' | be7000_fstab_batch /etc/config extroot_gone ||
+		die "could not remove the extroot entry from /etc/config/fstab"
 	# use also wrote the entry into the shared volume on mtd28; when reverting
 	# from the disk that volume is not /etc, so clean it here too.
 	local vol
 	if vol="$(bigoverlay_dev)"; then
-		printf 'delete fstab.extroot\ncommit fstab\n' | with_volume_config "$vol" ||
+		printf 'delete fstab.extroot\ncommit fstab\n' | with_volume_config "$vol" extroot_gone ||
 			echo "note: could not clean the settings on $vol" >&2
 	fi
 	echo "Removed. The change takes effect on the next boot."
@@ -399,23 +462,17 @@ cmd_boot_sync() {
 			logger -t be7000-extroot "extroot is off in the settings, removed it from rootfs_data too"
 		fi
 	elif [ "$uuid" != "$rd_uuid" ] || [ "$en" != "$rd_en" ]; then
-		mkdir -p "$dir/upper/etc/config"
-		[ -f "$dir/upper/etc/config/fstab" ] || cp /rom/etc/config/fstab "$dir/upper/etc/config/fstab" 2>/dev/null || : > "$dir/upper/etc/config/fstab"
-		# a fresh fstab may have no global section to hold delay_root
-		uci -q -c "$dir/upper/etc/config" get fstab.@global[0] >/dev/null ||
-			{ uci -q -c "$dir/upper/etc/config" add fstab global >/dev/null && uci -q -c "$dir/upper/etc/config" commit fstab; } || true
-		uci -q -c "$dir/upper/etc/config" batch <<-EOT || true
-			set fstab.extroot=mount
-			set fstab.extroot.target='/overlay'
-			set fstab.extroot.uuid='$uuid'
-			set fstab.extroot.fstype='ext4'
-			set fstab.extroot.options='rw,noatime'
-			set fstab.extroot.enabled='${en:-1}'
-			set fstab.@global[0].delay_root='15'
-			commit fstab
-		EOT
-		logger -t be7000-extroot "rootfs_data had no extroot entry for UUID $uuid (after an upgrade), put it back"
-		changed=1
+		# a fresh fstab is made with its global section, which holds
+		# delay_root. Only an entry that is found in the file afterwards
+		# counts: the reboot below is for an entry that is there, and one
+		# that was not written would ask for the same reboot on every boot.
+		if extroot_batch "$uuid" "$(live_delay)" "${en:-1}" |
+			be7000_fstab_batch "$dir/upper/etc/config" extroot_written "$uuid" "${en:-1}"; then
+			logger -t be7000-extroot "rootfs_data had no extroot entry for UUID $uuid (after an upgrade), put it back"
+			changed=1
+		else
+			logger -t be7000-extroot "could not put the extroot entry for UUID $uuid back into rootfs_data, staying on this overlay"
+		fi
 	fi
 	sync
 	[ -n "$mnt" ] && { umount "$mnt"; rmdir "$mnt"; }

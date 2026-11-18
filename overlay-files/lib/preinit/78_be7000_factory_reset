@@ -4,10 +4,21 @@
 # token at the root of the external filesystem. Nothing is changed unless the
 # two tokens match. upper and work are replaced as one recoverable operation;
 # stock files beside them on the bigoverlay volume are never touched.
+#
+# A USB disk is found by the UUID of its filesystem, which the job carries
+# next to the device name, and is given up to BFR_WAIT seconds to appear:
+# this runs before mount_root, when a disk is often still spinning up, and
+# the name the kernel gives it can change from one boot to the next. A disk
+# that was replaced or formatted again has another UUID and no token, so it
+# is never the target. The wait is spent only while a job is pending.
+#
+# When the reset cannot finish, the reason goes into the job as one word
+# (file "why") for the Storage page, and the job stays for the next boot.
 
 BFR_TMP=/tmp/be7000-factory-reset
 BFR_JOB=.be7000_factory_reset
 BFR_MARK=.be7000_factory_reset_token
+BFR_WAIT=15
 
 bfr_log() {
 	echo "- be7000 factory reset: $* -"
@@ -51,6 +62,57 @@ bfr_device_valid() {
 	return 0
 }
 
+bfr_uuid_valid() {
+	[ -n "$1" ] && [ "${#1}" -le 64 ] || return 1
+	case "$1" in *[!0-9A-Za-z-]*) return 1 ;; esac
+	return 0
+}
+
+# The block device whose filesystem has this UUID, nothing when none has.
+bfr_by_uuid() {
+	block info 2>/dev/null | awk -F: -v u="$1" \
+		'index(tolower($0), " uuid=\"" tolower(u) "\"") { print $1; exit }'
+}
+
+# Leave the reason a reset did not finish. The job does not depend on it.
+bfr_note() {
+	printf '%s\n' "$2" > "$1/why.new" 2>/dev/null &&
+		mv -f "$1/why.new" "$1/why" 2>/dev/null
+	sync
+	return 0
+}
+
+# Mount the filesystem of the job on <target>. A disk is looked for by UUID
+# when the job has one, by its recorded name otherwise, once a second for up
+# to BFR_WAIT seconds; a UBI volume is there or it is not. BFR_DEV is the
+# device that was mounted, BFR_WHY says what was missing when none was.
+# $1 recorded device, $2 UUID or "", $3 filesystem, $4 mount point, $5 rootfs_data
+bfr_mount_target() {
+	local device="$1" uuid="$2" fstype="$3" target="$4" rd="$5" dev i=0 wait="$BFR_WAIT"
+	BFR_DEV=
+	BFR_WHY=absent
+	case "$device" in /dev/ubi*|ubi[0-9]*:*) wait=0; uuid=; BFR_WHY=mount ;; esac
+	while :; do
+		if [ -n "$uuid" ]; then
+			dev=$(bfr_by_uuid "$uuid")
+		else
+			dev="$device"
+		fi
+		if [ -n "$dev" ] && bfr_device_valid "$dev" && [ "$dev" != "$rd" ]; then
+			if mount -t "$fstype" -o rw,noatime "$dev" "$target" 2>/dev/null; then
+				BFR_DEV="$dev"
+				BFR_WHY=
+				return 0
+			fi
+			# found by UUID, or its node is there: it is the mount that fails
+			if [ -n "$uuid" ] || [ -e "$dev" ]; then BFR_WHY=mount; fi
+		fi
+		[ "$i" -lt "$wait" ] || return 1
+		sleep 1
+		i=$((i + 1))
+	done
+}
+
 bfr_target_ready() {
 	local t="$1" job="$2" n
 	[ -d "$t/upper" ] && [ ! -L "$t/upper" ] || return 1
@@ -78,9 +140,11 @@ bfr_close_rd() {
 	return 1
 }
 
+# $4 the reason as one word, for the Storage page
 bfr_leave_retry() {
 	local target="$1" rdmnt="$2" why="$3" rc=0
 	bfr_log "$why"
+	[ -z "${4:-}" ] || bfr_note "$rdmnt/$BFR_JOB" "$4"
 	umount "$target" 2>/dev/null || rc=1
 	umount "$rdmnt" 2>/dev/null || rc=1
 	[ "$rc" = 0 ] && rm -rf "$BFR_TMP"
@@ -251,7 +315,7 @@ bfr_cleanup_target() {
 }
 
 bfr_run() {
-	local rd job version device fstype token keep prepared marker ready done
+	local rd job version device fstype token keep prepared marker ready done uuid
 	local rdmnt="$BFR_TMP/rootfs_data" target="$BFR_TMP/target"
 
 	rd=$(bfr_rootfs_data) || return 0
@@ -278,6 +342,9 @@ bfr_run() {
 	token=$(bfr_field "$job/token") || token=
 	keep=$(bfr_field "$job/keep") || keep=
 	prepared=$(bfr_field "$job/prepared" 2>/dev/null) || prepared=
+	# jobs written by an older image have no UUID and go by the name alone
+	uuid=$(bfr_field "$job/uuid" 2>/dev/null) || uuid=
+	bfr_uuid_valid "$uuid" || uuid=
 	if [ "$version" != 1 ] || ! bfr_device_valid "$device" || ! bfr_token_valid "$token" ||
 	   { [ "$keep" != 0 ] && [ "$keep" != 1 ]; } || [ "$device" = "$rd" ]; then
 		bfr_fatal "invalid reset job; forcing reboot"
@@ -297,32 +364,41 @@ bfr_run() {
 		return 0
 	fi
 
-	if ! mount -t "$fstype" -o rw,noatime "$device" "$target" 2>/dev/null; then
-		bfr_log "cannot mount $device, reset job left for retry"
+	if ! bfr_mount_target "$device" "$uuid" "$fstype" "$target" "$rd"; then
+		if [ "$BFR_WHY" = mount ]; then
+			bfr_log "cannot mount $device${uuid:+ (UUID $uuid)}, reset job left for retry"
+		elif [ -n "$uuid" ]; then
+			bfr_log "no filesystem with UUID $uuid (was $device) showed up, reset job left for retry"
+		else
+			bfr_log "$device did not show up, reset job left for retry"
+		fi
+		bfr_note "$job" "$BFR_WHY"
 		bfr_close_rd "$rdmnt"
 		return 0
 	fi
-	marker=$(cat "$target/$BFR_MARK" 2>/dev/null)
+	[ "$BFR_DEV" = "$device" ] || bfr_log "the filesystem recorded as $device is $BFR_DEV on this boot"
+	device="$BFR_DEV"
+	marker=$(cat "$target/$BFR_MARK" 2>/dev/null) || marker=
 	ready="$target/.be7000_factory_reset_ready.$token"
 	if [ "$prepared" != "$token" ]; then
 		if [ "$marker" != "$token" ] || [ ! -f "$target/$BFR_MARK" ] || [ -L "$target/$BFR_MARK" ]; then
-			bfr_leave_retry "$target" "$rdmnt" "reset token does not match $device, nothing changed"
+			bfr_leave_retry "$target" "$rdmnt" "reset token does not match $device, nothing changed" token
 			return 0
 		fi
 		if ! bfr_prepare_target "$target" "$job" "$token"; then
-			bfr_leave_retry "$target" "$rdmnt" "could not prepare a fresh overlay, reset job left for retry"
+			bfr_leave_retry "$target" "$rdmnt" "could not prepare a fresh overlay, reset job left for retry" write
 			return 0
 		fi
 
 		if ! bfr_cleanup_target "$target" "$job" "$token" "$keep"; then
-			bfr_leave_retry "$target" "$rdmnt" "could not remove the old overlay, reset job left for retry"
+			bfr_leave_retry "$target" "$rdmnt" "could not remove the old overlay, reset job left for retry" write
 			return 0
 		fi
 		# The target cleanup was synced above. Publish prepared only after
 		# those changes are durable, then sync rootfs_data separately.
 		if ! printf '%s\n' "$token" > "$job/prepared.new" ||
 		   ! mv "$job/prepared.new" "$job/prepared"; then
-			bfr_leave_retry "$target" "$rdmnt" "could not finish the fresh overlay, reset job left for retry"
+			bfr_leave_retry "$target" "$rdmnt" "could not finish the fresh overlay, reset job left for retry" internal
 			return 0
 		fi
 		sync
@@ -330,21 +406,22 @@ bfr_run() {
 		# Repeat target cleanup because prepared and the target live on
 		# different filesystems and may reach stable storage in either order.
 		bfr_cleanup_target "$target" "$job" "$token" "$keep" || {
-			bfr_leave_retry "$target" "$rdmnt" "prepared overlay cleanup did not verify, reset job kept"
+			bfr_leave_retry "$target" "$rdmnt" "prepared overlay cleanup did not verify, reset job kept" write
 			return 0
 		}
 	fi
 	if ! bfr_restore_extroot "$rdmnt" "$job"; then
-		bfr_leave_retry "$target" "$rdmnt" "cannot restore extroot configuration, reset job kept"
+		bfr_leave_retry "$target" "$rdmnt" "cannot restore extroot configuration, reset job kept" internal
 		return 0
 	fi
 	if ! rm -f "$target/$BFR_MARK" "$ready"; then
-		bfr_leave_retry "$target" "$rdmnt" "cannot remove reset markers, reset job left for retry"
+		bfr_leave_retry "$target" "$rdmnt" "cannot remove reset markers, reset job left for retry" write
 		return 0
 	fi
 	sync
 	if ! umount "$target"; then
 		bfr_log "cannot unmount the fresh overlay, reset job left for retry"
+		bfr_note "$job" write
 		umount "$rdmnt" 2>/dev/null
 		return 0
 	fi

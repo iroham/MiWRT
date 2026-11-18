@@ -16,6 +16,7 @@ Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 - [First-time setup](#first-time-setup)
 - [Wi-Fi tuning](#wi-fi-tuning)
 - [Safe updates](#safe-updates)
+- [The router's address](#the-routers-address)
 - [The app service](#the-app-service)
 - [Privacy](PRIVACY.md)
 - [Installing, updating, going back](#installing-updating-going-back)
@@ -35,7 +36,9 @@ Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 
 **Storage and recovery**
 - System, Slots: switch to the factory firmware, or join the spare slot and the data partition into one storage for settings and packages (about 57 MB instead of 20). A byte-for-byte copy of the slot is saved first and can be written back.
-- Factory reset works wherever the settings live (data partition, USB disk or the spare slot). It runs before the settings are mounted, resumes after a power loss and replaces only the settings.
+- Factory reset works wherever the settings live (data partition, USB disk or the spare slot). It runs before the settings are mounted, resumes after a power loss and replaces only the settings. A USB disk gets up to 15 seconds to appear at that boot and is recognised by the UUID of its filesystem, so a `/dev/sda` that came back as `/dev/sdb` does not hold the reset up. A disk that was replaced or formatted since is never cleared.
+- System, Storage says why a reset has not finished (the disk is missing, it is another disk, it does not mount, a write failed) and can cancel a reset that waits for a disk; a backup of the present settings is offered first. After a cancel the router stays on the slot's built-in storage with the settings it runs with, and the disk is not mounted or written.
+- Moving the settings (to a USB disk, the joined spare slot or the data partition) is reported as done only after the entries were read back from the files. `uci` answers success for an `fstab` that does not exist and for a volume that is full, having written nothing; a move that went by that answer left the router on its built-in storage after the reboot. A missing `fstab` is now made before anything is formatted.
 - A failing USB stick holding the settings does not send the router back to the factory firmware: after an unfinished boot the router starts on its built-in storage and stays reachable.
 - Settings can be imported from the factory firmware, also when the router was the main unit of a Xiaomi mesh.
 - `install-from-openwrt.sh` in every release archive moves a router to MiWRT from another OpenWrt build that kept the factory bootloader.
@@ -46,6 +49,8 @@ Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 - A signed package feed built from the same tree as the image, kernel modules included, so `apk add` works for this exact kernel.
 - Docker on request: the data directory is tested before it is used, containers reach the internet and their ports open from the LAN (`be7000-docker firewall`, `be7000-docker diag`).
 - AmneziaWG and the GRE, L2TP, PPTP, IPIP, VXLAN, 6in4, 6rd, 6to4, DS-Lite, MAP, 464XLAT, relayd, bonding, SSTP, OpenConnect, vpnc, OpenFortiVPN and MBIM/NCM modem pages are in the feed. After a package adds a network protocol, LuCI offers the network restart it needs.
+- Tailscale with its LuCI page is in the feed (`apk add tailscale luci-app-tailscale-community`). It is one large program (about 11 MB to download, more once unpacked), so give the settings more room first: join the spare slot or move them to a USB disk.
+- Changing the router's own address in LuCI (Network, Interfaces, LAN) no longer races a clock: the page confirms the new settings at the new address and opens itself there. See [The router's address](#the-routers-address).
 - A "State (MiWRT)" LED trigger: any LED can show whether a process runs, an address answers or a command succeeds. The watcher behind it runs only while an LED uses the trigger.
 - Shipped in the image: `curl` with HTTP/2, `sqm-scripts` (cake) with its page, `nlbwmon` (per-device traffic), `banip` (IP block lists), `umdns` (mDNS) and `tcpdump-mini`.
 - To install scripts the firmware reports itself as OpenWrt 25.12.6, so they do not refuse the version; "MiWRT 2.1.0" is in the description, the banner, Overview and the app.
@@ -140,6 +145,16 @@ Settings on the data partition, on the joined spare slot or on a USB disk outliv
 The note is part of the settings, so joining or releasing the spare slot or moving to a USB disk takes it along and is not mistaken for a new firmware. A router that keeps its settings inside the firmware slot is not affected: an update wipes that space and restores the settings backup, as on any OpenWrt.
 
 The system calls itself MiWRT in LuCI, the console banner and `/etc/openwrt_release`; the default hostname is `MiWRT`. Image file names stay `openwrt-qualcommbe-ipq95xx-xiaomi_be7000-…`, which the installer and the update page look up by name.
+
+## The router's address
+
+LuCI applies settings with a safety net: the router takes them and waits 90 seconds for the browser to confirm that it still gets through, and puts the old settings back otherwise. The browser sends that confirmation to the address the page was opened at. When the change is that very address, nothing answers there any more, so a correct change was rolled back unless you typed the new address into the browser in time. Where the address is stored as a list (OpenWrt's default, as on the Redmi AC2100), LuCI did not even warn about it.
+
+`preload/lanmove.js`, loaded with every LuCI page, adds the missing half. Before the apply it asks the router which interface owns the address in the browser's address bar and what that interface's address will be. When it changes, the page says so and shows the new address as a link, and once the router has had the usual four seconds to switch, it sends the confirmation to the new address every two seconds. The first answer confirms the settings, and the same page is opened there. Nothing changes when the address stays, when the page was opened by name or over IPv6, or when anything in the class fails: LuCI then works as it always did.
+
+- The device you configure from needs an address in the new network. In the same subnet that is immediate; in another subnet it has to renew its lease (replug the cable, or leave the Wi-Fi network and join it again) within the 90 seconds. The page says so.
+- Over HTTPS with the router's own certificate a browser lets no request through to an address whose certificate it has not accepted. After ten seconds of immediate refusals the page therefore opens the new address itself, the browser asks about the certificate, and the sign-in page that follows sends the confirmation (LuCI does that on any page while a rollback is pending). Ten seconds, because a cable's link is down for a few seconds while the router re-reads its network settings, and requests fail at once during that, too.
+- "Apply unchecked" has no rollback; the page is opened at the new address all the same.
 
 ## The app service
 
@@ -265,7 +280,7 @@ Never write to the bootloader partitions `0:APPSBL` and `0:APPSBL_1`.
 
 A MiWRT image for the Xiaomi Redmi Router AC2100 is in testing: the `ac2100 image` workflow builds it with the official OpenWrt ImageBuilder from `overlay-ac2100/` and the shared MiWRT files; nothing in the BE7000 build changes for it. It carries the same version as the BE7000 image and is released with it: a tag `v*` starts both builds, and both put their files into the release of that tag. The AC2100 files are the ones with `ac2100` in the name: the `kernel1`, `rootfs0` and `sysupgrade` images, `miwrt-ac2100-v<version>.zip` with the texts, and `sha256sums-ac2100.txt` with its signature. The install, update and recovery texts are in [docs/instruction/ac2100](docs/instruction/ac2100/); they say what to verify first.
 
-Where the testing stands: the project has installed 2.1.0 once, from the stock firmware (2.0.23) on one router, with the steps of the install text. It booted on the first try and again after a reboot, both radios came up and heard neighbouring networks, the MAC addresses matched the Factory partition, and the web interface and the app service answered. Not tested yet: internet on the WAN port, the updater and the package feeds, a Wi-Fi client, the setup assistant in a browser, sysupgrade to a later version, and TFTP recovery; no recovery path has been exercised. Back up the flash before installing, as the install text describes. The default Wi-Fi password is the serial number from the label without its slash.
+Where the testing stands: the project has installed 2.1.0 once, from the stock firmware (2.0.23) on one router, with the steps of the install text. It booted on the first try and again after a reboot, both radios came up and heard neighbouring networks, the MAC addresses matched the Factory partition, and the web interface and the app service answered. Changing the LAN address in LuCI was run on it in Chrome, there and back, with and without the new class. Not tested yet: internet on the WAN port, the updater and the package feeds, a Wi-Fi client, the setup assistant in a browser, sysupgrade to a later version, and TFTP recovery; no recovery path has been exercised. Back up the flash before installing, as the install text describes. The default Wi-Fi password is the serial number from the label without its slash.
 
 ## Building
 
@@ -273,7 +288,9 @@ GitHub Actions builds everything: a tag `v*` produces the images for both router
 
 To build by hand, follow `.github/workflows/build.yml`: the OpenWrt tree at the commit in `patches/port/BASE`, the BE7000 port series from `patches/port` applied with `git am`, the kernel patches from `patches` copied to `target/linux/qualcommbe/patches-6.18`, the ath12k and mac80211 patches to their package, `patches/tree` applied on top, `overlay-files` as `files/`, `luci-theme-miwrt` in `package/`, then `config.buildinfo` as `.config`. A few LuCI files in `overlay-files` replace LuCI's own; `patches/luci` holds what changed in each against the pinned LuCI, to be applied again when the pin moves.
 
-Checks that run on a desktop shell: `scripts/test-factory-reset.sh`, `scripts/test-factory-reset-writers.sh` and `scripts/test-slot-storage-preinit.sh` exercise the boot and reset scripts; `scripts/test-image-change.sh` builds a made-up image and settings volume and checks what an update moves, keeps and reinstalls; `scripts/i18n-check.sh` checks that every interface string has its English and Chinese translation and that the `.lmo` files match the `.po` files.
+Checks that run on a desktop shell: `scripts/test-factory-reset.sh`, `scripts/test-factory-reset-writers.sh` and `scripts/test-slot-storage-preinit.sh` exercise the boot and reset scripts; `scripts/test-slot-switch.sh` checks what the "make this slot the main one" button writes to the bootloader and when it refuses; `scripts/test-image-change.sh` builds a made-up image and settings volume and checks what an update moves, keeps and reinstalls; `node scripts/test-lanmove.js` runs the class that follows the router to a new address against a stand-in for LuCI and a clock of its own; `scripts/i18n-check.sh` checks that every interface string has its English and Chinese translation and that the `.lmo` files match the `.po` files.
+
+`scripts/test-storage-fstab.sh` needs the real `uci`, because what it checks is how `uci` answers when it wrote nothing, so it runs on a router, in `/tmp`, with stand-ins for `mount`, `block`, `mkfs.ext4` and `reboot`; on a machine without `uci` it says so and passes. The head of the script has the command that copies it to a router and runs it. It touches neither the router's settings nor its storage.
 
 ## Credits and licence
 

@@ -13,6 +13,11 @@
 # live overlayfs alone. A preinit hook performs the reset on the next boot,
 # before the external filesystem becomes /overlay. fstab and bigoverlay are
 # kept in the job because they say where that fresh overlay has to live.
+#
+# A USB disk is written into the job with the UUID of its filesystem as well
+# as its device name. The name is only what the kernel called the disk on
+# this boot: with a second disk plugged in, or another port, /dev/sda1 can be
+# /dev/sdb1 next time, and a reset that looked for the name never finished.
 
 JOB=.be7000_factory_reset
 MARK=.be7000_factory_reset_token
@@ -34,6 +39,22 @@ token_valid() {
 	[ "${#1}" = 32 ] || return 1
 	case "$1" in *[!0-9a-f]*) return 1 ;; esac
 	return 0
+}
+
+uuid_valid() {
+	[ -n "$1" ] && [ "${#1}" -le 64 ] || return 1
+	case "$1" in *[!0-9A-Za-z-]*) return 1 ;; esac
+	return 0
+}
+
+# The UUID of the filesystem on a block device, nothing when it tells none.
+# Read from the whole list: asked about one device, block answers for some
+# kinds of device only.
+fb_uuid() {
+	block info 2>/dev/null | awk -v d="$1:" '$1 == d {
+		if (match($0, / UUID="[^"]*"/)) print substr($0, RSTART + 7, RLENGTH - 8)
+		exit
+	}'
 }
 
 be7000_firstboot_main() {
@@ -89,6 +110,12 @@ tmp="$R/rd/$JOB.new"
 marker="$FB_OVERLAY/$MARK"
 markertmp="$FB_OVERLAY/$MARK.new"
 token=
+# UBI volumes keep their names from boot to boot; only disks are looked up
+uuid=
+case "$ov" in
+/dev/ubi*|ubi[0-9]*:*) ;;
+*) uuid=$(fb_uuid "$ov"); uuid_valid "$uuid" || uuid= ;;
+esac
 
 abort_schedule() {
 	local why="$1"
@@ -118,6 +145,9 @@ printf '%s\n' "$ov" > "$tmp/device" || abort_schedule "cannot write the reset jo
 printf '%s\n' "$ovtype" > "$tmp/fstype" || abort_schedule "cannot write the reset job"
 printf '%s\n' "$token" > "$tmp/token" || abort_schedule "cannot write the reset job"
 printf '%s\n' "$keep" > "$tmp/keep" || abort_schedule "cannot write the reset job"
+if [ -n "$uuid" ]; then
+	printf '%s\n' "$uuid" > "$tmp/uuid" || abort_schedule "cannot write the reset job"
+fi
 cp -a "$FB_CONFIG/fstab" "$tmp/config/fstab" || abort_schedule "cannot preserve fstab"
 cp -a "$FB_CONFIG/bigoverlay" "$tmp/config/bigoverlay" || abort_schedule "cannot preserve bigoverlay"
 cmp -s "$FB_CONFIG/fstab" "$tmp/config/fstab" || abort_schedule "the fstab copy did not verify"

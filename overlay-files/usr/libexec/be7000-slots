@@ -31,6 +31,7 @@
 JSON=1
 
 . /lib/functions/be7000-factory-reset-guard.sh
+. "${BE7000_FSTAB_LIB:-/lib/functions/be7000-fstab.sh}"
 
 mtd_of() { [ "$1" = 0 ] && echo rootfs || echo rootfs_1; }
 
@@ -280,14 +281,17 @@ rootfs_data_dev() {
 	return 1
 }
 
-# Run "uci batch" (stdin) on the config of the slot's rootfs_data. When
-# /overlay is that volume, it is the live /etc/config.
+# Run "uci batch" (stdin) on the fstab of the slot's rootfs_data, then the
+# check "$1 <config dir> ..." when one is given (see be7000_fstab_batch: a
+# missing fstab is made first, and a change the check does not find in the
+# file is taken back and counts as failed). When /overlay is that volume, it
+# is the live /etc/config.
 with_rootfs_data() {
 	local dev dir mnt="" rc=0
 	be7000_factory_reset_pending && { echo "factory reset is pending" >&2; return 1; }
 	dev="$(rootfs_data_dev)" || { echo "rootfs_data volume not found" >&2; return 1; }
 	if [ "$(overlay_kind)" = inslot ]; then
-		uci -q batch
+		be7000_fstab_batch /etc/config "$@"
 		return $?
 	fi
 	dir="$(awk -v d="$dev" '$1 == d { print $2; exit }' /proc/mounts)"
@@ -297,14 +301,17 @@ with_rootfs_data() {
 		mount -t ubifs "$dev" "$mnt" || { rmdir "$mnt"; echo "cannot mount $dev" >&2; return 1; }
 		dir="$mnt"
 	fi
-	mkdir -p "$dir/upper/etc/config"
-	[ -f "$dir/upper/etc/config/fstab" ] || cp /rom/etc/config/fstab "$dir/upper/etc/config/fstab" 2>/dev/null || : > "$dir/upper/etc/config/fstab"
-	uci -q -c "$dir/upper/etc/config" get fstab.@global[0] >/dev/null ||
-		{ uci -q -c "$dir/upper/etc/config" add fstab global >/dev/null && uci -q -c "$dir/upper/etc/config" commit fstab; } || true
-	uci -q -c "$dir/upper/etc/config" batch || rc=1
+	be7000_fstab_batch "$dir/upper/etc/config" "$@" || rc=1
 	sync
 	[ -n "$mnt" ] && { umount "$mnt"; rmdir "$mnt"; }
 	return $rc
+}
+
+# The same on the live settings, unless they are the slot's rootfs_data, which
+# with_rootfs_data has then already changed.
+with_live_config() {
+	[ "$(overlay_kind)" = inslot ] && { cat >/dev/null; return 0; }
+	be7000_fstab_batch /etc/config "$@"
 }
 
 # --- status ------------------------------------------------------------------
@@ -432,6 +439,16 @@ fstab_slotstorage_batch() {
 	EOT
 }
 
+# what the two batches below have to leave in the file
+slotstorage_written() {
+	be7000_fstab_has "$1" slotstorage target /overlay device /dev/ubi2_0 fstype ubifs enabled 1
+}
+
+bigoverlay_written() {
+	be7000_fstab_lacks "$1" slotstorage &&
+		be7000_fstab_has "$1" bigoverlay target /overlay device /dev/ubi1_1 fstype ubifs enabled 1
+}
+
 fstab_bigoverlay_batch() {
 	cat <<-EOT
 		delete fstab.slotstorage
@@ -485,12 +502,17 @@ cmd_storage_enable() {
 	fi
 
 	step config "Pointing fstab at the new volume" 50
-	fstab_slotstorage_batch | with_rootfs_data || { die "could not edit fstab"; return 1; }
-	# the live settings too, so that the copy preinit makes carries them
-	[ "$(overlay_kind)" = inslot ] || fstab_slotstorage_batch | uci -q batch
+	fstab_slotstorage_batch | with_rootfs_data slotstorage_written || { die "could not write the new volume into fstab, nothing was changed"; return 1; }
+	# the live settings too, so that the copy preinit makes carries them:
+	# after the next firmware update they are all that names the volume
+	fstab_slotstorage_batch | with_live_config slotstorage_written || {
+		storage_undo_config
+		die "could not write the new volume into the live fstab, nothing was changed"
+		return 1
+	}
 	if [ -n "$(uci -q get fstab.bigoverlay)" ]; then
 		printf "set fstab.bigoverlay.enabled='0'\ncommit fstab\n" | with_rootfs_data
-		[ "$(overlay_kind)" = inslot ] || { uci -q set fstab.bigoverlay.enabled=0; uci -q commit fstab; }
+		printf "set fstab.bigoverlay.enabled='0'\ncommit fstab\n" | with_live_config
 	fi
 	[ -n "$(uci -q get bigoverlay.main)" ] && { uci -q set bigoverlay.main.enabled=0; uci -q commit bigoverlay; }
 	sync
@@ -507,12 +529,11 @@ cmd_storage_enable() {
 storage_undo_config() {
 	if [ "$(overlay_kind)" = bigoverlay ]; then
 		fstab_bigoverlay_batch | with_rootfs_data
-		fstab_bigoverlay_batch | uci -q batch
+		fstab_bigoverlay_batch | with_live_config
 		[ -n "$(uci -q get bigoverlay.main)" ] && { uci -q set bigoverlay.main.enabled=1; uci -q commit bigoverlay; }
 	else
 		printf "delete fstab.slotstorage\ncommit fstab\n" | with_rootfs_data
-		uci -q delete fstab.slotstorage
-		uci -q commit fstab
+		printf "delete fstab.slotstorage\ncommit fstab\n" | with_live_config
 	fi
 	sync
 }
@@ -529,15 +550,19 @@ cmd_storage_disable() {
 	usedkb="$(du -sk /overlay/upper 2>/dev/null | cut -f1)"
 	[ "${usedkb:-0}" -lt "$FIT_CFG_KB" ] || { die "/overlay holds $((usedkb / 1024)) MB, the data partition alone takes about $((FIT_CFG_KB / 1024)) MB, remove packages first"; return 1; }
 	step config "Pointing fstab back at the data partition" 40
-	fstab_bigoverlay_batch | with_rootfs_data || { die "could not edit fstab"; return 1; }
-	fstab_bigoverlay_batch | uci -q batch
+	fstab_bigoverlay_batch | with_rootfs_data bigoverlay_written || { die "could not point fstab back at the data partition, nothing was changed"; return 1; }
+	fstab_bigoverlay_batch | with_live_config bigoverlay_written || {
+		fstab_slotstorage_batch | with_rootfs_data
+		die "could not point the live fstab back at the data partition, nothing was changed"
+		return 1
+	}
 	[ -n "$(uci -q get bigoverlay.main)" ] && { uci -q set bigoverlay.main.enabled=1; uci -q commit bigoverlay; }
 	sync
 	step env "Telling the next boot to move /overlay back" 90
 	fw_setenv "$OPVAR" disable 2>/dev/null
 	[ "$(storage_op)" = disable ] || {
 		fstab_slotstorage_batch | with_rootfs_data
-		fstab_slotstorage_batch | uci -q batch
+		fstab_slotstorage_batch | with_live_config
 		die "the bootloader environment did not take $OPVAR"
 		return 1
 	}
@@ -551,7 +576,7 @@ cmd_storage_cancel() {
 	be7000_factory_reset_pending && { die "factory reset is pending; storage changes are deferred"; return 1; }
 	case "$(storage_op)" in
 	enable*) storage_undo_config ;;
-	disable) fstab_slotstorage_batch | with_rootfs_data; fstab_slotstorage_batch | uci -q batch
+	disable) fstab_slotstorage_batch | with_rootfs_data; fstab_slotstorage_batch | with_live_config
 		[ -n "$(uci -q get bigoverlay.main)" ] && { uci -q set bigoverlay.main.enabled=0; uci -q commit bigoverlay; } ;;
 	"") die "nothing waits for the reboot"; return 1 ;;
 	esac

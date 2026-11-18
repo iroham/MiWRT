@@ -942,3 +942,96 @@ msgstr "Slot %d and the data partition are given over to packages."
 
 msgid "Слот %d отдан под пакеты, но подключить его при загрузке не получилось, /overlay сейчас временный. Посмотрите системный журнал, строки be7000 slot storage."
 msgstr "Slot %d is given over to packages, but attaching it at boot failed, /overlay is temporary now. See the system log, lines with be7000 slot storage."
+
+msgid "Роутер перезагрузится и попробует завершить сброс. Это займёт несколько минут."
+msgstr "The router will restart and try to finish the reset. This takes a few minutes."
+
+msgid "Роутер перезагружается"
+msgstr "The router is restarting"
+
+msgid "Отменить сброс настроек"
+msgstr "Cancel the factory reset"
+
+msgid "Сброс будет отменён. Роутер останется на встроенной памяти слота с теми настройками, которые у него сейчас. На диске ничего не меняется и не стирается."
+msgstr "The reset will be cancelled. The router stays on the slot's built-in storage with the settings it has now. Nothing on the disk is changed or erased."
+
+msgid "Сброс будет отменён, всё останется как было до него."
+msgstr "The reset will be cancelled and everything stays as it was before it."
+
+msgid "Раздел данных роутер после этого сам использовать не будет. Чтобы получить больше места, перенесите /overlay на USB-диск на этой странице."
+msgstr "After this the router will not use the data partition by itself. For more room, move /overlay to a USB disk on this page."
+
+msgid "Сначала можно скачать резервную копию нынешних настроек."
+msgstr "You can download a backup of the current settings first."
+
+msgid "Скачать резервную копию"
+msgstr "Download backup"
+
+msgid "Отменяю сброс"
+msgstr "Cancelling the reset"
+
+msgid "Сброс отменён."
+msgstr "The reset is cancelled."
+
+msgid "Отменить сброс"
+msgstr "Cancel the reset"
+
+msgid "Сброс запланирован и выполнится при следующей загрузке роутера."
+msgstr "A reset is scheduled and will run the next time the router starts."
+
+msgid "При прошлой загрузке диск не появился вовремя. Сейчас он подключён: перезагрузите роутер, и сброс завершится."
+msgstr "The disk did not show up in time on the last start. It is connected now: restart the router and the reset will finish."
+
+msgid "Раздел, на котором лежал /overlay, не нашёлся при загрузке."
+msgstr "The volume that held /overlay was not found at startup."
+
+msgid "Диска с той файловой системой, на которой был запрошен сброс, нет. Подключён другой диск, или этот диск с тех пор отформатирован. Такой диск роутер сам не очищает."
+msgstr "The filesystem the reset was asked for is not there. Another disk is connected, or this disk has been formatted since. The router does not clear such a disk by itself."
+
+msgid "Диск, на котором лежал /overlay, не появился за 15 секунд при загрузке. Подключите его и перезагрузите роутер."
+msgstr "The disk that held /overlay did not show up within 15 seconds at startup. Connect it and restart the router."
+
+msgid "Файловая система нашлась, но не подключилась. Возможно, она повреждена."
+msgstr "The filesystem was found but could not be mounted. It may be damaged."
+
+msgid "Файловая система нашлась, но метки сброса на ней нет или она другая. Роутер ничего на ней не менял."
+msgstr "The filesystem was found, but the reset marker on it is missing or different. The router changed nothing on it."
+
+msgid "Не получилось записать на раздел с /overlay. Проверьте диск."
+msgstr "Writing to the volume with /overlay failed. Check the disk."
+
+msgid "Не получилось записать во встроенную память слота."
+msgstr "Writing to the slot's built-in storage failed."
+
+msgid "Роутер ещё не пробовал выполнить сброс или не записал причину. Перезагрузите его."
+msgstr "The router has not tried the reset yet, or left no reason. Restart it."
+
+msgid "%s (сейчас это %s)"
+msgstr "%s (now %s)"
+
+msgid "Сброс настроек не завершён"
+msgstr "The factory reset has not finished"
+
+msgid "Сброс ждёт раздел: %s"
+msgstr "The reset waits for: %s"
+
+msgid "Пока сброс не завершён или не отменён, роутер работает со встроенной памяти слота, а перенос /overlay и переключение слотов отключены."
+msgstr "Until the reset finishes or is cancelled, the router runs from the slot's built-in storage, and moving /overlay and switching slots are off."
+
+msgid "Сброс встроенной памяти здесь отменить нельзя."
+msgstr "A reset of the built-in storage cannot be cancelled here."
+
+msgid "Адрес роутера меняется на %s. Как только роутер ответит по новому адресу, настройки будут подтверждены и страница откроется там сама."
+msgstr "The router's address changes to %s. As soon as the router answers at the new address, the settings are confirmed and the page opens there by itself."
+
+msgid "Если страница не открылась, откройте новый адрес сами:"
+msgstr "If the page does not open, open the new address yourself:"
+
+msgid "Устройству, с которого вы настраиваете роутер, может понадобиться подключиться заново (переткнуть кабель или выйти из Wi-Fi и войти снова), чтобы получить адрес в новой сети. Если новый адрес не открыть за отведённое время, роутер вернёт прежние настройки."
+msgstr "The device you are setting the router up from may have to reconnect (replug the cable, or leave the Wi-Fi network and join it again) to get an address in the new network. If the new address is not opened within the time allowed, the router puts the previous settings back."
+
+msgid "Браузер спросит про сертификат: для нового адреса его нужно принять ещё раз."
+msgstr "The browser will ask about the certificate: it has to be accepted once more for the new address."
+
+msgid "Роутер отвечает по адресу %s, открываю страницу там…"
+msgstr "The router answers at %s, opening the page there…"

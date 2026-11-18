@@ -3,6 +3,7 @@
 import { popen, access, readfile, unlink } from 'fs';
 
 const BIN = '/usr/sbin/be7000-extroot';
+const RESET_BIN = '/usr/libexec/be7000-reset';
 const JOB_LOG = '/tmp/be7000-extroot.log';
 const JOB_RC = '/tmp/be7000-extroot.rc';
 
@@ -29,6 +30,23 @@ function run(args) {
 	let output = trim(replace(all, /__EXIT:\d+\s*$/, ''));
 
 	return { ok: code == 0, code, output };
+}
+
+// The factory reset that waits for the next boot (or for its disk): the
+// tool answers in JSON, an error included.
+function reset_tool(sub) {
+	if (access(RESET_BIN) != true)
+		return { pending: false, ok: false, error: 'be7000-reset not found' };
+	let fd = popen(`${shellquote(RESET_BIN)} ${sub} 2>/dev/null`, 'r');
+	let out = fd ? trim(fd.read('all') ?? '') : '';
+	if (fd)
+		fd.close();
+	try {
+		return json(out);
+	}
+	catch (err) {
+		return { pending: false, ok: false, error: length(out) ? out : 'no answer from be7000-reset' };
+	}
 }
 
 function query(sub) {
@@ -86,6 +104,16 @@ return {
 			call: function() {
 				let res = run(['revert', '--yes']);
 				return { ok: res.ok, output: res.output };
+			}
+		},
+		reset_status: {
+			call: function() {
+				return reset_tool('status');
+			}
+		},
+		reset_cancel: {
+			call: function() {
+				return reset_tool('cancel');
 			}
 		}
 	}

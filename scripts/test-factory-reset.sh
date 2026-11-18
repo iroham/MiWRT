@@ -132,8 +132,12 @@ assert_absent "$S/overlay/$MARK" "declined reset marker"
 assert_eq "$(cat "$S/overlay/upper/etc/config/old")" old-upper "declined reset changed upper"
 assert_eq "$(cat "$S/overlay/work/work/state")" old-work "declined reset changed work"
 
+# block must not be asked about a UBI volume: its name does not change.
+block() { echo block >> "$MOCK_CALLS"; printf '%s\n' "${MOCK_BLOCK_INFO:-}"; }
+
 setup_schedule_case no_reboot
 (be7000_firstboot_main -y)
+assert_absent "$S/rd/$JOB/uuid" "UUID recorded for a UBI volume"
 assert_eq "$(cat "$S/rd/$JOB/device")" /dev/ubi1_1 "scheduled device"
 assert_eq "$(cat "$S/rd/$JOB/fstype")" ubifs "scheduled filesystem"
 assert_eq "$(cat "$S/rd/$JOB/keep")" 0 "scheduled keep flag"
@@ -150,6 +154,33 @@ setup_schedule_case reboot_keep
 (be7000_firstboot_main -y -r -k)
 assert_eq "$(cat "$S/rd/$JOB/keep")" 1 "scheduled -k flag"
 assert_eq "$(cat "$S/calls")" reboot "-r reboot"
+
+# A USB disk goes into the job with the UUID of its filesystem next to the
+# name it has on this boot.
+setup_schedule_case usb_uuid
+printf '%s\n' '/dev/sda1 /overlay ext4 rw,noatime 0 0' > "$S/proc.mounts"
+MOCK_BLOCK_INFO='/dev/sda1: UUID="0f3c5d1e-AAAA-bbbb-cccc-1234567890ab" LABEL="be7000_overlay" VERSION="1.0" MOUNT="/overlay" TYPE="ext4"'
+(be7000_firstboot_main -y)
+assert_eq "$(cat "$S/rd/$JOB/device")" /dev/sda1 "scheduled USB device"
+assert_eq "$(cat "$S/rd/$JOB/fstype")" ext4 "scheduled USB filesystem"
+assert_eq "$(cat "$S/rd/$JOB/uuid")" 0f3c5d1e-AAAA-bbbb-cccc-1234567890ab "scheduled USB UUID"
+assert_eq "$(wc -l < "$S/rd/$JOB/uuid" | tr -d '[:space:]')" 1 "UUID field is one line"
+
+# A filesystem that tells no UUID, or something that is not one, is scheduled
+# by name alone.
+setup_schedule_case usb_no_uuid
+printf '%s\n' '/dev/sda1 /overlay ext4 rw,noatime 0 0' > "$S/proc.mounts"
+MOCK_BLOCK_INFO=
+(be7000_firstboot_main -y)
+assert_file "$S/rd/$JOB/token" "USB without UUID was not scheduled"
+assert_absent "$S/rd/$JOB/uuid" "empty UUID recorded"
+setup_schedule_case usb_bad_uuid
+printf '%s\n' '/dev/sda1 /overlay ext4 rw,noatime 0 0' > "$S/proc.mounts"
+MOCK_BLOCK_INFO='/dev/sda1: UUID="../../etc" TYPE="ext4"'
+(be7000_firstboot_main -y)
+assert_file "$S/rd/$JOB/token" "USB with a malformed UUID was not scheduled"
+assert_absent "$S/rd/$JOB/uuid" "malformed UUID recorded"
+MOCK_BLOCK_INFO=
 
 # An interrupted cleanup of an already completed job must not block a new one.
 setup_schedule_case stale_done
@@ -183,6 +214,42 @@ assert_eq "$(cat "$S/overlay/work/work/state")" old-work "failed unmount changed
 INITRAMFS=1
 . "$ROOT/overlay-files/lib/preinit/78_be7000_factory_reset"
 . "$ROOT/overlay-files/lib/preinit/77_be7000_slot_storage"
+# The real UUID lookup reads "block info": the match ignores case, needs the
+# whole UUID, and is not taken in by a label that happens to hold it.
+block() {
+	cat <<-'EOT'
+		/dev/ubi0_1: UUID="1111aaaa-0000-0000-0000-000000000000" VERSION="4.0" TYPE="squashfs"
+		/dev/sda1: UUID="0F3C5D1E-aaaa-bbbb-cccc-1234567890abcd" LABEL="other" TYPE="ext4"
+		/dev/sdb1: UUID="0F3C5D1E-aaaa-bbbb-cccc-1234567890ab" LABEL="be7000_overlay" TYPE="ext4"
+		/dev/sdc1: LABEL="uuid=0f3c5d1e-aaaa-bbbb-cccc-1234567890ff" PARTUUID="0f3c5d1e-aaaa-bbbb-cccc-1234567890ee" TYPE="vfat"
+	EOT
+}
+assert_eq "$(bfr_by_uuid 0f3c5d1e-AAAA-bbbb-cccc-1234567890ab)" /dev/sdb1 "UUID lookup"
+assert_eq "$(bfr_by_uuid 0f3c5d1e-aaaa-bbbb-cccc-1234567890abcd)" /dev/sda1 "UUID lookup of the longer UUID"
+assert_eq "$(bfr_by_uuid 0f3c5d1e-aaaa-bbbb-cccc-1234567890ff)" "" "UUID lookup matched a label"
+assert_eq "$(bfr_by_uuid 0f3c5d1e-aaaa-bbbb-cccc-1234567890ee)" "" "UUID lookup matched a partition UUID"
+assert_eq "$(bfr_by_uuid 0f3c5d1e-aaaa)" "" "UUID lookup matched a part of a UUID"
+assert_eq "$BFR_WAIT" 15 "seconds a disk is waited for"
+bfr_uuid_valid 0f3c5d1e-aaaa-bbbb-cccc-1234567890ab || fail "ext4 UUID was rejected"
+bfr_uuid_valid 1234-ABCD || fail "FAT serial was rejected"
+if bfr_uuid_valid '../../etc' || bfr_uuid_valid '' || bfr_uuid_valid 'a b'; then
+	fail "a malformed UUID was accepted"
+fi
+
+# From here on the disk is what the test says: MOCK_UUID_DEV is the device
+# that carries the job's UUID, from poll number MOCK_UUID_FROM on.
+bfr_by_uuid() {
+	local n
+	n=$(cat "$MOCK_UUID_POLLS" 2>/dev/null || echo 0)
+	n=$((n + 1))
+	echo "$n" > "$MOCK_UUID_POLLS"
+	[ -n "${MOCK_UUID_DEV:-}" ] && [ "$n" -ge "${MOCK_UUID_FROM:-1}" ] || return 0
+	printf '%s\n' "$MOCK_UUID_DEV"
+}
+sleep() { MOCK_SLEEPS=$((MOCK_SLEEPS + 1)); }
+MOCK_SLEEPS=0
+target_mounts() { grep -c -- "/target\$" "$MOCK_MOUNTS" || :; }
+
 bfr_log() { echo "$*" >> "$MOCK_CALLS"; }
 bfr_rootfs_data() { printf '%s\n' /dev/ubi0_2; }
 bfr_fatal() {
@@ -294,6 +361,10 @@ setup_run_case() {
 	MOCK_FAIL_CONTROL=
 	MOCK_FATAL=0
 	MOCK_LEAVE_DONE=0
+	MOCK_UUID_DEV=
+	MOCK_UUID_FROM=1
+	MOCK_UUID_POLLS="$S/uuid-polls"
+	MOCK_SLEEPS=0
 	BFR_TMP="$S/mounts"
 	mkdir -p "$MOCK_RD_BACKING/upper/etc/config" \
 		"$MOCK_RD_BACKING/etc/config" \
@@ -376,8 +447,13 @@ assert_extroot_blocked "$MOCK_RD_BACKING"
 assert_file "$MOCK_TARGET_BACKING/sysupgrade.tgz" "token mismatch sysupgrade"
 grep -F -- '-t ext4 -o rw,noatime /dev/sda1' "$MOCK_MOUNTS" >/dev/null ||
 	fail "USB target was not mounted by its recorded device and filesystem"
+assert_eq "$(cat "$MOCK_RD_BACKING/$BFR_JOB/why")" token "reason left for a token mismatch"
+assert_eq "$(target_mounts)" 1 "a disk that mounts was mounted more than once"
+assert_eq "$MOCK_SLEEPS" 0 "a disk that is there was waited for"
 
 # If the target is unavailable, no target mutation occurs and the job retries.
+# A job without a UUID (written by an older image) goes by the name: the disk
+# gets its fifteen seconds, one try a second.
 setup_run_case mount_failure /dev/sda1 ext4 0
 MOCK_FAIL_TARGET_MOUNT=1
 bfr_run
@@ -385,6 +461,111 @@ assert_eq "$(cat "$MOCK_TARGET_BACKING/upper/etc/config/old")" old-setting "moun
 assert_eq "$(cat "$MOCK_TARGET_BACKING/work/work/state")" old-work "mount failure changed work"
 assert_file "$MOCK_RD_BACKING/$BFR_JOB/token" "mount failure retry job"
 assert_extroot_blocked "$MOCK_RD_BACKING"
+assert_eq "$(target_mounts)" 16 "tries for a disk that does not show up"
+assert_eq "$MOCK_SLEEPS" 15 "seconds waited for a disk that does not show up"
+assert_eq "$(cat "$MOCK_RD_BACKING/$BFR_JOB/why")" absent "reason left for a disk that does not show up"
+assert_absent "$MOCK_RD_BACKING/$BFR_JOB/why.new" "half-written reason"
+
+# A volume on the internal flash is there or it is not: no waiting.
+setup_run_case ubi_mount_failure /dev/ubi2_0 ubifs 0
+MOCK_FAIL_TARGET_MOUNT=1
+bfr_run
+assert_file "$MOCK_RD_BACKING/$BFR_JOB/token" "UBI mount failure retry job"
+assert_eq "$(target_mounts)" 1 "tries for a UBI volume that does not mount"
+assert_eq "$MOCK_SLEEPS" 0 "a UBI volume was waited for"
+assert_eq "$(cat "$MOCK_RD_BACKING/$BFR_JOB/why")" mount "reason left for a UBI volume that does not mount"
+
+UUID=0f3c5d1e-aaaa-bbbb-cccc-1234567890ab
+
+# The disk came up under another name than it had when the reset was asked
+# for: it is found by its UUID, and the old name is not even tried.
+setup_run_case uuid_renamed /dev/sda1 ext4 0
+printf '%s\n' "$UUID" > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+MOCK_UUID_DEV=/dev/sdb1
+bfr_run
+assert_fresh_target "$MOCK_TARGET_BACKING"
+assert_extroot_restored "$MOCK_RD_BACKING"
+assert_absent "$MOCK_RD_BACKING/$BFR_JOB" "renamed disk completed job"
+grep -F -- '-t ext4 -o rw,noatime /dev/sdb1' "$MOCK_MOUNTS" >/dev/null ||
+	fail "the disk was not mounted under the name it has on this boot"
+grep -F -- '/dev/sda1' "$MOCK_MOUNTS" >/dev/null &&
+	fail "the name recorded on an earlier boot was mounted although the job has a UUID"
+assert_eq "$MOCK_SLEEPS" 0 "a disk that is there was waited for"
+
+# The disk needs a few seconds: it is polled once a second and used as soon
+# as it is there.
+setup_run_case uuid_late /dev/sda1 ext4 0
+printf '%s\n' "$UUID" > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+MOCK_UUID_DEV=/dev/sda1
+MOCK_UUID_FROM=5
+bfr_run
+assert_fresh_target "$MOCK_TARGET_BACKING"
+assert_absent "$MOCK_RD_BACKING/$BFR_JOB" "late disk completed job"
+assert_eq "$MOCK_SLEEPS" 4 "seconds waited for a disk that shows up on the fifth look"
+assert_eq "$(cat "$MOCK_UUID_POLLS")" 5 "looks for a disk that shows up on the fifth look"
+
+# The disk is not there, or another one sits in the port (it has another
+# UUID, so the lookup finds nothing): after fifteen seconds the boot goes on,
+# nothing was mounted, the job and its reason stay.
+setup_run_case uuid_absent /dev/sda1 ext4 0
+printf '%s\n' "$UUID" > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+bfr_run
+assert_eq "$(target_mounts)" 0 "a disk with another UUID was mounted"
+[ -z "${MOCK_TARGET_MOUNT:-}" ] || fail "a disk with another UUID was mounted"
+assert_eq "$(cat "$MOCK_TARGET_BACKING/upper/etc/config/old")" old-setting "missing disk changed upper"
+assert_eq "$(cat "$MOCK_TARGET_BACKING/$BFR_MARK")" "$TOKEN" "missing disk changed the target token"
+assert_file "$MOCK_RD_BACKING/$BFR_JOB/token" "missing disk retry job"
+assert_extroot_blocked "$MOCK_RD_BACKING"
+assert_eq "$MOCK_SLEEPS" 15 "seconds waited for a missing disk"
+assert_eq "$(cat "$MOCK_UUID_POLLS")" 16 "looks for a missing disk"
+assert_eq "$(cat "$MOCK_RD_BACKING/$BFR_JOB/why")" absent "reason left for a missing disk"
+# plugged back in, the same job finishes on the next boot
+MOCK_RD_MOUNT=
+MOCK_TARGET_MOUNT=
+MOCK_UUID_DEV=/dev/sdc1
+bfr_run
+assert_fresh_target "$MOCK_TARGET_BACKING"
+assert_extroot_restored "$MOCK_RD_BACKING"
+assert_absent "$MOCK_RD_BACKING/$BFR_JOB" "returned disk completed job"
+
+# Found by UUID but it does not mount: said as such, not as "not there".
+setup_run_case uuid_mount_failure /dev/sda1 ext4 0
+printf '%s\n' "$UUID" > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+MOCK_UUID_DEV=/dev/sda1
+MOCK_FAIL_TARGET_MOUNT=1
+bfr_run
+assert_file "$MOCK_RD_BACKING/$BFR_JOB/token" "unmountable disk retry job"
+assert_eq "$(cat "$MOCK_RD_BACKING/$BFR_JOB/why")" mount "reason left for a disk that does not mount"
+
+# Same UUID, but the token is gone (the filesystem was put back from a copy,
+# or the file was removed): nothing is cleared.
+setup_run_case uuid_no_token /dev/sda1 ext4 0
+printf '%s\n' "$UUID" > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+MOCK_UUID_DEV=/dev/sda1
+rm -f "$MOCK_TARGET_BACKING/$BFR_MARK"
+bfr_run
+assert_eq "$(cat "$MOCK_TARGET_BACKING/upper/etc/config/old")" old-setting "missing token changed upper"
+assert_eq "$(cat "$MOCK_TARGET_BACKING/work/work/state")" old-work "missing token changed work"
+assert_file "$MOCK_RD_BACKING/$BFR_JOB/token" "missing token retry job"
+assert_eq "$(cat "$MOCK_RD_BACKING/$BFR_JOB/why")" token "reason left for a missing token"
+
+# A UUID field that is not a UUID is ignored and the job goes by the name;
+# a lookup that points at rootfs_data itself is never mounted.
+setup_run_case uuid_malformed /dev/sda1 ext4 0
+printf '%s\n' '../../etc' > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+MOCK_UUID_DEV=/dev/sdz9
+bfr_run
+assert_fresh_target "$MOCK_TARGET_BACKING"
+grep -F -- '-t ext4 -o rw,noatime /dev/sda1' "$MOCK_MOUNTS" >/dev/null ||
+	fail "a job with a malformed UUID did not go by its device name"
+assert_absent "$MOCK_UUID_POLLS" "a malformed UUID was looked up"
+setup_run_case uuid_is_rootfs_data /dev/sda1 ext4 0
+printf '%s\n' "$UUID" > "$MOCK_RD_BACKING/$BFR_JOB/uuid"
+MOCK_UUID_DEV=/dev/ubi0_2
+bfr_run
+assert_eq "$(target_mounts)" 0 "rootfs_data was mounted as the reset target"
+assert_file "$MOCK_RD_BACKING/$BFR_JOB/token" "rootfs_data lookup retry job"
+assert_eq "$(cat "$MOCK_TARGET_BACKING/upper/etc/config/old")" old-setting "rootfs_data lookup changed upper"
 
 # Integration with the preceding slot-storage hook: a pending reset suppresses
 # fstab self-repair, quarantines both lookup paths while ubi2 stays attached,

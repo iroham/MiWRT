@@ -28,6 +28,7 @@ STAMP=.bigoverlay_migrated
 SWITCH_TRIES=.bigoverlay_switch_tries
 
 . /lib/functions/be7000-factory-reset-guard.sh
+. "${BE7000_FSTAB_LIB:-/lib/functions/be7000-fstab.sh}"
 
 # The volume to live in: stock's, else whatever is there.
 volume_dev() {
@@ -79,12 +80,21 @@ migrate() {
 # coming straight from stock the volume is /dev/ubi1_1. With the wrong path
 # fstools retries for fifteen seconds and falls back to the slot's own
 # overlay on every boot, and the shared volume is never used.
+#
+# The answer is success only when the file names the volume afterwards. A
+# router without /etc/config/fstab took the batch below without writing
+# anything, and switch_reboot then spent its reboots on a switch that could
+# not happen.
+bigoverlay_names() {
+	[ "$(be7000_fstab_get "$1" bigoverlay.device)" = "$2" ]
+}
+
 ensure_fstab() {
 	local dev="$1"
 	be7000_factory_reset_pending && return 1
 	[ -n "$dev" ] || dev=/dev/ubi1_0
 	if [ -z "$(uci -q get fstab.bigoverlay)" ]; then
-		uci -q batch <<-EOT
+		be7000_fstab_batch /etc/config bigoverlay_names "$dev" <<-EOT
 			set fstab.bigoverlay=mount
 			set fstab.bigoverlay.target='/overlay'
 			set fstab.bigoverlay.device='$dev'
@@ -95,8 +105,10 @@ ensure_fstab() {
 		EOT
 	elif [ "$(uci -q get fstab.bigoverlay.device)" != "$dev" ]; then
 		logger -t bigoverlay "fstab pointed at $(uci -q get fstab.bigoverlay.device), the volume is $dev, fixing"
-		uci -q set fstab.bigoverlay.device="$dev"
-		uci -q commit fstab
+		be7000_fstab_batch /etc/config bigoverlay_names "$dev" <<-EOT
+			set fstab.bigoverlay.device='$dev'
+			commit fstab
+		EOT
 	fi
 }
 
@@ -116,7 +128,10 @@ ensure_fstab() {
 switch_reboot() {
 	local dev="$1" why="$2" n=0
 	be7000_factory_reset_pending && return 0
-	ensure_fstab "$dev" || return 0
+	ensure_fstab "$dev" || {
+		logger -t bigoverlay "$why, but fstab does not take the entry for $dev, staying on this overlay"
+		return 0
+	}
 	mkdir -p /tmp/bigoverlay.sw
 	if mount -t ubifs "$dev" /tmp/bigoverlay.sw 2>/dev/null; then
 		[ -f /tmp/bigoverlay.sw/$SWITCH_TRIES ] && n=$(cat /tmp/bigoverlay.sw/$SWITCH_TRIES)

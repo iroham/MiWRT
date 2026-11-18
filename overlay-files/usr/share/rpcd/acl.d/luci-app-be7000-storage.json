@@ -2,13 +2,15 @@
 	"luci-app-be7000-storage": {
 		"description": "Move /overlay onto a disk",
 		"read": {
+			"cgi-io": [ "backup" ],
 			"ubus": {
-				"be7000-storage": [ "status", "list", "job" ]
+				"be7000-storage": [ "status", "list", "job", "reset_status" ]
 			}
 		},
 		"write": {
 			"ubus": {
-				"be7000-storage": [ "use", "revert" ]
+				"be7000-storage": [ "use", "revert", "reset_cancel" ],
+				"system": [ "reboot" ]
 			}
 		}
 	}

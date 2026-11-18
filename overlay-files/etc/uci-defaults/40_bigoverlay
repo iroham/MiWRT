@@ -10,6 +10,9 @@ for n in /sys/class/ubi/ubi1_*/name; do
 	case "$(cat "$n")" in cfg) dev="/dev/$(basename "$(dirname "$n")")"; break ;; esac
 done
 [ -n "$dev" ] || dev=/dev/ubi1_0
+# uci writes nothing into a config file that is not there, and says nothing
+. /lib/functions/be7000-fstab.sh
+be7000_fstab_ensure /etc/config
 uci -q batch <<-EOT
 	set fstab.bigoverlay=mount
 	set fstab.bigoverlay.target='/overlay'
