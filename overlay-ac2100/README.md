@@ -4,7 +4,7 @@ Files only the Xiaomi Redmi Router AC2100 image gets. `scripts/ac2100/assemble-f
 
 Nothing here is read by the BE7000 build, and nothing in `overlay-files` is changed for this router.
 
-Status: testing. The project has installed the image once, from the stock firmware (2.0.23) to MiWRT 2.1.0 on one router, with the steps of [1-install-en.txt](../docs/instruction/ac2100/1-install-en.txt). It booted on the first try and again after a reboot, both radios came up, the MAC addresses matched the Factory partition, and the web interface and the app service answered. Not tested yet: internet on the WAN port, the updater and the package feeds, a Wi-Fi client, the setup assistant in a browser, sysupgrade to a later version, and TFTP recovery; no recovery path has been exercised.
+Status: testing. The project has installed the image once, from the stock firmware (2.0.23) to MiWRT 2.1.0 on one router, with the steps of [1-install-en.txt](../docs/instruction/ac2100/1-install-en.txt). It booted on the first try and again after a reboot, both radios came up, the MAC addresses matched the Factory partition, and the web interface and the app service answered. With test builds of the source after 2.1.0 the same router has since had internet on its WAN port (IPv4 and IPv6, nothing answering from the WAN side), checked GitHub for updates, installed and removed a package from the feeds, served a Wi-Fi client on each band, and been updated with its settings kept, freshly installed and restored from a backup. Not tested yet: the setup assistant in a browser, an update from one release to the next through the updater, a wired client's speed, and TFTP recovery; no recovery path has been exercised.
 
 | File | Purpose |
 |---|---|

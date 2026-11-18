@@ -8,9 +8,16 @@ the steps below.
   MT7615E on 5 GHz) and heard neighbouring networks; the MAC addresses matched
   the Factory partition; the web interface and the app service answered;
   hw-report.sh ran.
-  Not tested yet: internet on the WAN port, the updater and the package feeds,
-  a Wi-Fi client, the setup assistant in a browser, sysupgrade to a later
-  version, TFTP recovery. No recovery path has been exercised.
+  Tested later on the same router, with test builds of the source after
+  2.1.0: internet on the WAN port behind another router (IPv4 by DHCP, IPv6
+  with a delegated prefix), with nothing answering from the WAN side on
+  either; the updater's check against GitHub; the package feeds (index, a
+  kernel module that resolves, a package installed and removed); a Wi-Fi
+  client on each band; an update that keeps the settings, a fresh install
+  (sysupgrade -n) and the restore of a settings backup.
+  Not tested yet: the setup assistant in a browser, an update from one
+  release to the next through System, Build update or miwrt-update, a wired
+  client's speed, TFTP recovery. No recovery path has been exercised.
 The flash commands in step 4 are the ones OpenWrt's own support commit for
 this device gives (ramips: Add support for Xiaomi Redmi Router AC2100, April
 2020) and OpenWrt users have followed since. The way to get a shell on stock

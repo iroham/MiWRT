@@ -74,8 +74,15 @@ Seen on the project's router, and what it means
     number differs from router to router.
   - System log when Wi-Fi starts:
         netifd: radio0: command failed: Not supported (-122)
-    Both radios came up after it and heard neighbouring networks. No Wi-Fi
-    client has been connected yet, so whether the line matters there is open.
+    Both radios came up after it, and clients connected and worked on both;
+    the line is harmless.
+  - Wi-Fi speed, measured later with internet on the WAN port and one
+    two-stream laptop at a signal of about -60 dBm: on 5 GHz (80 MHz) 200 to
+    300 Mbit/s down and 300 to 380 up; on 2.4 GHz (20 MHz, a quiet channel)
+    about 45 down and 27 up. The processor was not the limit in either.
+  - System log, each time the DNS service restarts:
+        procd: Got unexpected signal 1
+    It comes with the restart and nothing follows from it.
 
 Factory reset
   Hold the reset button for ten seconds with the router running, or

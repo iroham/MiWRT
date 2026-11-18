@@ -1,10 +1,13 @@
 MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: updating
 
-STATUS: NOT TESTED ON A ROUTER YET. The MiWRT project has installed MiWRT
-2.1.0 from stock once, on one router (see 1-install-en.txt). It has not run
-an update on that router: not System, Build update, not miwrt-update, not a
-sysupgrade to a later version, and not the package feeds. The recovery paths
-in 3-recovery-and-problems-en.txt have not been exercised either.
+STATUS: TESTING. On one router (see 1-install-en.txt) the MiWRT project has
+run, from the command line and with test builds of the source after 2.1.0:
+a sysupgrade that keeps the settings, a fresh install with sysupgrade -n,
+the restore of a settings backup, "miwrt-update check" against GitHub, and
+the package feeds (index, a package installed and removed). Not run yet: an
+update from one release to the next through System, Build update or
+"miwrt-update apply"; there is no release after 2.1.0 to update to. The
+recovery paths in 3-recovery-and-problems-en.txt have not been exercised.
 
 Updating from one MiWRT version to the next is a normal OpenWrt sysupgrade.
 Settings are kept. There is only one firmware slot on this router: the
