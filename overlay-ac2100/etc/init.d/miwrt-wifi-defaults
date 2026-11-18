@@ -13,6 +13,12 @@
 #   - on a fresh install only: enables both radios with the SSID below and
 #     this unit's serial number as the password. The serial is printed on the
 #     label, different on every router, and not something the radio gives away.
+#     The 2.4 GHz radio is set to choose its channel itself at every start:
+#     it measures how busy 1, 6 and 11 are (the three that do not overlap) and
+#     takes the quietest, which takes about 7 seconds. OpenWrt's fixed default
+#     is channel 1, wherever the router stands. 5 GHz keeps channel 36: the
+#     four channels around it are the only ones at full power without radar
+#     checks in every country, and at 80 MHz they are one channel.
 #
 # Fresh install or update? The marker below is kept across updates
 # (etc/sysupgrade.conf). Without it, a network that already has encryption
@@ -82,6 +88,10 @@ boot() {
 			uci -q set wireless.default_radio$r.ssid="$SSID"
 			uci -q set wireless.default_radio$r.encryption=psk2
 			uci -q set wireless.default_radio$r.key="$KEY"
+			if [ "$(uci -q get wireless.radio$r.band)" = 2g ]; then
+				uci -q set wireless.radio$r.channel=auto
+				uci -q set wireless.radio$r.channels='1 6 11'
+			fi
 		done
 		uci commit wireless
 		touch "$MARK"

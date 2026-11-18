@@ -1,0 +1,17 @@
+#!/bin/sh
+# The example queue of sqm-scripts names the port "eth1", which this router
+# does not have. Switching speed shaping on in the MiWRT app or on the SQM page
+# then shaped nothing, and the app showed the wrong figures. Point the example
+# at the internet port instead.
+#
+# Only the untouched example is changed: the queue is still named after eth1,
+# still set to eth1 and still off, and there is no device eth1. A queue you
+# set up or switched on is yours. Safe to run at every update.
+[ "$(uci -q get sqm.eth1)" = queue ] || exit 0
+[ "$(uci -q get sqm.eth1.interface)" = eth1 ] || exit 0
+[ "$(uci -q get sqm.eth1.enabled)" = 1 ] && exit 0
+[ -e /sys/class/net/eth1 ] && exit 0
+wan="$(uci -q get network.wan.device)"
+[ -n "$wan" ] && [ "$wan" != eth1 ] || exit 0
+uci -q set sqm.eth1.interface="$wan" && uci -q commit sqm
+exit 0

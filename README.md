@@ -46,7 +46,7 @@ Current version: **2.1.0** (OpenWrt main d958caf, Linux 6.18.52). Images are in 
 - A signed package feed built from the same tree as the image, kernel modules included, so `apk add` works for this exact kernel.
 - Docker on request: the data directory is tested before it is used, containers reach the internet and their ports open from the LAN (`be7000-docker firewall`, `be7000-docker diag`).
 - AmneziaWG and the GRE, L2TP, PPTP, IPIP, VXLAN, 6in4, 6rd, 6to4, DS-Lite, MAP, 464XLAT, relayd, bonding, SSTP, OpenConnect, vpnc, OpenFortiVPN and MBIM/NCM modem pages are in the feed. After a package adds a network protocol, LuCI offers the network restart it needs.
-- A "State (MiWRT)" LED trigger: any LED can show whether a process runs, an address answers or a command succeeds.
+- A "State (MiWRT)" LED trigger: any LED can show whether a process runs, an address answers or a command succeeds. The watcher behind it runs only while an LED uses the trigger.
 - Shipped in the image: `curl` with HTTP/2, `sqm-scripts` (cake) with its page, `nlbwmon` (per-device traffic), `banip` (IP block lists), `umdns` (mDNS) and `tcpdump-mini`.
 - To install scripts the firmware reports itself as OpenWrt 25.12.6, so they do not refuse the version; "MiWRT 2.1.0" is in the description, the banner, Overview and the app.
 
@@ -154,8 +154,9 @@ A small service on the router that a phone app talks to. Nothing else is needed 
 | `/usr/share/ucode/miwrt/hub.uc` | state collection, device list, alerts, pausing, access keys |
 | `/usr/share/ucode/miwrt/extras.uc` | Wi-Fi settings and schedule, guest Wi-Fi, firmware check and install, blocked threats, connection test, speed test, Wi-Fi check, speed shaping, IoT watch, summaries |
 | `/usr/share/ucode/miwrt/power.uc` | remote power for laptops: sleep and restart over SSH with a restricted key, setup scripts for macOS and Windows |
-| `/www/cgi-bin/miwrt` | the HTTPS API |
-| `/usr/sbin/miwrt-hubd`, `/etc/init.d/miwrt` | one pass every 30 s, the network announcement, the two relays |
+| `/www/cgi-bin/miwrt`, `/usr/share/miwrt/api.uc` | the HTTPS API: the entry the web server starts, and the API itself |
+| `/usr/sbin/miwrt-hubd`, `/usr/share/miwrt/tick.uc`, `/etc/init.d/miwrt` | one pass every 30 s, the network announcement, the two relays |
+| `/etc/apk/commit_hooks.d/miwrt-compiled` | removes the compiled copies (below) after a package change |
 | `/usr/sbin/miwrt-ctl` | `token <name>`, `tokens`, `revoke <name>`, `revoke-all`, `apns <key file> <key id> <team id>`, `apns-remove` |
 | `/usr/sbin/miwrt-push` | encrypts alerts for each phone and sends them as notifications: straight to Apple when the router holds a push key, otherwise through the relay |
 | `/usr/sbin/miwrt-discovery-relay` | repeats smart-home discovery broadcasts from an IoT network to the main one |
@@ -165,6 +166,8 @@ A small service on the router that a phone app talks to. Nothing else is needed 
 | `/usr/sbin/miwrt-tuya` | switches a Tuya Wi-Fi plug on the local network (protocol 3.3, 3.4, 3.5), without Tuya's cloud |
 | `/usr/share/miwrt/oui.txt` | maker per MAC prefix |
 | `/etc/miwrt/` | settings and state, kept across sysupgrade |
+
+`miwrt-hubd` keeps compiled copies of the API and of the pass in `/tmp/miwrt` (memory, gone at every restart), because compiling 130 kB of ucode source on every request and every pass is what they spent most of their time on. On the Redmi AC2100 an API call took 0.6 s and takes 0.2 s now, most of the rest being the TLS handshake, and a pass took 0.65 s and takes 0.28 s. The entry uses a copy only when root made it and it is newer than every source; `miwrt-hubd` makes the copies again when a source or ucode itself changes. Without a copy the sources run, as before.
 
 ### Finding and pairing
 

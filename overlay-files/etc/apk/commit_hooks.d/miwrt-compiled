@@ -1,0 +1,9 @@
+#!/bin/sh
+# apk runs this before and after every transaction. After one, the compiled
+# copies of the app service go (see /usr/sbin/miwrt-hubd): the transaction may
+# have brought another ucode. miwrt-hubd makes them again within half a minute;
+# until then the API runs from its sources.
+[ "$1" = post-commit ] || exit 0
+[ -n "$IPKG_INSTROOT" ] && exit 0
+rm -f /tmp/miwrt/api.ucb /tmp/miwrt/tick.ucb
+exit 0

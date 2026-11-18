@@ -1,10 +1,56 @@
 #!/bin/sh
 # Keeps the MiWRT app's view of the router fresh: one pass every 30 seconds.
 # What it writes is for the administrator only.
+#
+# It also keeps compiled copies of the API (/usr/share/miwrt/api.uc) and of the
+# pass (/usr/share/miwrt/tick.uc) in /tmp/miwrt, which is memory and empty after
+# every restart. Compiling the sources takes about half a second on a slow
+# processor and used to be paid on every API request and every pass; a compiled
+# copy starts in a few hundredths. The copies are made again whenever a source
+# or ucode itself changes, and /etc/apk/commit_hooks.d/miwrt-compiled removes
+# them after a package change. Without a copy the sources run.
 umask 077
 chmod 700 /etc/miwrt 2>/dev/null
+
+C=/tmp/miwrt
+S=/usr/share/miwrt
+M=/usr/share/ucode/miwrt
+MADE=""
+
+# everything the copies are made from: number, size and time of each file
+sources() {
+	ls -lni --full-time "$S/api.uc" "$S/tick.uc" "$M"/*.uc /usr/bin/ucode /usr/lib/libucode.so* 2>/dev/null
+}
+
+# $S/$1.uc into $C/$1.ucb. The new copy takes the place of the old one in one
+# step, so a request sees a whole copy or none. A copy that cannot be made
+# again must not stay: it would be the old program.
+compile() {
+	[ -d "$C" ] || mkdir -p "$C"
+	[ -O "$C" ] || return 1
+	if ucode -c -s -o "$C/$1.new" "$S/$1.uc" 2>/dev/null && [ -s "$C/$1.new" ]; then
+		mv -f "$C/$1.new" "$C/$1.ucb" && return 0
+	fi
+	rm -f "$C/$1.new" "$C/$1.ucb"
+	return 1
+}
+
+copies() {
+	local now
+	now=$(sources)
+	if [ "$now" != "$MADE" ]; then
+		MADE=$now
+		compile api
+		compile tick
+		return 0
+	fi
+	[ -s "$C/api.ucb" ] || compile api
+	[ -s "$C/tick.ucb" ] || compile tick
+}
+
 ucode -e "import * as hub from 'miwrt.hub'; hub.boot();"
 while :; do
-	ucode -e "import * as hub from 'miwrt.hub'; import * as extras from 'miwrt.extras'; import * as power from 'miwrt.power'; hub.tick(); extras.guest_expire(); extras.wifi_schedule_tick(); extras.iot_watch_tick(); extras.services_tick(); power.energy_tick();" 2>&1 | logger -t miwrt-hubd
+	copies
+	if [ -s "$C/tick.ucb" ]; then ucode "$C/tick.ucb"; else ucode "$S/tick.uc"; fi 2>&1 | logger -t miwrt-hubd
 	sleep 30
 done

@@ -2,7 +2,8 @@
 # State triggers for the LEDs, an application trigger of the stock LED page.
 #
 #   seed    put the amber 2.4 GHz LED into /etc/config/system once
-#   watch   drive every LED whose trigger is be7000-state
+#   watch   drive every LED whose trigger is be7000-state; the service
+#           /etc/init.d/be7000-leds runs it only while there is such an LED
 #
 # The page System, LEDs (view/system/led-trigger/be7000-state.js) offers the
 # trigger for any LED, /usr/libexec/led-trigger/be7000-state is run by
@@ -17,6 +18,7 @@
 
 LEDS=""
 SYSFS=""
+OTHER=""
 
 # The amber network LED shows Wi-Fi 2.4 GHz traffic by default. It is put into
 # the stock LED configuration once and is the user's from then on.
@@ -41,24 +43,39 @@ seed() {
 	uci commit be7000
 }
 
+# read the LED configuration: LEDS and SYSFS are the sections and LEDs with
+# this trigger, OTHER the LEDs whose section has another trigger
+collect_all() {
+	LEDS=""
+	SYSFS=""
+	OTHER=""
+	config_load system
+	config_foreach collect led
+}
+
 collect() {
 	local trig sysfs
 	config_get trig "$1" trigger
-	[ "$trig" = be7000-state ] || return 0
 	config_get sysfs "$1" sysfs
+	if [ "$trig" != be7000-state ]; then
+		OTHER="$OTHER $sysfs"
+		return 0
+	fi
 	LEDS="$LEDS $1"
 	SYSFS="$SYSFS $sysfs"
 }
 
-# an LED that no longer has this trigger is put out, the stock page does not
-# touch an LED it has no entry for
+# An LED that no longer has this trigger is let go. Without a section it is put
+# out here, the led service does not touch an LED it has no entry for. With
+# another trigger in its section it is the led service's again, which sets it
+# at the same change, before or after this; putting it out here would undo that.
 release_gone() {
 	local f name
 	for f in /tmp/be7000-leds/*.cur; do
 		[ -e "$f" ] || continue
 		name=$(basename "$f" .cur)
 		case " $SYSFS " in *" $name "*) continue ;; esac
-		led_off "$name"
+		case " $OTHER " in *" $name "*) ;; *) led_off "$name" ;; esac
 		rm -f "$f" "/tmp/be7000-leds/$name.net"
 	done
 }
@@ -125,26 +142,27 @@ tick() {
 	fi
 	cur=$(cat $cache.cur 2>/dev/null)
 	[ "$want" = "$cur" ] && return 0
+	# noted before the LED is set: if the led service resets the LED and
+	# removes the note in between, the next round sets the LED again
+	echo "$want" > $cache.cur
 	case "$want" in
 	on) led_on "$sysfs" ;;
 	blink*) led_blink "$sysfs" "$on_ms" "$off_ms" ;;
 	*) led_off "$sysfs" ;;
 	esac
-	echo "$want" > $cache.cur
 }
 
 watch() {
 	local s
 	rm -rf /tmp/be7000-leds
-	# leave at once when the service is stopped, not after the next sleep
-	trap 'kill $! 2>/dev/null; exit 0' TERM INT
+	# leave at once when the service is stopped, not after the next sleep,
+	# and let go of the LEDs that lost this trigger: the service stops this
+	# watcher when the last one loses it
+	trap 'kill $! 2>/dev/null; collect_all; release_gone; exit 0' TERM INT
 	while :; do
 		# the configuration is read again every round, so a change on the
 		# LED page takes effect without restarting anything
-		LEDS=""
-		SYSFS=""
-		config_load system
-		config_foreach collect led
+		collect_all
 		for s in $LEDS; do tick "$s"; done
 		release_gone
 		sleep 5 &

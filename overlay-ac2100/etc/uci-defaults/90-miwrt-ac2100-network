@@ -12,11 +12,11 @@
 # uptime, resets with packet capture on PPPoE). Turn it on under Network,
 # Firewall when raw throughput matters more than those.
 #
-# Packet steering is pinned off, the OpenWrt default and the stock firmware's
-# choice; an open MT7621 transmit-queue issue makes the conservative setting
-# the right default.
+# Packet steering is not set here. OpenWrt switches it on for this SoC at the
+# first boot (/etc/uci-defaults/01_enable_packet_steering, which runs before
+# this script), and the network work is then spread over the processor's
+# threads. A line here that set it to off when unset never took effect, so
+# MiWRT 2.1.0 ran with it on as well; that line is gone.
 [ -n "$(uci -q get firewall.@defaults[0].flow_offloading)" ] || uci set firewall.@defaults[0].flow_offloading='1'
-[ -n "$(uci -q get network.globals.packet_steering)" ] || uci set network.globals.packet_steering='0'
 uci commit firewall
-uci commit network
 exit 0

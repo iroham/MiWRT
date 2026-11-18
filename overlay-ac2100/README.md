@@ -10,9 +10,10 @@ Status: testing. The project has installed the image once, from the stock firmwa
 |---|---|
 | `etc/banner` | the console greeting |
 | `etc/uci-defaults/10-miwrt-identity` | writes "MiWRT <version> ..." into the description fields people read, leaving the OpenWrt release in the fields third-party scripts check |
-| `etc/uci-defaults/90-miwrt-ac2100-network` | software flow offloading on, packet steering explicitly off |
+| `etc/uci-defaults/90-miwrt-ac2100-network` | software flow offloading on. Packet steering is left as OpenWrt sets it for this SoC at the first boot: on |
+| `etc/sysctl.d/20-miwrt-nlbwmon.conf` | lets nlbwmon have the netlink receive buffer it asks for (524288 bytes; the kernel's limit was 180224) |
 | `etc/uci-defaults/91-miwrt-wifi-defaults` | enables the Wi-Fi defaults service after an update |
-| `etc/init.d/miwrt-wifi-defaults`, `etc/rc.d/S99miwrt-wifi-defaults` | on a fresh install: both radios on, SSID `MiWRT`, the serial number as the password (letters and digits only: the label prints it with a slash, the password has none), country GB, no group-key renewal on 5 GHz |
+| `etc/init.d/miwrt-wifi-defaults`, `etc/rc.d/S99miwrt-wifi-defaults` | on a fresh install: both radios on, SSID `MiWRT`, the serial number as the password (letters and digits only: the label prints it with a slash, the password has none), 2.4 GHz on automatic channel choice between 1, 6 and 11 (5 GHz stays on 36), country GB, no group-key renewal on 5 GHz |
 | `etc/sysupgrade.conf` | what an update keeps besides the defaults |
 
 The release file `/etc/miwrt-release` (version, tag, device, tag prefix, the name of this router's checksum list in a release) is written by the assemble script, not kept here; the workflow adds `/etc/apk/keys/public-key.pem`, the MiWRT signing key, when the secret is available.

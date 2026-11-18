@@ -38,9 +38,13 @@ take overlay-files/etc/init.d/miwrt                      etc/init.d/miwrt
 take overlay-files/etc/miwrt/blocked.nft                 etc/miwrt/blocked.nft
 take overlay-files/etc/uci-defaults/94_be7000_hostname   etc/uci-defaults/94_miwrt_hostname
 take overlay-files/etc/uci-defaults/96-miwrt-app         etc/uci-defaults/96-miwrt-app
+take overlay-files/etc/uci-defaults/97-miwrt-sqm         etc/uci-defaults/97-miwrt-sqm
 take overlay-files/lib/upgrade/keep.d/miwrt              lib/upgrade/keep.d/miwrt
 take overlay-files/usr/share/miwrt/oui.txt               usr/share/miwrt/oui.txt
 take overlay-files/www/cgi-bin/miwrt                     www/cgi-bin/miwrt
+take overlay-files/usr/share/miwrt/api.uc                usr/share/miwrt/api.uc
+take overlay-files/usr/share/miwrt/tick.uc               usr/share/miwrt/tick.uc
+take overlay-files/etc/apk/commit_hooks.d/miwrt-compiled etc/apk/commit_hooks.d/miwrt-compiled
 for f in extras hub power; do
 	take overlay-files/usr/share/ucode/miwrt/$f.uc       usr/share/ucode/miwrt/$f.uc
 done
