@@ -3,13 +3,13 @@
 		"description": "MiWRT setup assistant",
 		"read": {
 			"ubus": {
-				"miwrt-setup": [ "status", "job" ]
+				"miwrt-setup": [ "status", "job", "scan" ]
 			},
 			"uci": [ "miwrt" ]
 		},
 		"write": {
 			"ubus": {
-				"miwrt-setup": [ "adguard_test", "apply", "skip" ]
+				"miwrt-setup": [ "adguard_test", "apply", "scan_start", "skip" ]
 			}
 		}
 	}

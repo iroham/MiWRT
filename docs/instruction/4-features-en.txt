@@ -70,7 +70,7 @@ If containers cannot reach the internet or their web interface does not open fro
 
 First setup
 
-A router set up from scratch opens a setup assistant in the web interface in place of the status page. Leave the password empty on the sign-in page the first time. The assistant asks for the language and country, how the router is connected (main router or access point), the Wi-Fi name and password, a guest network, a separate network for smart-home devices, ad blocking and the router password, and then applies everything at once. Nothing changes before the last step. After an update that kept the settings the assistant does not appear.
+A router set up from scratch opens a setup assistant in the web interface in place of the status page. Leave the password empty on the sign-in page the first time. The assistant asks for the language and country, how the router is connected (main router or access point), the Wi-Fi name and password, the Wi-Fi channels (it listens for the networks around for about ten seconds and suggests the least crowded channel on each band; you can take another), a guest network, a separate network for smart-home devices, ad blocking and the router password, and then applies everything at once. Nothing changes before the last step. After an update that kept the settings the assistant does not appear.
 
 An access point that gets no address from the main router within two minutes puts the old settings back, stays reachable at its old address and opens the assistant again.
 

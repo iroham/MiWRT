@@ -12,8 +12,8 @@
 
 const APP_URL = 'https://apps.apple.com/app/id6819293819';
 const KEEP = 'miwrt-setup-v1';
-const ORDER = [ 'region', 'mode', 'wifi', 'guest', 'iot', 'protect', 'password', 'review' ];
-const ART = { region: 'region', mode: 'mode', wifi: 'wifi', guest: 'guest', iot: 'iot', protect: 'protect', password: 'password', review: 'wifi', apply: 'wifi', done: 'app' };
+const ORDER = [ 'region', 'mode', 'wifi', 'channel', 'guest', 'iot', 'protect', 'password', 'review' ];
+const ART = { region: 'region', mode: 'mode', wifi: 'wifi', channel: 'wifi', guest: 'guest', iot: 'iot', protect: 'protect', password: 'password', review: 'wifi', apply: 'wifi', done: 'app' };
 const COUNTRIES = ('AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ ' +
 	'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR ' +
 	'GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE ' +
@@ -58,6 +58,7 @@ const STR = {
 		s_region: 'Region',
 		s_mode: 'Connection',
 		s_wifi: 'Wi-Fi',
+		s_channel: 'Channels',
 		s_guest: 'Guests',
 		s_iot: 'Smart home',
 		s_protect: 'Ad blocking',
@@ -147,6 +148,35 @@ const STR = {
 		st_2: 'fair',
 		st_3: 'strong',
 		st_4: 'very strong',
+
+		c_title: 'Find a clear channel',
+		c_lede: 'The router listens for the Wi-Fi networks around it and suggests the channel with the least interference on each band. Nothing changes until the last step.',
+		c_band2: '2.4 GHz',
+		c_band5: '5 GHz',
+		c_scanning: 'Listening for Wi-Fi networks nearby…',
+		c_scanning_d: 'This takes about ten seconds. Devices on the router’s Wi-Fi may pause for a moment.',
+		c_again: 'Scan again',
+		c_fail: 'The router could not scan for networks, so the channels stay as they are. You can try again or carry on.',
+		c_seen: 'networks nearby: {0}',
+		c_heard: 'Networks heard, by channel',
+		c_heard_d: 'Networks heard on each channel. The strongest of them:',
+		c_heard_one: 'channel {0}: {1}',
+		c_ch: 'Channel {0}',
+		c_ch_d: 'Overlapping networks: {0}. Strongest signal: {2} dBm ({1}).',
+		c_ch_free: 'No other network overlaps it.',
+		c_block: 'Channels {0} to {1}. ',
+		c_sig_3: 'strong',
+		c_sig_2: 'medium',
+		c_sig_1: 'weak',
+		c_apple: 'Good for Apple devices: they use this channel for AirDrop and AirPlay, so they can stay on it.',
+		c_auto: 'Automatic',
+		c_auto_d: 'As it is now: the router picks a channel itself every time its Wi-Fi starts.',
+		c_keep: 'Keep channel {0}',
+		c_keep_d: 'As it is set now.',
+		c_off: 'This band is switched off, so it could not be scanned. Its channel stays as it is.',
+		c_none: 'There is no other channel to offer here. The channel stays as it is.',
+		c_limited: 'More 5 GHz channels may be allowed in your country. The router learns which ones once the country is set; you can change the channel then under Network, Wireless.',
+		v_ch_keep: 'Stays on channel {0}',
 
 		g_title: 'A Wi-Fi for guests',
 		g_lede: 'Guests get the internet and nothing else: they cannot see your computers, phones or each other.',
@@ -293,6 +323,7 @@ const STR = {
 		s_region: 'Регион',
 		s_mode: 'Подключение',
 		s_wifi: 'Wi-Fi',
+		s_channel: 'Каналы',
 		s_guest: 'Гости',
 		s_iot: 'Умный дом',
 		s_protect: 'Блокировка рекламы',
@@ -382,6 +413,35 @@ const STR = {
 		st_2: 'средний',
 		st_3: 'надёжный',
 		st_4: 'очень надёжный',
+
+		c_title: 'Выберите свободный канал',
+		c_lede: 'Роутер слушает соседние сети Wi-Fi и предлагает для каждого диапазона канал с наименьшими помехами. До последнего шага ничего не меняется.',
+		c_band2: '2,4 ГГц',
+		c_band5: '5 ГГц',
+		c_scanning: 'Роутер слушает соседние сети Wi-Fi…',
+		c_scanning_d: 'Это займёт около десяти секунд. Связь у устройств, подключённых к Wi-Fi роутера, может ненадолго прерваться.',
+		c_again: 'Проверить ещё раз',
+		c_fail: 'Роутер не смог проверить эфир, поэтому каналы остаются прежними. Можно попробовать ещё раз или продолжить.',
+		c_seen: 'сетей поблизости: {0}',
+		c_heard: 'Найденные сети по каналам',
+		c_heard_d: 'Сколько сетей слышно на каждом канале. Сигнал самой сильной из них:',
+		c_heard_one: 'канал {0}: {1}',
+		c_ch: 'Канал {0}',
+		c_ch_d: 'Пересекающихся сетей: {0}. Самый сильный сигнал: {2} дБм ({1}).',
+		c_ch_free: 'С ним не пересекается ни одна сеть.',
+		c_block: 'Каналы с {0} по {1}. ',
+		c_sig_3: 'сильный',
+		c_sig_2: 'средний',
+		c_sig_1: 'слабый',
+		c_apple: 'Удобно для устройств Apple: на этом канале у них работают AirDrop и AirPlay, и уходить с канала роутера им не нужно.',
+		c_auto: 'Автоматически',
+		c_auto_d: 'Как сейчас: роутер сам выбирает канал при каждом запуске Wi-Fi.',
+		c_keep: 'Оставить канал {0}',
+		c_keep_d: 'Как задано сейчас.',
+		c_off: 'Этот диапазон выключен, поэтому проверить его не удалось. Канал остаётся прежним.',
+		c_none: 'Другого канала здесь предложить нельзя. Канал остаётся прежним.',
+		c_limited: 'В вашей стране могут быть разрешены и другие каналы 5 ГГц. Какие именно, роутер узнает, когда страна будет задана; тогда канал можно сменить в разделе «Сеть → Беспроводная сеть».',
+		v_ch_keep: 'Остаётся на канале {0}',
 
 		g_title: 'Wi-Fi для гостей',
 		g_lede: 'Гости получают только интернет: они не видят ваши компьютеры, телефоны и друг друга.',
@@ -528,6 +588,7 @@ const STR = {
 		s_region: '地区',
 		s_mode: '连接',
 		s_wifi: 'Wi-Fi',
+		s_channel: '信道',
 		s_guest: '访客',
 		s_iot: '智能家居',
 		s_protect: '广告拦截',
@@ -617,6 +678,35 @@ const STR = {
 		st_2: '中等',
 		st_3: '强',
 		st_4: '很强',
+
+		c_title: '选择干扰最少的信道',
+		c_lede: '路由器会扫描周围的 Wi-Fi 网络，并为每个频段推荐干扰最少的信道。在最后一步之前不会做任何更改。',
+		c_band2: '2.4 GHz',
+		c_band5: '5 GHz',
+		c_scanning: '正在扫描附近的 Wi-Fi 网络…',
+		c_scanning_d: '大约需要十秒。通过路由器 Wi-Fi 连接的设备可能会短暂卡顿。',
+		c_again: '重新扫描',
+		c_fail: '路由器未能完成扫描，信道保持不变。你可以重试，或直接继续。',
+		c_seen: '附近的网络：{0}',
+		c_heard: '各信道上发现的网络',
+		c_heard_d: '各信道上听到的网络数量。其中最强的信号：',
+		c_heard_one: '信道 {0}：{1}',
+		c_ch: '信道 {0}',
+		c_ch_d: '重叠的网络：{0}。最强信号：{2} dBm（{1}）。',
+		c_ch_free: '没有其他网络与它重叠。',
+		c_block: '信道 {0} 至 {1}。',
+		c_sig_3: '强',
+		c_sig_2: '中等',
+		c_sig_1: '弱',
+		c_apple: '适合 Apple 设备：隔空投送和隔空播放使用此信道，设备无需离开路由器所在的信道。',
+		c_auto: '自动',
+		c_auto_d: '保持现状：每次启动 Wi-Fi 时，路由器自行选择信道。',
+		c_keep: '保留信道 {0}',
+		c_keep_d: '保持当前设置。',
+		c_off: '此频段已关闭，无法扫描。信道保持不变。',
+		c_none: '这里没有其他可用的信道。信道保持不变。',
+		c_limited: '你所在的国家或地区可能允许使用更多 5 GHz 信道。设置国家后路由器才能确定具体有哪些，届时可在“网络 → 无线”中更改信道。',
+		v_ch_keep: '保持在信道 {0}',
 
 		g_title: '访客 Wi-Fi',
 		g_lede: '访客只能上网：无法访问你的电脑和手机，彼此之间也互不可见。',
@@ -870,7 +960,9 @@ let cfg = null;     // the answers
 const ui = {
 	root: null, screen: 'welcome', furthest: -1, errors: {}, banner: null, busy: false, fromReview: false,
 	focusTitle: false, reveal: { 'f-key': true, 'f-g-key': true, 'f-i-key': true, 'f-ag-rpass': true }, test: { state: null, sig: null, text: null }, result: null,
-	job: null, started: 0, contact: 0, timer: null, enter: true, moving: false, resumed: false, lostPpass: false, shown: null
+	job: null, started: 0, contact: 0, timer: null, enter: true, moving: false, resumed: false, lostPpass: false, shown: null,
+	// the Channels step: state is null, 'busy', 'done' or 'fail'; data is what the router found
+	scan: { state: null, data: null, id: null, want: null, country: null, at: 0, since: 0 }
 };
 
 function browserLang() {
@@ -938,6 +1030,8 @@ function defaults() {
 		guest: { on: !!g.enabled, ssid: g.ssid || cut(base, ' Guest'), key: g.key || randomKey() },
 		iot: { on: !!io.ours, ssid: io.ssid || cut(base, ' IoT'), key: io.key || randomKey(), internet: io.ours ? io.internet !== false : true, all_bands: false },
 		protection: { where: p.where == 'none' ? 'none' : 'keep', url: p.where == 'network' ? (p.url || '') : '', username: p.where == 'network' ? (p.username || '') : 'admin', password: '', handout: true, rpass: randomKey() },
+		// per radio: a channel number, or 'keep' for what the radio has now; picked marks a choice made by hand
+		channels: {}, picked: {},
 		password: '', password2: ''
 	};
 }
@@ -981,8 +1075,11 @@ function forget() {
 	catch (e) {}
 }
 
+const wifiRadios = () => st.wifi.radios || [];
+
 function steps() {
-	return cfg.mode == 'ap' ? ORDER.filter(s => s != 'guest' && s != 'iot') : ORDER;
+	const list = wifiRadios().length ? ORDER : ORDER.filter(s => s != 'channel');
+	return cfg.mode == 'ap' ? list.filter(s => s != 'guest' && s != 'iot') : list;
 }
 
 const routerAddr = () => st.lan?.ipaddr || location.hostname;
@@ -1050,6 +1147,10 @@ const VALIDATE = {
 		const k = vKey(f.key);
 		if (k) e['f-key'] = k;
 		return e;
+	},
+	channel() {
+		// whether a channel may be used is for the router to say, when everything is applied
+		return {};
 	},
 	guest() {
 		const e = {}, g = cfg.guest;
@@ -1212,24 +1313,25 @@ function select(o) {
 	]);
 }
 
-/* radio cards: items = [{ value, title, desc, badge, disabled, why, icon }] */
-function choices(name, legend, value, items, set, compact) {
+/* radio cards: items = [{ value, title, desc, badge, disabled, why, tip, icon }]; why is a warning, tip a plain remark */
+function choices(name, legend, value, items, set, compact, quiet) {
 	return h('fieldset', { class: 'mws-choices' + (compact ? ' is-compact' : '') }, [
-		h('legend', { class: compact ? 'mws-legend' : 'mws-sr' }, legend),
+		h('legend', { class: compact && !quiet ? 'mws-legend' : 'mws-sr' }, legend),
 		h('div', { class: 'mws-choice-list' + (items.length == 2 && !compact ? ' is-pair' : '') }, items.map(it => {
 			const id = name + '-' + it.value;
 			const on = value == it.value;
 			return h('label', { class: 'mws-choice' + (on ? ' is-on' : '') + (it.disabled ? ' is-disabled' : ''), for: id }, [
 				h('input', {
 					type: 'radio', id, name, value: it.value, checked: on, disabled: it.disabled,
-					'aria-describedby': it.desc || it.why ? id + '-d' : null,
+					'aria-describedby': it.desc || it.why || it.tip ? id + '-d' : null,
 					onchange: () => { set(it.value); save(); render(id); }
 				}),
 				h('span', { class: 'mws-choice-dot', 'aria-hidden': 'true' }),
 				h('span', { class: 'mws-choice-body' }, [
 					h('span', { class: 'mws-choice-title' }, [ it.title, it.badge ? h('span', { class: 'mws-badge' }, it.badge) : null ]),
-					(it.desc || it.why) ? h('span', { class: 'mws-choice-desc', id: id + '-d' }, [
-						it.desc || null, it.why ? h('span', { class: 'mws-choice-why' }, [ icon('info'), h('span', {}, it.why) ]) : null
+					(it.desc || it.why || it.tip) ? h('span', { class: 'mws-choice-desc', id: id + '-d' }, [
+						it.desc || null, it.why ? h('span', { class: 'mws-choice-why' }, [ icon('info'), h('span', {}, it.why) ]) : null,
+						it.tip ? h('span', { class: 'mws-choice-tip' }, it.tip) : null
 					]) : null
 				])
 			]);
@@ -1358,6 +1460,19 @@ const STEP = {
 		];
 	},
 
+	channel() {
+		const sc = ui.scan;
+		if (sc.state == null || sc.state == 'busy')
+			return [ h('div', { class: 'mws-scan', role: 'status' }, [
+				h('span', { class: 'mws-spin', 'aria-hidden': 'true' }),
+				h('div', {}, [ h('strong', {}, t('c_scanning')), h('p', { class: 'mws-hint' }, t('c_scanning_d')) ])
+			]) ];
+		const out = sc.state == 'fail' ? [ note('warn', t('c_fail')) ] : (sc.data?.radios || []).map(bandChoices);
+		out.push(h('div', { class: 'mws-test' }, h('button', { type: 'button', class: 'mws-btn is-quiet', id: 'mws-scan-btn', onclick: () => scanNow(true) },
+			[ icon('refresh'), t('c_again') ])));
+		return out;
+	},
+
 	guest() {
 		const g = cfg.guest;
 		return [
@@ -1450,6 +1565,8 @@ const STEP = {
 		rows.push([ 'mode', t('s_mode'), conn ]);
 		const nets = f.split ? [ [ t('f_name') + ' (2.4 GHz)', f.ssid ], [ t('f_name5'), f.ssid5 ] ] : [ [ t('f_name'), f.ssid ] ];
 		rows.push([ 'wifi', t('s_wifi'), nets.concat([ [ t('f_pass'), f.key, true ], [ t('f_sec'), f.security == 'psk2' ? t('f_psk2') : t('f_sae') ] ]) ]);
+		if (wifiRadios().length)
+			rows.push([ 'channel', t('s_channel'), wifiRadios().map(r => [ bandName(r.band), channelText(r) ]) ]);
 		if (cfg.mode == 'router') {
 			rows.push([ 'guest', t('s_guest'), [ [ t('g_on'), guestOn() ? cfg.guest.ssid : t('off') ] ].concat(guestOn() ? [ [ t('g_pass'), cfg.guest.key, true ] ] : []) ]);
 			if (!iotForeign())
@@ -1479,6 +1596,65 @@ const STEP = {
 		];
 	}
 };
+
+const bandName = b => t(b == '2g' ? 'c_band2' : 'c_band5');
+const dbm = v => String(v).replace('-', '−');
+const sigWord = v => t(v >= -60 ? 'c_sig_3' : v >= -75 ? 'c_sig_2' : 'c_sig_1');
+
+/* what the router heard on a band, one column per channel: its height is the number of networks,
+   its shade the loudest of them (the key under the columns names the three shades) */
+function heardChart(r) {
+	const list = r.heard || [];
+	if (!list.length) return null;
+	const top = Math.max(...list.map(x => x.networks));
+	return h('figure', { class: 'mws-heard' }, [
+		h('div', {
+			class: 'mws-heard-cols', role: 'img',
+			'aria-label': t('c_heard') + ': ' + list.map(x => t('c_heard_one', x.channel, x.networks)).join(', ')
+		}, list.map(x => h('span', { class: 'mws-heard-col', 'data-s': x.strongest >= -60 ? '3' : x.strongest >= -75 ? '2' : '1' }, [
+			h('b', {}, String(x.networks)),
+			h('i', { style: 'height:' + Math.max(8, Math.round(48 * x.networks / top)) + 'px' }),
+			h('span', {}, String(x.channel))
+		]))),
+		h('figcaption', {}, [ h('span', {}, t('c_heard_d')) ].concat([ 1, 2, 3 ].map(n =>
+			h('span', { class: 'mws-heard-key', 'data-s': String(n) }, [ h('i', { 'aria-hidden': 'true' }), t('c_sig_' + n) ]))))
+	]);
+}
+
+/* one band of the Channels step: what was heard, and the channels to choose from */
+function bandChoices(r) {
+	const name = bandName(r.band);
+	if (!r.scanned)
+		return h('section', { class: 'mws-band' }, [ h('h2', { class: 'mws-legend' }, name), note('info', t('c_off')) ]);
+	const items = r.candidates.map(c => ({
+		value: String(c.channel), title: t('c_ch', c.channel),
+		badge: c.channel === r.suggested ? t('recommended') : null,
+		desc: (c.first != c.last ? t('c_block', c.first, c.last) : '') +
+			(c.networks ? t('c_ch_d', c.networks, sigWord(c.strongest), dbm(c.strongest)) : t('c_ch_free')),
+		tip: r.band == '5g' && (c.channel == 44 || c.channel == 149) ? t('c_apple') : null
+	}));
+	if (r.current == 'auto') items.push({ value: 'keep', title: t('c_auto'), desc: t('c_auto_d') });
+	else if (!r.candidates.some(c => c.channel === r.current)) items.push({ value: 'keep', title: t('c_keep', r.current), desc: t('c_keep_d') });
+	const head = name + ' · ' + t('c_seen', r.neighbours);
+	return h('section', { class: 'mws-band' }, [
+		h('h2', { class: 'mws-legend' }, head),
+		heardChart(r),
+		r.candidates.length
+			? choices('ch-' + r.id, head, String(cfg.channels[r.id] ?? 'keep'), items,
+				v => { cfg.channels[r.id] = v == 'keep' ? 'keep' : +v; cfg.picked[r.id] = true; }, true, true)
+			: note('info', t('c_none')),
+		(r.band == '5g' && r.mode == 'home' && sc_country() != st.country) ? h('p', { class: 'mws-hint' }, t('c_limited')) : null
+	]);
+}
+
+const sc_country = () => ui.scan.data?.country;
+
+/* what the review page says about a radio's channel */
+function channelText(r) {
+	const v = cfg.channels[r.id];
+	if (typeof v == 'number') return t('c_ch', v);
+	return r.channel == 'auto' || !/^\d+$/.test(String(r.channel)) ? t('c_auto') : t('v_ch_keep', r.channel);
+}
 
 function staticFields(o, gwLabel, dnsHint) {
 	return h('div', { class: 'mws-group' }, [
@@ -1517,6 +1693,7 @@ function go(screen, fromReview) {
 	if (i > ui.furthest) ui.furthest = i;
 	save();
 	render();
+	if (screen == 'channel') ensureScan();
 }
 
 function showErrors(e) {
@@ -1539,6 +1716,8 @@ async function next() {
 		const s = ui.screen;
 		if (s == 'welcome') return go(steps()[0]);
 		if (s == 'review') return await apply();
+		// the suggestion is on its way; without it the step would be left with nothing chosen
+		if (s == 'channel' && (ui.scan.state == null || ui.scan.state == 'busy')) return;
 		const e = VALIDATE[s]();
 		if (Object.keys(e).length) return showErrors(e);
 		if (s == 'protect' && cfg.protection.where == 'network') {
@@ -1608,6 +1787,7 @@ function buildConfig() {
 			dns: a.proto == 'static' ? dnsList(a.dns) : []
 		},
 		wifi: { ssid: f.ssid, ssid5: f.split ? f.ssid5 : null, key: f.key, security: f.security, split: !!f.split },
+		channels: Object.fromEntries(wifiRadios().filter(r => typeof cfg.channels[r.id] == 'number').map(r => [ r.id, cfg.channels[r.id] ])),
 		guest: guestOn() ? { on: true, ssid: cfg.guest.ssid, key: cfg.guest.key } : { on: false },
 		iot: iotOn() ? { on: true, ssid: cfg.iot.ssid, key: cfg.iot.key, internet: !!cfg.iot.internet, all_bands: !!cfg.iot.all_bands } : { on: false },
 		protection: p.where == 'network'
@@ -1618,7 +1798,7 @@ function buildConfig() {
 	};
 }
 
-const FIELD_STEP = { region: 'region', mode: 'mode', wifi: 'wifi', guest: 'guest', iot: 'iot', protection: 'protect', password: 'password' };
+const FIELD_STEP = { region: 'region', mode: 'mode', wifi: 'wifi', channel: 'channel', guest: 'guest', iot: 'iot', protection: 'protect', password: 'password' };
 
 async function apply() {
 	if (ui.busy) return;
@@ -1668,18 +1848,102 @@ function quiet() {
 	return (cfg.mode == 'ap' && silent > 20000) ? 'ap' : silent > 120000 ? 'lost' : silent > 8000 ? 'wait' : '';
 }
 
-/* the job is read with a short timeout of its own: while the network restarts, requests just fail */
-function fetchJob() {
+/* one call to the assistant's side of the router, with a short timeout of its own: while the network
+   restarts or a radio is away scanning, requests just fail */
+function ask(method, args, ms) {
 	const ctl = new AbortController();
-	const tm = setTimeout(() => ctl.abort(), 5000);
+	const tm = setTimeout(() => ctl.abort(), ms || 5000);
 	return fetch(L.url('admin/ubus'), {
 		method: 'POST', credentials: 'same-origin', cache: 'no-store', signal: ctl.signal,
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'call', params: [ L.env.sessionid, 'miwrt-setup', 'job', {} ] })
+		body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'call', params: [ L.env.sessionid, 'miwrt-setup', method, args || {} ] })
 	}).then(res => res.json()).then(m => {
 		if (Array.isArray(m?.result) && m.result[0] === 0 && m.result[1]) return m.result[1];
 		throw new Error('no answer');
 	}).finally(() => clearTimeout(tm));
+}
+
+const fetchJob = () => ask('job');
+
+/* ---- the Channels step: the router listens on its own and is asked how far it is ---- */
+
+function scanShow() {
+	if (ui.screen == 'channel') render();
+}
+
+/* what the router found becomes the choice on every band where none was made by hand, or where the
+   one made is no longer on offer (the country was changed since) */
+function scanTake(d) {
+	const sc = ui.scan;
+	sc.state = 'done';
+	sc.data = d;
+	sc.country = d.country;
+	sc.at = Date.now();
+	for (const r of (d.radios || [])) {
+		const v = cfg.channels[r.id];
+		const offered = v == 'keep' || r.candidates.some(c => c.channel === v);
+		if (cfg.picked[r.id] && offered) continue;
+		delete cfg.picked[r.id];
+		cfg.channels[r.id] = (r.scanned && r.suggested != null) ? r.suggested : 'keep';
+	}
+	save();
+	scanShow();
+}
+
+function scanFail() {
+	const sc = ui.scan;
+	sc.state = 'fail';
+	sc.country = sc.want;
+	sc.at = Date.now();
+	scanShow();
+}
+
+async function scanPoll() {
+	const sc = ui.scan;
+	if (sc.state != 'busy') return;
+	let j = null;
+	try { j = await ask('scan', {}, 4000); }
+	catch (e) {}
+	// a start that went unanswered may still have started: then the newest scan is taken for it
+	const mine = j && (sc.id ? j.id == sc.id : j.age < 60);
+	if (mine && j.state == 'done') {
+		if (j.country == sc.want) return scanTake(j);
+		// a scan for another country was under way when this one was asked for
+		sc.state = null;
+		return scanNow(true);
+	}
+	if ((mine && j.state == 'failed') || Date.now() - sc.since > 45000) return scanFail();
+	setTimeout(scanPoll, 1200);
+}
+
+async function scanNow(fresh) {
+	const sc = ui.scan;
+	if (sc.state == 'busy') return;
+	sc.state = 'busy';
+	sc.want = cfg.region.country;
+	sc.since = Date.now();
+	sc.id = null;
+	scanShow();
+	try {
+		if (!fresh) {
+			// the page was loaded again: what the router found a moment ago still holds
+			const j = await ask('scan');
+			if (j.state == 'done' && j.country == sc.want && j.age < 600) return scanTake(j);
+		}
+		const s = await ask('scan_start', { country: sc.want }, 8000);
+		if (!s.ok) return scanFail();
+		sc.id = s.id;
+	}
+	catch (e) {}
+	setTimeout(scanPoll, 1500);
+}
+
+function ensureScan() {
+	const sc = ui.scan, same = sc.country == cfg.region.country;
+	if (sc.state == 'busy') return;
+	if (sc.state == 'done' && same && Date.now() - sc.at < 600000) return;
+	if (sc.state == 'fail' && same && Date.now() - sc.at < 60000) return;
+	scanNow(false);
 }
 
 async function poll() {
@@ -1810,10 +2074,11 @@ function stepScreen() {
 	const i = list.indexOf(ui.screen);
 	const s = ui.screen;
 	const heads = {
-		region: [ 'r_title', 'r_lede' ], mode: [ 'm_title', 'm_lede' ], wifi: [ 'f_title', 'f_lede' ], guest: [ 'g_title', 'g_lede' ],
+		region: [ 'r_title', 'r_lede' ], mode: [ 'm_title', 'm_lede' ], wifi: [ 'f_title', 'f_lede' ], channel: [ 'c_title', 'c_lede' ], guest: [ 'g_title', 'g_lede' ],
 		iot: [ 'i_title', 'i_lede' ], protect: [ 'p_title', 'p_lede' ], password: [ 'pw_title', 'pw_lede' ], review: [ 'v_title', 'v_lede' ]
 	}[s];
 	const last = s == 'review';
+	const listening = s == 'channel' && (ui.scan.state == null || ui.scan.state == 'busy');
 	return h('div', { class: 'mws-shell' }, [
 		h('aside', { class: 'mws-rail' }, [
 			h('div', { class: 'mws-rail-art' }, art(ART[s])),
@@ -1838,7 +2103,7 @@ function stepScreen() {
 				h('div', { class: 'mws-fields' }, STEP[s]()),
 				h('div', { class: 'mws-actions' }, [
 					ui.fromReview ? h('span') : h('button', { type: 'button', class: 'mws-btn is-quiet', onclick: back, disabled: ui.busy }, [ icon('left'), t('back') ]),
-					h('button', { type: 'submit', class: 'mws-btn is-primary', disabled: ui.busy, 'aria-busy': ui.busy ? 'true' : null },
+					h('button', { type: 'submit', class: 'mws-btn is-primary', disabled: ui.busy || listening, 'aria-busy': ui.busy ? 'true' : null },
 						ui.busy ? [ h('span', { class: 'mws-spin', 'aria-hidden': 'true' }), t('v_applying') ]
 							: last ? [ t('v_apply'), icon('check') ] : [ ui.fromReview ? t('back_review') : t('next'), icon('right') ])
 				])
@@ -2031,6 +2296,7 @@ return view.extend({
 		ui.root = h('div', { class: 'mws', id: 'mws' });
 		ui.focusTitle = true;
 		render();
+		if (ui.screen == 'channel') ensureScan();
 		// the page is not in the document yet, so the heading could not take the focus above
 		const first = () => {
 			if (!ui.root.isConnected) return;

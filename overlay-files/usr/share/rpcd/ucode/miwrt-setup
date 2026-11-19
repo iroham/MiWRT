@@ -28,6 +28,17 @@ return {
 				return setup.apply(req.args.config);
 			}
 		},
+		scan_start: {
+			args: { country: '' },
+			call: function(req) {
+				return setup.scan_start(req.args);
+			}
+		},
+		scan: {
+			call: function() {
+				return setup.scan();
+			}
+		},
 		skip: {
 			call: function() {
 				return setup.finish();

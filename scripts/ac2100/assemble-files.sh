@@ -80,6 +80,7 @@ take overlay-files/www/luci-static/resources/preload/lanmove.js                 
 #     BE7000 only: it needs more memory than this router has, and the assistant says so) ---
 take overlay-files/etc/uci-defaults/98-miwrt-setup                              etc/uci-defaults/98-miwrt-setup
 take overlay-files/usr/share/ucode/miwrt/setup.uc                               usr/share/ucode/miwrt/setup.uc
+take overlay-files/usr/share/ucode/miwrt/channels.uc                            usr/share/ucode/miwrt/channels.uc
 take overlay-files/usr/libexec/miwrt-setup-apply                                usr/libexec/miwrt-setup-apply
 take overlay-files/usr/share/rpcd/ucode/miwrt-setup                             usr/share/rpcd/ucode/miwrt-setup
 take overlay-files/usr/share/rpcd/acl.d/luci-app-miwrt-setup.json               usr/share/rpcd/acl.d/luci-app-miwrt-setup.json

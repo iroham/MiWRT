@@ -758,6 +758,13 @@ html.mws-lock body {
 	font-size: 13px;
 }
 
+.mws-choice-tip {
+	display: block;
+	margin-top: 6px;
+	color: var(--text-3);
+	font-size: 13px;
+}
+
 .mws-choice-why .mws-ic {
 	width: 16px;
 	height: 16px;
@@ -908,6 +915,119 @@ html.mws-lock body {
 
 .mws-test-out:empty {
 	display: none;
+}
+
+/* ---------- Channels step ---------- */
+
+.mws-scan {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	padding: 18px;
+	border-radius: 12px;
+	background: var(--surface-2);
+}
+
+.mws-scan .mws-spin {
+	margin-top: 3px;
+	color: var(--accent);
+}
+
+.mws-scan .mws-hint {
+	margin: 4px 0 0;
+}
+
+.mws-band {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-width: 0;
+	animation: mws-in .26s var(--ease) both;
+}
+
+.mws-band > .mws-legend {
+	margin: 0;
+}
+
+.mws-band > .mws-hint {
+	margin: 0;
+}
+
+/* the networks heard, one column per channel */
+.mws-heard {
+	margin: 0;
+	padding: 14px 14px 12px;
+	border-radius: 12px;
+	background: var(--surface-2);
+}
+
+.mws-heard-cols {
+	display: flex;
+	align-items: flex-end;
+	gap: 6px;
+	overflow-x: auto;
+}
+
+.mws-heard figcaption {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
+	margin-top: 10px;
+	color: var(--text-3);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.mws-heard-key {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap;
+}
+
+.mws-heard-key i {
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+}
+
+.mws-heard-col {
+	display: flex;
+	flex: 1 1 0;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	min-width: 24px;
+	max-width: 56px;
+	color: var(--text-3);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+}
+
+.mws-heard-col b {
+	color: var(--text-2);
+	font-weight: 600;
+}
+
+.mws-heard-col i {
+	display: block;
+	width: 100%;
+	border-radius: 4px 4px 2px 2px;
+}
+
+/* three shades of one colour, so that they read the same on a light and on a dark page */
+.mws-heard [data-s] i {
+	background: var(--accent);
+}
+
+.mws-heard [data-s="1"] i {
+	opacity: .22;
+}
+
+.mws-heard [data-s="2"] i {
+	opacity: .55;
 }
 
 /* ---------- Buttons ---------- */

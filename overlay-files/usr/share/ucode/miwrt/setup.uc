@@ -7,6 +7,7 @@ import { cursor } from 'uci';
 import { connect } from 'ubus';
 import * as hub from 'miwrt.hub';
 import * as extras from 'miwrt.extras';
+import * as channels from 'miwrt.channels';
 import timezones from 'luci.zoneinfo';
 
 const ETC = '/etc/miwrt';
@@ -129,7 +130,7 @@ export function status() {
 	}
 
 	let radios = [];
-	c.foreach('wireless', 'wifi-device', r => { push(radios, { id: r['.name'], band: r.band, country: r.country }); });
+	c.foreach('wireless', 'wifi-device', r => { push(radios, { id: r['.name'], band: r.band, country: r.country, channel: r.channel, split: r.radio != null }); });
 	let ifaces = main_ifaces(c), first = ifaces[0] ?? {}, five = null;
 	for (let w in ifaces) if (band_of(c, w) != '2g') { five = w; break; }
 	let same = true;
@@ -153,7 +154,9 @@ export function status() {
 		wan: { proto: wan.proto ?? 'dhcp', username: wan.username, password: wan.password, vlan: vlan ? +vlan[1] : null,
 			ipaddr: wan.ipaddr, netmask: wan.netmask, gateway: wan.gateway, dns: list_of(wan.dns), device: base, link },
 		wifi: { ssid: first.ssid ?? '', ssid5: five?.ssid ?? first.ssid ?? '', key: first.key ?? '',
-			encryption: first.encryption ?? 'none', split: !same, bands: map(radios, r => r.band) },
+			encryption: first.encryption ?? 'none', split: !same, bands: map(radios, r => r.band),
+			// the radios the Channels step can set (not one split in two for Wi-Fi 7 multi-link)
+			radios: map(filter(radios, r => (r.band in [ '2g', '5g' ]) && !r.split), r => ({ id: r.id, band: r.band, channel: r.channel ?? 'auto' })) },
 		guest: extras.guest_status(),
 		iot: extras.iot_status(),
 		protection: ag ? { where: ag.where ?? 'network', url: ag.url, username: ag.username } : { where: 'none' },
@@ -231,6 +234,16 @@ function validate(b) {
 	if (f.split && f.ssid5 == f.ssid) return err('wifi', 'Give the 5 GHz network a different name, or use one name for both.');
 	if (!extras.valid_key(f.key)) return err('wifi', 'A Wi-Fi password needs 8 to 63 characters (letters, digits and common symbols).');
 	if (!(f.security in [ 'sae-mixed', 'psk2' ])) return err('wifi', 'Choose the Wi-Fi security.');
+
+	// a channel is taken only if it may be used in the country chosen above, whatever the page offered
+	if (b.channels != null) {
+		if (type(b.channels) != 'object') return err('channel', 'Choose the Wi-Fi channels again.');
+		let list = null;
+		for (let id, ch in b.channels) {
+			list = list ?? channels.radios(r.country);
+			if (!channels.allowed(list, id, ch)) return err('channel', 'That Wi-Fi channel cannot be used in the country you chose. Let the router scan again.');
+		}
+	}
 
 	let names = [ f.ssid, f.split ? f.ssid5 : null ];
 	for (let k in [ 'guest', 'iot' ]) {
@@ -366,6 +379,13 @@ function apply_wifi(c, f) {
 	return null;
 }
 
+/* The channels picked on the Channels step, per radio. A radio that is not named keeps what it has
+   (the automatic choice at every start, on a router whose 2.4 GHz radio does that). */
+function apply_channels(c, ch) {
+	for (let id, n in (ch ?? {})) c.set('wireless', id, 'channel', '' + n);
+	return null;
+}
+
 function apply_guest(c, conn, g) {
 	let st = extras.guest_status();
 	if (!g?.on && !st.exists) return null;
@@ -485,6 +505,7 @@ export function apply(b) {
 	apply_region(c, b.region);
 	let e = (b.mode == 'router') ? apply_router(c, b.wan) : apply_ap(c, b.ap);
 	e = e ?? apply_wifi(c, b.wifi);
+	e = e ?? apply_channels(c, b.channels);
 	if (b.mode == 'router') {
 		e = e ?? apply_guest(c, conn, b.guest);
 		e = e ?? apply_iot(c, conn, b.iot);
@@ -533,6 +554,33 @@ export function apply(b) {
 
 	let lanip = b.mode == 'router' ? split(list_of(c.get('network', 'lan', 'ipaddr'))[0] ?? '', '/')[0] : (b.ap.proto == 'static' ? b.ap.ipaddr : null);
 	return { ok: true, ssid: b.wifi.ssid, address: lanip, hostname: c.get('system', system_sid(c), 'hostname') };
+};
+
+/* Starts listening for the Wi-Fi networks around, for the Channels step. The scan runs on its own
+   (rpcd answers the scan itself, so it cannot wait for it here) and takes 5 to 15 seconds; scan() says
+   when it is done. Nothing on the router changes. */
+export function scan_start(b) {
+	if (state() != 'pending') return err(null, 'This router is already set up. Change its settings in the web interface.');
+	let cc = b?.country;
+	if (type(cc) != 'string' || !match(cc, /^[A-Z]{2}$/)) return err('region', 'Choose the country the router is in.');
+	let j = channels.job();
+	if (j?.state == 'running' && time() - (j.time ?? 0) < 60) return { ok: true, id: j.id, country: j.country };
+	let id = join('-', clock());
+	channels.begin(cc, id);
+	system(`(ucode -e "import * as ch from 'miwrt.channels'; ch.run('${cc}', '${id}');") >/dev/null 2>&1 </dev/null &`);
+	return { ok: true, id, country: cc };
+};
+
+/* The scan as it stands: { state: 'running' | 'done' | 'failed', id, country, age, radios }, or
+   { state: 'none' }. Per radio: the channels it may use in that country with how crowded each is,
+   and the one the router would take. */
+export function scan() {
+	let j = channels.job();
+	if (!j) return { state: 'none' };
+	j.age = time() - (j.time ?? 0);
+	// the scan was cut short (the router restarted its Wi-Fi under it, say)
+	if (j.state == 'running' && j.age > 90) return { state: 'failed', id: j.id, country: j.country, age: j.age, error: 'The scan did not finish.' };
+	return j;
 };
 
 /* What the restart after apply is doing, and the AdGuard Home install if one was asked for. */
