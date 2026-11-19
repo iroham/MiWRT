@@ -23,7 +23,7 @@ Notes for the release after 2.1.0. Rename this file to the tag (`v<version>.md`)
       echo "mt7615-common txbf=1" > /etc/modules.d/mt7615-txbf
       reboot
 
-  Deleting that file and restarting switches it off again; an update keeps the file. Devices that do not support beamforming are served as before. With it off the driver behaves as OpenWrt's own. Everything else in the image still comes from OpenWrt's packages unchanged.
+  Deleting that file and restarting switches it off again; an update keeps the file (checked with the image installed: off after the install, on after the two commands, still on after installing the image again, off after deleting the file). A device that does not support beamforming should be served as before; there was none to test with. With it off the driver behaves as OpenWrt's own. Everything else in the image still comes from OpenWrt's packages unchanged.
 - Redmi AC2100: one thing that was tried against the slow download and is not in the image: not sending the two fastest two-stream rates. It was faster most of the time and far slower some of the time (2 runs of 10 collapsed).
 - Redmi AC2100: the traffic counter (nlbwmon) gets the netlink buffer it asks for; the kernel cut it to a third and nlbwmon logged that at every start.
 

@@ -72,11 +72,16 @@ Wi-Fi is up but slow for one device
     An update keeps the file. At the project's router, with the original
     and the patched driver in turn, download to a two-stream laptop went
     from 257 to 404 Mbit/s (median 332) to 472 to 606 (median 526) and
-    repeated frames from 35 in 100 to 5; upload stayed the same. Devices
-    that do not support beamforming are served as before. It is off by
-    default because the patch is young: one author, his router and the
-    project's, one client each. If Wi-Fi misbehaves with it on, switch it
-    off and note the device in the test log.
+    repeated frames from 35 in 100 to 5; upload stayed the same. With the
+    image installed and the switch used as above, on a busier afternoon:
+    the fastest second of a run 321 to 404 Mbit/s off and 441 to 548 on,
+    repeated frames 35 to 40 in 100 off and 9 to 17 on, MCS 9 getting
+    through never off and 85 to 90 times in 100 on. A device that does
+    not support beamforming should be served as before; there was none
+    to test with. It is off by default because the patch is young: one
+    author, his router and the project's, one client each. If Wi-Fi
+    misbehaves with it on, switch it off and note the device in the test
+    log.
   - Forbidding the two failing rates (iw dev phy1-ap0 set bitrates vht-mcs-5
     1:0-9 2:0-7 3:0-9 4:0-9) was tried and is not in the image. In ten
     pairs of runs it was faster seven times, about 385 against 325 Mbit/s,
