@@ -97,6 +97,9 @@ same(chans(ch.candidates(drv({ freqs: small, width: 160 }))), [ 36, 40, 44, 48 ]
 same(chans(ch.candidates(drv({ freqs: small, width: 160, current: 'auto' }))), [], '160 MHz, not on that block: a block with radar is not offered');
 same(chans(ch.candidates(drv({ width: 160, current: 'auto' }))), [], '160 MHz: the upper block reaches above 165');
 same(chans(ch.candidates(drv({ width: 160, current: 153 }))), [ 149, 153, 157, 161, 165, 169, 173, 177 ], '160 MHz: unless the radio is on it');
+same(chans(ch.candidates(drv({ width: 40, freqs: freqs({ '5745': { freq: 5745, max_tx_power: 2300, no_ht40_minus: true, no_ht40_plus: true } }) }))), [ 36, 40, 44, 48, 157, 161 ], '40 MHz: a channel allowed 20 MHz only takes its pair with it');
+same(chans(ch.candidates(drv({ width: 20, freqs: freqs({ '5745': { freq: 5745, max_tx_power: 2300, no_ht40_minus: true, no_ht40_plus: true } }) }))), [ 36, 40, 44, 48, 149, 153, 157, 161, 165 ], '20 MHz: that channel is fine');
+same(chans(ch.candidates(drv({ width: 40, freqs: freqs({ '5180': { freq: 5180, max_tx_power: 2300, no_ht40_minus: true } }) }))), [ 36, 40, 44, 48, 149, 153, 157, 161 ], '40 MHz: the lower channel of a pair is marked as not being the upper one, as drivers do');
 same(chans(ch.candidates(drv({ width: 20 }))), [ 36, 40, 44, 48, 149, 153, 157, 161, 165 ], '20 MHz: up to 165');
 same(chans(ch.candidates(drv({ width: 40 }))), [ 36, 40, 44, 48, 149, 153, 157, 161 ], '40 MHz: 165 would need 169');
 same(chans(ch.candidates(drv({ current: 169 }))), [ 36, 40, 44, 48, 149, 153, 157, 161, 165, 169, 173, 177 ], 'above 165 only when the radio is there already');
@@ -134,7 +137,7 @@ same(chans(ch.candidates(two({ mode: 'regdb', rules: [ { ...rules[0], end: 24700
 let b16 = n => chr((n >> 8) & 255, n & 255), b32 = n => b16((n >> 16) & 65535) + b16(n & 65535);
 let rule = (flags, eirp, start, end, bw) => chr(16, flags) + b16(eirp) + b32(start) + b32(end) + b32(bw);
 let db = 'RGDB' + b32(20) + 'ZZ' + b16(4) + chr(0, 0, 0, 0)       // header, one country at byte 16, the end mark
-	+ chr(4, 2, 0, 0) + b16(6) + b16(10)                         // its collection: two rules, at bytes 24 and 40
+	+ chr(3, 2, 0, 0) + b16(6) + b16(10)                         // its collection (three bytes long, as in the real file): two rules, at bytes 24 and 40
 	+ rule(0, 2000, 2400000, 2483500, 40000)
 	+ rule(4 | 16, 2300, 5250000, 5350000, 80000);
 same(ch.rules_for(db, 'ZZ'), [

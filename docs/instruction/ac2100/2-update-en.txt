@@ -3,11 +3,21 @@ MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: updating
 STATUS: TESTING. On one router (see 1-install-en.txt) the MiWRT project has
 run, from the command line and with test builds of the source after 2.1.0:
 a sysupgrade that keeps the settings, a fresh install with sysupgrade -n,
-the restore of a settings backup, "miwrt-update check" against GitHub, and
-the package feeds (index, a package installed and removed). Not run yet: an
-update from one release to the next through System, Build update or
-"miwrt-update apply"; there is no release after 2.1.0 to update to. The
-recovery paths in 3-recovery-and-problems-en.txt have not been exercised.
+the restore of a settings backup, "miwrt-update check" and "miwrt-update
+download" against GitHub (the image arrived, and its signature and checksum
+were verified), and the package feeds (index, a package installed and
+removed). Not run yet: the install step of System, Build update or
+"miwrt-update apply", which is the sysupgrade described under "By hand".
+The recovery paths in 3-recovery-and-problems-en.txt have not been
+exercised.
+
+From 2.1.0: update by hand, once
+  The updater of 2.1.0 cannot download an image on this router. It asks for
+  120 MB of free memory, and the router has 128 MB in all, so System, Build
+  update and "miwrt-update download" answer "not enough free memory to
+  download the image". Update from 2.1.0 as described under "By hand"
+  below. From 2.2.0 the updater measures the free memory against the size
+  of the image, about 12 MB, and the download works.
 
 Updating from one MiWRT version to the next is a normal OpenWrt sysupgrade.
 Settings are kept. There is only one firmware slot on this router: the
@@ -29,9 +39,17 @@ From the command line
 By hand
   System, Backup / Flash firmware, with
   openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
-  from the release, or over SSH:
-      sysupgrade -v /tmp/openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
-  Check the file against sha256sums-ac2100.txt first.
+  from the release, or over SSH. The release files are also on the
+  project's GitHub Pages, which the router usually reaches where github.com
+  is slow:
+      cd /tmp
+      F=openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
+      B=https://iroham.github.io/MiWRT/firmware/v2.2.0
+      wget -O $F $B/$F
+      wget -O sha256sums-ac2100.txt $B/sha256sums-ac2100.txt
+      grep sysupgrade.bin sha256sums-ac2100.txt | sha256sum -c -
+      sysupgrade -v /tmp/$F
+  Go on to sysupgrade only when the check answers OK.
 
 What an update keeps
   Everything under /etc/config, the app's data in /etc/miwrt, which services

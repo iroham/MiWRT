@@ -25,6 +25,7 @@ WORLD=/etc/apk/world
 WORLD_ROM=/rom/etc/apk/world
 PENDING=/etc/be7000-reinstall
 FEED_HOST=iroham.github.io/MiWRT
+FEEDS=/etc/apk/repositories.d/customfeeds.list
 
 # The image, and where the preinit hook leaves what it moved. The library is
 # looked up under IPKG_INSTROOT because the image build runs "enable" on this
@@ -43,6 +44,20 @@ names_of() {
 	sed -e 's/[=<>~].*//' -e '/^$/d' -e '/^kernel$/d' -e '/^base-files$/d' "$1" 2>/dev/null | sort -u
 }
 
+# A library that carries its date in its name (libubox20260721) comes back
+# under a new name in an image that updates it (libubox20261103). The old name
+# is in no feed of the new image, and one such name in the world file makes apk
+# refuse every "apk add". The image's own copy takes its place, and whatever
+# needs the library pulls the new one in, so the old name is left out.
+# $1 the image's package names; stdin and stdout: names, one in a line
+without_renamed() {
+	awk '
+		function stem(n) { return n ~ /[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$/ ? substr(n, 1, length(n) - 8) : "" }
+		NR == FNR { if (stem($0) != "") rom[stem($0)] = 1; next }
+		!(stem($0) != "" && (stem($0) in rom))
+	' "$1" -
+}
+
 reconcile() {
 	# Without a copy of its own in the overlay, $DB is the ROM's database.
 	be7000_image_changed "$ROM" "$MARK" "$DB/installed" || {
@@ -54,7 +69,7 @@ reconcile() {
 	local extras seen
 	seen=$(be7000_image_seen "$MARK")
 	names_of "$WORLD_ROM" > /tmp/be7000-romsync.rom
-	extras=$(names_of "$WORLD" | grep -vxFf /tmp/be7000-romsync.rom)
+	extras=$(names_of "$WORLD" | grep -vxFf /tmp/be7000-romsync.rom | without_renamed /tmp/be7000-romsync.rom)
 	rm -f /tmp/be7000-romsync.rom
 	logger -t be7000-romsync "image changed (${seen:-an older one} -> $(be7000_image_id "$ROM")), resetting apk database; user packages: $(echo $extras)"
 
@@ -83,6 +98,17 @@ reinstall_pending() {
 		local i=0
 		while [ $i -lt 60 ]; do
 			ip route show default 2>/dev/null | grep -q default && break
+			sleep 10; i=$((i + 1))
+		done
+		# be7000-feeds, later in the same boot, points a feed list kept from
+		# the previous image at the feeds of this one. Asked before that, apk
+		# would bring back packages built for the previous image. Wait for it,
+		# five minutes at most.
+		local base
+		base=$(sed -n 's/^FEED=//p' "$ROM/etc/miwrt-release" 2>/dev/null | head -1)
+		i=0
+		while [ -n "$base" ] && [ $i -lt 30 ]; do
+			grep -q "feed/$base/aarch64_cortex-a73/" "$FEEDS" 2>/dev/null && break
 			sleep 10; i=$((i + 1))
 		done
 		sleep 15

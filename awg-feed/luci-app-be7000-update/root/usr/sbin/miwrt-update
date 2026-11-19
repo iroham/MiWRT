@@ -155,10 +155,18 @@ do_download() {
 	sums=$(jsonfilter -i "$STATE" -e '@.sums_url')
 	[ -n "$url" ] && [ -n "$sums" ] || fail "$(t "в релизе нет sysupgrade.bin или $SUMS_NAME" "the release has no sysupgrade.bin or $SUMS_NAME")"
 	mkdir -p "$DIR"
-	# /tmp is RAM; make sure the image fits with room to spare for sysupgrade
-	local free
+	# /tmp is RAM: the image has to fit, with room to spare for sysupgrade. The
+	# room is counted from the size of the image and not as one fixed figure: a
+	# router with 128 MB of memory takes its 12 MB image well, and never has
+	# 120 MB free. An image left by an earlier download is written over, so its
+	# share of the memory counts as free.
+	local free size need
 	free=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
-	[ "${free:-0}" -gt 120 ] || fail "$(t "мало свободной памяти для загрузки образа: ${free} МБ" "not enough free memory to download the image: ${free} MB")"
+	[ -f "$IMG" ] && free=$((${free:-0} + $(wc -c <"$IMG") / 1048576))
+	size=$(jsonfilter -i "$STATE" -e '@.image_size' 2>/dev/null)
+	case "$size" in ''|*[!0-9]*) size=0 ;; esac
+	if [ "$size" -gt 0 ]; then need=$((size / 1048576 + 12)); else need=120; fi
+	[ "${free:-0}" -gt "$need" ] || fail "$(t "мало свободной памяти для загрузки образа: ${free} МБ, нужно больше ${need} МБ" "not enough free memory to download the image: ${free} MB, more than ${need} MB is needed")"
 	# Only this project's own release files are taken, and the checksum list must carry the signature
 	# of the key this image was built with. A release someone else managed to upload does not have it.
 	local base="https://github.com/$REPO/releases/download/"

@@ -17,6 +17,13 @@
 # this script), and the network work is then spread over the processor's
 # threads. A line here that set it to off when unset never took effect, so
 # MiWRT 2.1.0 ran with it on as well; that line is gone.
+#
+# "Once" needs a note of its own: this script runs again after every update,
+# and LuCI switches offloading off by removing the option, which looks the
+# same as never set. A router that has been through its first start carries
+# /etc/.miwrt_wifi_defaults (left by the Wi-Fi defaults, kept by updates) and
+# is past this default: what is set there now is the owner's choice.
+[ -e /etc/.miwrt_wifi_defaults ] && exit 0
 [ -n "$(uci -q get firewall.@defaults[0].flow_offloading)" ] || uci set firewall.@defaults[0].flow_offloading='1'
 uci commit firewall
 exit 0

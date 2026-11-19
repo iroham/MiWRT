@@ -518,7 +518,34 @@ grep -q "logger: -t be7000-romsync image changed (BUILD=1001 VERSION=2.0.0 -> BU
 	fail "romsync: the change is not in the log: $(cat "$LOG")"
 note_back "$V"
 
+# Libraries that carry their date in the name: the image brings them under a
+# new name, so the old one is neither kept in the world file nor asked for
+# again. A name that only ends in a figure, or a dated one the image has no
+# newer build of, is the user's and stays.
+rm -rf "$TMP/new-libs"
+cp -a "$NEW" "$TMP/new-libs"
+printf '%s\n' libubox20261103 libblobmsg-json20261103 kmod-usb2 >> "$TMP/new-libs/etc/apk/world"
+make_volume "$V" "$OLD"
+note_volume "$V" "BUILD=1001 VERSION=2.0.0"
+printf '%s\n' libubox20260721 libblobmsg-json20260721 kmod-usb2 kmod-usb3 foo20240101 >> "$V/upper/etc/apk/world"
+be7000_refresh_volume "$V"
+mount_merged "$TMP/new-libs" "$V"
+reconcile
+assert_eq "$(tr '\n' ' ' < "$PENDING")" "foo20240101 kmod-usb3 luci-theme-old tcpdump " "renamed libraries are not reinstalled"
+assert_eq "$(sort "$WORLD" | tr '\n' ' ')" "$( { cat "$TMP/new-libs/etc/apk/world"; printf '%s\n' foo20240101 kmod-usb3 luci-theme-old tcpdump; } | sort | tr '\n' ' ')" "world without the renamed libraries"
+assert_eq "$(printf '%s\n' libuci20250120 libuci2 zapret2 | without_renamed "$TMP/new-libs/etc/apk/world" | tr '\n' ' ')" "libuci20250120 libuci2 zapret2 " "names the image has no newer build of"
+
+# The reinstall waits until the feed list names this image's feeds.
+grep -q 'grep -q "feed/$base/aarch64_cortex-a73/" "$FEEDS"' "$ROOT/overlay-files/etc/init.d/be7000-romsync" ||
+	fail "romsync: the reinstall does not wait for the feed list of this image"
+
 # The boot after that: nothing to do, at preinit or later.
+make_volume "$V" "$OLD"
+note_volume "$V" "BUILD=1001 VERSION=2.0.0"
+be7000_refresh_volume "$V"
+mount_merged "$NEW" "$V"
+reconcile
+note_back "$V"
 rm -f "$PENDING"
 : > "$LOG"
 before=$(snapshot "$V")

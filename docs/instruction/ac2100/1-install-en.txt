@@ -15,9 +15,11 @@ the steps below.
   kernel module that resolves, a package installed and removed); a Wi-Fi
   client on each band; an update that keeps the settings, a fresh install
   (sysupgrade -n) and the restore of a settings backup.
-  Not tested yet: the setup assistant in a browser, an update from one
-  release to the next through System, Build update or miwrt-update, a wired
-  client's speed, TFTP recovery. No recovery path has been exercised.
+  Not tested yet: applying the setup assistant's settings from a browser
+  (its pages were walked up to the review), the install step of an update
+  through System, Build update or miwrt-update (the download and its checks
+  were run), a wired client's speed, TFTP recovery. No recovery path has
+  been exercised.
 The flash commands in step 4 are the ones OpenWrt's own support commit for
 this device gives (ramips: Add support for Xiaomi Redmi Router AC2100, April
 2020) and OpenWrt users have followed since. The way to get a shell on stock

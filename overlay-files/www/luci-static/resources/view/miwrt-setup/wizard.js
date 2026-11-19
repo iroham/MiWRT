@@ -1031,7 +1031,7 @@ function defaults() {
 		iot: { on: !!io.ours, ssid: io.ssid || cut(base, ' IoT'), key: io.key || randomKey(), internet: io.ours ? io.internet !== false : true, all_bands: false },
 		protection: { where: p.where == 'none' ? 'none' : 'keep', url: p.where == 'network' ? (p.url || '') : '', username: p.where == 'network' ? (p.username || '') : 'admin', password: '', handout: true, rpass: randomKey() },
 		// per radio: a channel number, or 'keep' for what the radio has now; picked marks a choice made by hand
-		channels: {}, picked: {},
+		channels: {}, picked: {}, chan_for: '',
 		password: '', password2: ''
 	};
 }
@@ -1651,7 +1651,7 @@ const sc_country = () => ui.scan.data?.country;
 
 /* what the review page says about a radio's channel */
 function channelText(r) {
-	const v = cfg.channels[r.id];
+	const v = chosen(r);
 	if (typeof v == 'number') return t('c_ch', v);
 	return r.channel == 'auto' || !/^\d+$/.test(String(r.channel)) ? t('c_auto') : t('v_ch_keep', r.channel);
 }
@@ -1787,7 +1787,7 @@ function buildConfig() {
 			dns: a.proto == 'static' ? dnsList(a.dns) : []
 		},
 		wifi: { ssid: f.ssid, ssid5: f.split ? f.ssid5 : null, key: f.key, security: f.security, split: !!f.split },
-		channels: Object.fromEntries(wifiRadios().filter(r => typeof cfg.channels[r.id] == 'number').map(r => [ r.id, cfg.channels[r.id] ])),
+		channels: Object.fromEntries(wifiRadios().filter(r => typeof chosen(r) == 'number').map(r => [ r.id, chosen(r) ])),
 		guest: guestOn() ? { on: true, ssid: cfg.guest.ssid, key: cfg.guest.key } : { on: false },
 		iot: iotOn() ? { on: true, ssid: cfg.iot.ssid, key: cfg.iot.key, internet: !!cfg.iot.internet, all_bands: !!cfg.iot.all_bands } : { on: false },
 		protection: p.where == 'network'
@@ -1879,6 +1879,7 @@ function scanTake(d) {
 	sc.data = d;
 	sc.country = d.country;
 	sc.at = Date.now();
+	cfg.chan_for = d.country;
 	for (const r of (d.radios || [])) {
 		const v = cfg.channels[r.id];
 		const offered = v == 'keep' || r.candidates.some(c => c.channel === v);
@@ -1890,13 +1891,22 @@ function scanTake(d) {
 	scanShow();
 }
 
+/* no scan, no choice: what an earlier scan suggested is dropped, so the channels stay as the page says */
 function scanFail() {
 	const sc = ui.scan;
 	sc.state = 'fail';
 	sc.country = sc.want;
 	sc.at = Date.now();
+	cfg.channels = {};
+	cfg.picked = {};
+	cfg.chan_for = '';
+	save();
 	scanShow();
 }
+
+/* the channel chosen for a radio, as long as it was chosen for the country that is set now: the
+   channels on offer depend on the country, and it can be changed after this step was passed */
+const chosen = r => cfg.chan_for == cfg.region.country ? cfg.channels[r.id] : undefined;
 
 async function scanPoll() {
 	const sc = ui.scan;
@@ -1907,10 +1917,12 @@ async function scanPoll() {
 	// a start that went unanswered may still have started: then the newest scan is taken for it
 	const mine = j && (sc.id ? j.id == sc.id : j.age < 60);
 	if (mine && j.state == 'done') {
-		if (j.country == sc.want) return scanTake(j);
-		// a scan for another country was under way when this one was asked for
+		if (j.country == sc.want && sc.want == cfg.region.country) return scanTake(j);
+		// a scan for another country was under way when this one was asked for, or the country was
+		// changed while the router listened. Away from this step nothing is asked again: what a new
+		// scan suggests should be seen before it is taken
 		sc.state = null;
-		return scanNow(true);
+		return ui.screen == 'channel' ? scanNow(true) : undefined;
 	}
 	if ((mine && j.state == 'failed') || Date.now() - sc.since > 45000) return scanFail();
 	setTimeout(scanPoll, 1200);
@@ -1927,8 +1939,10 @@ async function scanNow(fresh) {
 	try {
 		if (!fresh) {
 			// the page was loaded again: what the router found a moment ago still holds
-			const j = await ask('scan');
-			if (j.state == 'done' && j.country == sc.want && j.age < 600) return scanTake(j);
+			let j = null;
+			try { j = await ask('scan'); }
+			catch (e) {}
+			if (j && j.state == 'done' && j.country == sc.want && j.age < 600) return scanTake(j);
 		}
 		const s = await ask('scan_start', { country: sc.want }, 8000);
 		if (!s.ok) return scanFail();

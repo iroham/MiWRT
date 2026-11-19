@@ -57,7 +57,8 @@ function be32(s, o) { return be16(s, o) * 65536 + be16(s, o + 2); }
 
 /* The rules of one country from wireless-regdb's binary file, version 20 (net/wireless/reg.c):
    "RGDB", the version, then { two letters, pointer } per country up to an empty entry. A pointer times
-   four is where a collection starts: { length, number of rules, ... } and one pointer per rule. A rule:
+   four is where a collection starts: { length, number of rules, ... } and, from the next even byte,
+   one pointer per rule. A rule:
    { length, flags, highest power in 1/100 dBm, start, end and widest channel in kHz, ... }.
    Returns null when the file cannot be read as that, [] for a country it does not list. */
 export function rules_for(db, cc) {
@@ -68,7 +69,7 @@ export function rules_for(db, cc) {
 		if (substr(db, o, 2) != cc) continue;
 		let c = be16(db, o + 2) * 4;
 		if (c + 4 > length(db)) return null;
-		let n = ord(db, c + 1), base = c + ((ord(db, c) + 3) & ~3), out = [];
+		let n = ord(db, c + 1), base = c + ((ord(db, c) + 1) & ~1), out = [];
 		for (let i = 0; i < n; i++) {
 			if (base + 2 * i + 2 > length(db)) return null;
 			let r = be16(db, base + 2 * i) * 4;
@@ -109,7 +110,9 @@ function chan_info(o, ch) {
 		return null;
 	}
 	if (f.disabled || f.no_ir) return null;
-	return { radar: !!f.radar, power: (f.max_tx_power ?? 0) / 100, bw: f.no_80mhz ? 40 : f.no_160mhz ? 80 : 160 };
+	// a channel that may be neither the lower nor the upper half of a pair is 20 MHz only
+	let bw = (f.no_ht40_minus && f.no_ht40_plus) ? 20 : f.no_80mhz ? 40 : f.no_160mhz ? 80 : 160;
+	return { radar: !!f.radar, power: (f.max_tx_power ?? 0) / 100, bw };
 }
 
 /* The channels to choose from: [ { channel, first, last, power } ], lowest first.
