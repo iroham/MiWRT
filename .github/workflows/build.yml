@@ -46,8 +46,12 @@ env:
   OWRT_REPO: https://github.com/openwrt/openwrt.git
   OWRT_COMMIT: d958caff0c9ffa215dceb0718caad7d4955d8954
   VERSION_STRING: r20260929-d958caf
-  # userspace packages of this base are published under feed/<FEED_BASE>/
-  FEED_BASE: main-d958caf
+  # userspace packages of this base are published under feed/<FEED_BASE>/.
+  # The name also moves when a library that carries its date in its name
+  # does (libubox, libubus: patches/tree/020 and 021 made this "-2"). Every
+  # package is then built against the new library, and a router on an
+  # earlier release keeps the feed that fits the libraries in its image.
+  FEED_BASE: main-d958caf-2
   # The toolchain cache takes ~5 GB of the 10 GB Actions cache quota.
   CCACHE_MAXSIZE: 2G
   ARCH: aarch64_cortex-a73
