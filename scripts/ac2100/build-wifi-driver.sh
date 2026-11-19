@@ -69,9 +69,8 @@ mkdir -p "$STAGING_DIR/stamp"
 # libnl-tiny and mac80211 are asked only for what mt76 needs from them:
 # compiled, with headers and libraries in the staging directory. Their
 # makefiles write a stamp file when that is done, and the stamp is the target
-# here. A plain "compile" would go on to make packages, and that checks every
-# program's libraries against packages a clean SDK has not built (the C
-# library to begin with).
+# here. A plain "compile" would go on to make packages of them, which nothing
+# here needs.
 staged() {
 	make -C "$1" TOPDIR="$SDK" "$STAGING_DIR/stamp/.$2_installed" -j"$J" V=s > "$OUT/$2.log" 2>&1 ||
 		{ grep -aE '\*\*\*|rror[: ]' "$OUT/$2.log" | head -n 20; die "$2 did not compile"; }
@@ -95,12 +94,17 @@ ls "$SDK"/build_dir/target-*/linux-*/symvers/mac80211.symvers > /dev/null 2>&1 |
 	die "mac80211's headers are not in the staging directory"
 
 # mt76 is packaged, because the modules are taken from the packages: stripped
-# the way OpenWrt strips them. The package of the test tool fails the library
-# check described above; -k lets make finish the packages of the modules, and
-# what is needed from them is checked below.
+# the way OpenWrt strips them. Packaging checks what every module depends on
+# against the packages of mac80211 and of the kernel's own modules, and a
+# clean SDK has built neither as packages (making them is the half hour this
+# script avoids). The packages made here are only unpacked again below, so
+# the check is switched off in this copy of the SDK. -k: a package of the
+# set that still fails must not stop the two that are wanted.
+[ -f scripts/gen-dependencies.sh ] || die "the SDK has no scripts/gen-dependencies.sh"
+printf '#!/bin/sh\n# switched off by build-wifi-driver.sh\nexit 0\n' > scripts/gen-dependencies.sh
 echo "compiling mt76 ..."
 make -C "$MT" TOPDIR="$SDK" compile -k -j"$J" V=s > "$OUT/mt76.log" 2>&1 ||
-	echo "mt76: make ended with an error (expected for the test tool's package)"
+	{ echo "mt76: make ended with an error:"; grep -aE -B2 -A8 'missing dependencies|rror[: ]' "$OUT/mt76.log" | grep -av '^make: \*\*\*' | head -n 40; }
 for p in "$PATCHES"/*.patch; do
 	grep -aq "Applying .*$(basename "$p")" "$OUT/mt76.log" || die "$(basename "$p") was not applied"
 done
@@ -111,7 +115,7 @@ rm -rf "$x" "$OUT/lib"
 mkdir -p "$x"
 for k in kmod-mt7615-common kmod-mt7615e; do
 	f=$(ls "$SDK"/bin/targets/*/*/packages/"$k"-[0-9]*.apk 2>/dev/null | head -n 1)
-	[ -n "$f" ] || { grep -aE '\*\*\*|rror[: ]' "$OUT/mt76.log" | head -n 30; die "no package $k was built"; }
+	[ -n "$f" ] || die "no package $k was built"
 	apk extract --allow-untrusted --destination "$x" "$f" > /dev/null 2>&1 || die "cannot unpack $f"
 done
 kver=$(ls "$x/lib/modules" | head -n 1)
