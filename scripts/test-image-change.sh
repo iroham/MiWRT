@@ -535,8 +535,26 @@ assert_eq "$(tr '\n' ' ' < "$PENDING")" "foo20240101 kmod-usb3 luci-theme-old tc
 assert_eq "$(sort "$WORLD" | tr '\n' ' ')" "$( { cat "$TMP/new-libs/etc/apk/world"; printf '%s\n' foo20240101 kmod-usb3 luci-theme-old tcpdump; } | sort | tr '\n' ' ')" "world without the renamed libraries"
 assert_eq "$(printf '%s\n' libuci20250120 libuci2 zapret2 | without_renamed "$TMP/new-libs/etc/apk/world" | tr '\n' ' ')" "libuci20250120 libuci2 zapret2 " "names the image has no newer build of"
 
-# The reinstall waits until the feed list names this image's feeds.
-grep -q 'grep -q "feed/$base/aarch64_cortex-a73/" "$FEEDS"' "$ROOT/overlay-files/etc/init.d/be7000-romsync" ||
+# an image whose list of packages cannot be read drops nothing
+assert_eq "$(printf '%s\n' libubox20260721 tcpdump | without_renamed "$TMP/no-such-file" | tr '\n' ' ')" "libubox20260721 tcpdump " "no list of the image's packages"
+: > "$TMP/empty-world"
+assert_eq "$(printf '%s\n' libubox20260721 tcpdump | without_renamed "$TMP/empty-world" | tr '\n' ' ')" "libubox20260721 tcpdump " "empty list of the image's packages"
+
+# The reinstall waits until the feed list names this image's feeds: the
+# package feed of its base and the module feed of its kernel.
+printf '%s\n' "BUILD=1002" "KERNEL=$K2" "FEED=base-2" > "$TMP/release"
+FL="$TMP/feedlist"
+printf '%s\n' "https://h/x/feed/base-2/aarch64_cortex-a73/base/packages.adb" "https://h/x/feed/targets/qualcommbe/ipq95xx/$K2/packages/packages.adb" > "$FL"
+feeds_ready "$FL" "$TMP/release" || fail "feeds_ready: a list for this image is not seen as ready"
+printf '%s\n' "https://h/x/feed/base/aarch64_cortex-a73/base/packages.adb" "https://h/x/feed/targets/qualcommbe/ipq95xx/$K2/packages/packages.adb" > "$FL"
+feeds_ready "$FL" "$TMP/release" && fail "feeds_ready: the package feed of an earlier base passes"
+printf '%s\n' "https://h/x/feed/base-2-old/aarch64_cortex-a73/base/packages.adb" "https://h/x/feed/targets/qualcommbe/ipq95xx/$K2/packages/packages.adb" > "$FL"
+feeds_ready "$FL" "$TMP/release" && fail "feeds_ready: a base that only starts like this one passes"
+printf '%s\n' "https://h/x/feed/base-2/aarch64_cortex-a73/base/packages.adb" "https://h/x/feed/targets/qualcommbe/ipq95xx/$K1/packages/packages.adb" > "$FL"
+feeds_ready "$FL" "$TMP/release" && fail "feeds_ready: the module feed of an earlier kernel passes"
+feeds_ready "$TMP/no-such-list" "$TMP/release" && fail "feeds_ready: a missing list passes"
+feeds_ready "$FL" "$TMP/no-such-release" || fail "feeds_ready: an image that names no feeds must not hold the reinstall back"
+grep -q 'feeds_ready "$FEEDS" "$ROM/etc/miwrt-release" && break' "$ROOT/overlay-files/etc/init.d/be7000-romsync" ||
 	fail "romsync: the reinstall does not wait for the feed list of this image"
 
 # The boot after that: nothing to do, at preinit or later.

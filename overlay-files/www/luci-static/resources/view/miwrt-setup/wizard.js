@@ -1908,6 +1908,15 @@ function scanFail() {
    channels on offer depend on the country, and it can be changed after this step was passed */
 const chosen = r => cfg.chan_for == cfg.region.country ? cfg.channels[r.id] : undefined;
 
+/* An answer that comes when another step is open changes nothing: the review page shows the choice
+   that was seen, and that one is applied. The router keeps its answer, and this step takes it when
+   it is opened again. */
+function scanAway() {
+	if (ui.screen == 'channel') return false;
+	ui.scan.state = null;
+	return true;
+}
+
 async function scanPoll() {
 	const sc = ui.scan;
 	if (sc.state != 'busy') return;
@@ -1917,14 +1926,14 @@ async function scanPoll() {
 	// a start that went unanswered may still have started: then the newest scan is taken for it
 	const mine = j && (sc.id ? j.id == sc.id : j.age < 60);
 	if (mine && j.state == 'done') {
+		if (scanAway()) return;
 		if (j.country == sc.want && sc.want == cfg.region.country) return scanTake(j);
 		// a scan for another country was under way when this one was asked for, or the country was
-		// changed while the router listened. Away from this step nothing is asked again: what a new
-		// scan suggests should be seen before it is taken
+		// changed while the router listened
 		sc.state = null;
-		return ui.screen == 'channel' ? scanNow(true) : undefined;
+		return scanNow(true);
 	}
-	if ((mine && j.state == 'failed') || Date.now() - sc.since > 45000) return scanFail();
+	if ((mine && j.state == 'failed') || Date.now() - sc.since > 45000) return scanAway() ? undefined : scanFail();
 	setTimeout(scanPoll, 1200);
 }
 
@@ -1942,10 +1951,10 @@ async function scanNow(fresh) {
 			let j = null;
 			try { j = await ask('scan'); }
 			catch (e) {}
-			if (j && j.state == 'done' && j.country == sc.want && j.age < 600) return scanTake(j);
+			if (j && j.state == 'done' && j.country == sc.want && j.age < 600) return scanAway() ? undefined : scanTake(j);
 		}
 		const s = await ask('scan_start', { country: sc.want }, 8000);
-		if (!s.ok) return scanFail();
+		if (!s.ok) return scanAway() ? undefined : scanFail();
 		sc.id = s.id;
 	}
 	catch (e) {}

@@ -51,11 +51,23 @@ names_of() {
 # needs the library pulls the new one in, so the old name is left out.
 # $1 the image's package names; stdin and stdout: names, one in a line
 without_renamed() {
-	awk '
+	awk -v list="$1" '
 		function stem(n) { return n ~ /[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]$/ ? substr(n, 1, length(n) - 8) : "" }
-		NR == FNR { if (stem($0) != "") rom[stem($0)] = 1; next }
+		BEGIN { while ((getline n < list) > 0) if (stem(n) != "") rom[stem(n)] = 1 }
 		!(stem($0) != "" && (stem($0) in rom))
-	' "$1" -
+	'
+}
+
+# True when the feed list names the feeds of the running image: the package
+# feed of its base and the module feed of its kernel. be7000-feeds, later in
+# the same boot, brings a list kept from the previous image that far.
+# $1 the feed list, $2 the image's /etc/miwrt-release
+feeds_ready() {
+	local base hash
+	base=$(sed -n 's/^FEED=//p' "$2" 2>/dev/null | head -1)
+	hash=$(sed -n 's/^KERNEL=//p' "$2" 2>/dev/null | head -1)
+	{ [ -z "$base" ] || grep -q "feed/$base/aarch64_cortex-a73/" "$1" 2>/dev/null; } &&
+		{ [ -z "$hash" ] || grep -q "feed/targets/qualcommbe/ipq95xx/$hash/packages/" "$1" 2>/dev/null; }
 }
 
 reconcile() {
@@ -100,15 +112,12 @@ reinstall_pending() {
 			ip route show default 2>/dev/null | grep -q default && break
 			sleep 10; i=$((i + 1))
 		done
-		# be7000-feeds, later in the same boot, points a feed list kept from
-		# the previous image at the feeds of this one. Asked before that, apk
-		# would bring back packages built for the previous image. Wait for it,
+		# Asked before the feed list names this image's feeds, apk would bring
+		# back packages built for the previous image. Wait for be7000-feeds,
 		# five minutes at most.
-		local base
-		base=$(sed -n 's/^FEED=//p' "$ROM/etc/miwrt-release" 2>/dev/null | head -1)
 		i=0
-		while [ -n "$base" ] && [ $i -lt 30 ]; do
-			grep -q "feed/$base/aarch64_cortex-a73/" "$FEEDS" 2>/dev/null && break
+		while [ $i -lt 30 ]; do
+			feeds_ready "$FEEDS" "$ROM/etc/miwrt-release" && break
 			sleep 10; i=$((i + 1))
 		done
 		sleep 15
