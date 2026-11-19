@@ -188,6 +188,23 @@ jobs:
           sed -i 's/^\$(eval \$(call BuildPackage,\$(PKG_NAME)))$/# call BuildPackage - OpenWrt buildroot signature/' feeds/netshift/luci-app-netshift/Makefile
           rm -rf feeds/netshift.tmp
           ./scripts/feeds update -i netshift
+          # One package of a pinned feed can move on without the hundreds of
+          # others in it: patches/feeds/<feed>/*.patch, applied to the feed's
+          # checkout the way patches/tree is applied to the OpenWrt tree.
+          for d in ../repo/patches/feeds/*/; do
+            [ -d "$d" ] || continue
+            feed=$(basename "$d")
+            [ -d "feeds/$feed" ] || { echo "::error::patches/feeds/$feed: there is no feed of that name"; exit 1; }
+            for p in "$d"*.patch; do
+              [ -e "$p" ] || continue
+              patch -d "feeds/$feed" -p1 --dry-run -f < "$p" > /dev/null || { echo "::error::$p does not apply"; patch -d "feeds/$feed" -p1 --dry-run -f < "$p"; exit 1; }
+              patch -d "feeds/$feed" -p1 --no-backup-if-mismatch < "$p"
+            done
+            if find "feeds/$feed" -name '*.rej' -o -name '*.orig' | grep -q .; then
+              echo "::error::rejected hunks left behind in feeds/$feed"; exit 1
+            fi
+            ./scripts/feeds update -i "$feed"
+          done
           ./scripts/feeds install -a
 
       - name: Configure
@@ -281,6 +298,12 @@ jobs:
         run: |
           cd owrt
           make -j"$(nproc)" tools/install toolchain/install || make -j1 V=s tools/install toolchain/install
+          # The toolchain's directories come from a cache, and the image's
+          # libc.so is the one built here. Make sure the C library was
+          # prepared again with patches/tree/024 (its regcomp has the limit
+          # that patch adds).
+          grep -q 'input_limit' "$(ls build_dir/toolchain-*/musl-[0-9]*/src/regex/regcomp.c | head -n 1)" ||
+            { echo "::error::the C library was built without patches/tree/024"; exit 1; }
           make -j"$(nproc)" target/linux/compile || make -j1 V=s target/linux/compile
 
       # The kernel hash is known now, so the image can be told where its own
@@ -326,6 +349,8 @@ jobs:
           img=bin/targets/$TARGET/$DEVICE-squashfs-factory.ubi
           ls -la "$img" bin/targets/$TARGET/$DEVICE-squashfs-sysupgrade.bin
           test -L build_dir/target-*/root-qualcommbe/etc/rc.d/S99be7000-bootconfirm
+          # the parts that are newer than the OpenWrt base (patches/tree/019 to 024, patches/feeds)
+          grep -E '^(uhttpd|uhttpd-mod-ubus|libubox[0-9]*|libubus[0-9]*|ubusd|rpcd|curl|libcurl[0-9]*|px5g-mbedtls|ca-bundle|libc) ' "bin/targets/$TARGET/$DEVICE.manifest"
 
       - name: Publish the feed
         if: "!startsWith(env.REL_TAG, 'debug-') && !inputs.warm"

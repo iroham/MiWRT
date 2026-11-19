@@ -1,0 +1,43 @@
+Subject: ubus, rpcd: update to 2026-10-28
+
+rpcd no longer names its runtime files after the session id and enforces
+session ACLs for ubus callers that are not root; the second needs the
+callback libubus gained on the same day.
+
+OpenWrt commits 09538fccfc, 8ac5e0118c and f79894ab57, taken as they
+are.
+
+diff --git a/package/system/rpcd/Makefile b/package/system/rpcd/Makefile
+index e1ab4be..bb61c4d 100644
+--- a/package/system/rpcd/Makefile
++++ b/package/system/rpcd/Makefile
+@@ -12,9 +12,9 @@ PKG_RELEASE:=1
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL=$(PROJECT_GIT)/project/rpcd.git
+-PKG_MIRROR_HASH:=c07273d63b99a8f05fb4a99d1113908a066dd2ff3151662b1fb7ef2ab7c1828c
+-PKG_SOURCE_DATE:=2026-09-25
+-PKG_SOURCE_VERSION:=a6c6b63b47bd8f4f762ef2e6787210cd3e0fb8a0
++PKG_MIRROR_HASH:=dec618e00ee5550b360498997fc5c4725526243e22e866aab3d584e919e0603d
++PKG_SOURCE_DATE:=2026-10-28
++PKG_SOURCE_VERSION:=469d7852316ef692805396d8af744ec43604b842
+ PKG_MAINTAINER:=Jo-Philipp Wich <jo@mein.io>
+ 
+ PKG_LICENSE:=ISC
+diff --git a/package/system/ubus/Makefile b/package/system/ubus/Makefile
+index c8e76b4..716f993 100644
+--- a/package/system/ubus/Makefile
++++ b/package/system/ubus/Makefile
+@@ -5,9 +5,9 @@ PKG_RELEASE:=1
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL=$(PROJECT_GIT)/project/ubus.git
+-PKG_SOURCE_DATE:=2026-09-25
+-PKG_SOURCE_VERSION:=414c60a2e29e72c2c4f573bc50ad54aef076d169
+-PKG_MIRROR_HASH:=45685cbfd496bb5c72e05244ec7de470d5dfcf0a244aa7052ef2a6c627f309c3
++PKG_SOURCE_DATE:=2026-10-28
++PKG_SOURCE_VERSION:=db20eff5535fe3126c05dc0edc029caf0e82fe10
++PKG_MIRROR_HASH:=6c877039f5e57429c964848332636439ed1b34b2e9445e51c5ec8e290dab8d0a
+ PKG_ABI_VERSION:=$(call abi_version_str,$(PKG_SOURCE_DATE))
+ CMAKE_INSTALL:=1
+ 

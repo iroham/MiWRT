@@ -1,0 +1,65 @@
+Subject: curl: update to 8.23.0
+
+curl and libcurl 8.23.0 instead of 8.22.0, without moving the whole
+packages feed. 8.23.0 has no SMB support any more, so the build options
+for it go.
+
+Commit 3d6229131a of the OpenWrt packages feed, taken as it is.
+
+diff --git a/net/curl/Config.in b/net/curl/Config.in
+index c51db0c8bc9670..d97ad66b02b941 100644
+--- a/net/curl/Config.in
++++ b/net/curl/Config.in
+@@ -84,15 +84,6 @@ config LIBCURL_SSH2
+ 	bool "SCP / SFTP protocol"
+ 	default n
+ 
+-config LIBCURL_SMB
+-	bool "SMB protocol (CIFS)"
+-	depends on LIBCURL_CRYPTO_AUTH && (LIBCURL_GNUTLS || LIBCURL_OPENSSL)
+-	default n
+-config LIBCURL_NO_SMB
+-	string "SMB require 'cryptographic authentication' and either 'GnuTLS' or 'OpenSSL'"
+-	depends on !LIBCURL_CRYPTO_AUTH || (!LIBCURL_GNUTLS && !LIBCURL_OPENSSL)
+-	default "!"
+-
+ config LIBCURL_SMTP
+ 	bool "SMTP / SMTPS protocol"
+ 	default n
+diff --git a/net/curl/Makefile b/net/curl/Makefile
+index 52d94c44e22a79..d2cbe754562de9 100644
+--- a/net/curl/Makefile
++++ b/net/curl/Makefile
+@@ -9,13 +9,13 @@ include $(TOPDIR)/rules.mk
+ include $(INCLUDE_DIR)/nls.mk
+ 
+ PKG_NAME:=curl
+-PKG_VERSION:=8.22.0
++PKG_VERSION:=8.23.0
+ PKG_RELEASE:=1
+ 
+ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
+ PKG_SOURCE_URL:=https://github.com/curl/curl/releases/download/curl-$(subst .,_,$(PKG_VERSION))/ \
+ 	https://curl.se/download/
+-PKG_HASH:=f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7
++PKG_HASH:=8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5
+ 
+ PKG_LICENSE:=MIT
+ PKG_LICENSE_FILES:=COPYING
+@@ -51,8 +51,6 @@ PKG_CONFIG_DEPENDS:= \
+   CONFIG_LIBCURL_POP3 \
+   CONFIG_LIBCURL_RTSP \
+   CONFIG_LIBCURL_NO_RTSP \
+-  CONFIG_LIBCURL_SMB \
+-  CONFIG_LIBCURL_NO_SMB \
+   CONFIG_LIBCURL_SMTP \
+   CONFIG_LIBCURL_TELNET \
+   CONFIG_LIBCURL_TFTP \
+@@ -152,7 +150,6 @@ CONFIGURE_ARGS += \
+ 	$(call autoconf_bool,CONFIG_LIBCURL_LDAPS,ldaps) \
+ 	$(call autoconf_bool,CONFIG_LIBCURL_POP3,pop3) \
+ 	$(call autoconf_bool,CONFIG_LIBCURL_RTSP,rtsp) \
+-	$(call autoconf_bool,CONFIG_LIBCURL_SMB,smb) \
+ 	$(call autoconf_bool,CONFIG_LIBCURL_SMTP,smtp) \
+ 	$(call autoconf_bool,CONFIG_LIBCURL_TELNET,telnet) \
+ 	$(call autoconf_bool,CONFIG_LIBCURL_TFTP,tftp) \

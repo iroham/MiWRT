@@ -1,0 +1,141 @@
+Subject: uhttpd: update to 2026-11-05
+
+The web server from OpenWrt main as of 5 November 2026 instead of the one
+of 3 August. Upstream fixes since then:
+
+- request parsing stays inside the bytes that were received
+  (GHSA-788h-w5m4-j5xv);
+- a script slot is released when the peer closes with an unfinished body,
+  and one address can hold only part of the slots, half of max_requests
+  unless max_requests_per_source says otherwise (GHSA-p2hf-3hpj-hfpc);
+- Basic Auth realms are enforced for URL-prefix handlers
+  (GHSA-5cgm-8h9x-v28c);
+- ubus list requests with non-string parameters are refused, and the list
+  answer stays within what can be encoded;
+- TCP_NODELAY on accepted sockets;
+- the ID in a generated certificate no longer loses repeated bytes;
+- an instance can run in a VRF.
+
+OpenWrt commits c6c02f7e79, 26410f4160, 076b3e767b, 20c44f41b2 and
+955b582a66, taken as they are.
+
+diff --git a/package/network/services/uhttpd/Makefile b/package/network/services/uhttpd/Makefile
+index 8a2e5a6..ba8233a 100644
+--- a/package/network/services/uhttpd/Makefile
++++ b/package/network/services/uhttpd/Makefile
+@@ -9,9 +9,9 @@ PKG_RELEASE:=1
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL=$(PROJECT_GIT)/project/uhttpd.git
+-PKG_SOURCE_DATE:=2026-08-03
+-PKG_SOURCE_VERSION:=60f64bec40c8113cf09815ec377761b1f4f95f22
+-PKG_MIRROR_HASH:=702b8df1ba868db13ae93b28ddaa9c421bcbfa34e8633cae984029e7b50ec59f
++PKG_SOURCE_DATE:=2026-11-05
++PKG_SOURCE_VERSION:=93b05e0b65d91c23c5aa8fdde378df1f174ec71d
++PKG_MIRROR_HASH:=8305c6d4c63aa3c8f6471c55256a378dd9ee3b2898e0b3c096540ba4ec23f2db
+ PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
+ PKG_LICENSE:=ISC
+ 
+diff --git a/package/network/services/uhttpd/files/uhttpd.config b/package/network/services/uhttpd/files/uhttpd.config
+index ce76fe6..fb8397a 100644
+--- a/package/network/services/uhttpd/files/uhttpd.config
++++ b/package/network/services/uhttpd/files/uhttpd.config
+@@ -26,6 +26,14 @@ config uhttpd main
+ 	# below the limit again.
+ 	option max_requests 3
+ 
++	# Maximum number of concurrent script requests per source
++	# address. Limits how many of the max_requests script slots a
++	# single client may occupy at once, so that one host cannot
++	# monopolise the script pool and starve other clients.
++	# Defaults to half of max_requests, rounded up; a value of 0
++	# disables the per-source limit.
++#	option max_requests_per_source 2
++
+ 	# Maximum number of concurrent connections.
+ 	# If this number is exceeded, further TCP connection
+ 	# attempts are queued until the number of active
+diff --git a/package/network/services/uhttpd/files/uhttpd.init b/package/network/services/uhttpd/files/uhttpd.init
+index c6e0b21..56e641c 100755
+--- a/package/network/services/uhttpd/files/uhttpd.init
++++ b/package/network/services/uhttpd/files/uhttpd.init
+@@ -50,7 +50,7 @@ generate_keys() {
+ 	# Prefer px5g for certificate generation (existence evaluated last)
+ 	local GENKEY_CMD=""
+ 	local KEY_OPTS="rsa:${bits:-2048}"
+-	local UNIQUEID=$(dd if=/dev/urandom bs=1 count=4 | hexdump -e '1/1 "%02x"')
++	local UNIQUEID=$(dd if=/dev/urandom bs=1 count=4 | hexdump -v -e '1/1 "%02x"')
+ 	[ "$key_type" = "ec" ] && KEY_OPTS="ec -pkeyopt ec_paramgen_curve:${ec_curve:-P-256}"
+ 	[ -x "$OPENSSL_BIN" ] && GENKEY_CMD="$OPENSSL_BIN req -x509 -sha256 -outform der -nodes"
+ 	[ -x "$PX5G_BIN" ] && GENKEY_CMD="$PX5G_BIN selfsigned -der"
+@@ -112,14 +112,20 @@ start_instance()
+ 	local cfg="$1"
+ 	local realm="$(uci_get system.@system[0].hostname)"
+ 	local listen http https interpreter indexes path handler httpdconf haveauth
+-	local enabled
++	local enabled vrf
+ 
+ 	config_get_bool enabled "$cfg" 'enabled' 1
+ 	[ $enabled -gt 0 ] || return
+ 
++	# The VRF device doesn't exist at boot, the interface triggers start
++	# the instance later.
++	config_get vrf "$cfg" vrf
++	[ -n "$vrf" ] && [ -n "$BOOT" ] && return 0
++
+ 	procd_open_instance
+ 	procd_set_param respawn
+ 	procd_set_param stderr 1
++	[ -n "$vrf" ] && procd_set_param vrf "$vrf"
+ 	procd_set_param command "$UHTTPD_BIN" -f
+ 
+ 	config_get config "$cfg" config
+@@ -164,6 +170,7 @@ start_instance()
+ 	append_arg "$cfg" tcp_keepalive "-A"
+ 	append_arg "$cfg" error_page "-E"
+ 	append_arg "$cfg" max_requests "-n" 3
++	append_arg "$cfg" max_requests_per_source "-W"
+ 	append_arg "$cfg" max_connections "-N"
+ 
+ 	append_bool "$cfg" no_ubusauth "-a" 0
+@@ -269,6 +276,18 @@ get_interface_by_ip()
+ 	config_foreach resolve_iface interface "$@"
+ }
+ 
++uhttpd_vrf_trigger()
++{
++	local cfg="$1"
++	local vrf
++
++	# An instance in a VRF is not started at boot. If no listen address
++	# points to an interface, no interface trigger would start it later,
++	# so any interface coming up starts it.
++	config_get vrf "$cfg" vrf
++	[ -n "$vrf" ] && [ -z "$(uhttpd_interfaces "$cfg")" ] && all=1
++}
++
+ service_triggers()
+ {
+ 	local iface ifaces all=0
+@@ -278,7 +297,8 @@ service_triggers()
+ 
+ 	config_load uhttpd
+ 	ips="$(config_foreach uhttpd_interfaces uhttpd)"
+-	[ -z "$ips" ] && return 0
++	config_foreach uhttpd_vrf_trigger uhttpd
++	[ -z "$ips" ] && [ "$all" = 0 ] && return 0
+ 
+ 	for ip in $ips; do
+ 		iface="$(get_interface_by_ip $ip)"
+@@ -295,6 +315,11 @@ service_triggers()
+ 	fi
+ }
+ 
++boot() {
++	BOOT=1
++	start "$@"
++}
++
+ start_service() {
+ 	config_load uhttpd
+ 	config_foreach start_instance uhttpd
