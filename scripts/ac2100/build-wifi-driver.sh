@@ -33,10 +33,11 @@ grep -E '^src-git( --root=[^ ]+)? base ' feeds.conf.default > feeds.conf
 [ -s feeds.conf ] || die "no base feed in the SDK's feeds.conf.default"
 cat feeds.conf
 ./scripts/feeds update base > "$OUT/feeds.log" 2>&1 || { tail -n 20 "$OUT/feeds.log"; die "feed update failed"; }
-./scripts/feeds install mac80211 mt76 >> "$OUT/feeds.log" 2>&1 || { tail -n 20 "$OUT/feeds.log"; die "feed install failed"; }
+./scripts/feeds install mac80211 mt76 libnl-tiny >> "$OUT/feeds.log" 2>&1 || { tail -n 20 "$OUT/feeds.log"; die "feed install failed"; }
 MT=package/feeds/base/mt76
 MAC=package/feeds/base/mac80211
-[ -f "$MT/Makefile" ] && [ -f "$MAC/Makefile" ] || die "mt76 or mac80211 is not in the feed"
+NL=package/feeds/base/libnl-tiny
+[ -f "$MT/Makefile" ] && [ -f "$MAC/Makefile" ] && [ -f "$NL/Makefile" ] || die "mt76, mac80211 or libnl-tiny is not in the feed"
 
 have=$(sed -n 's/^PKG_SOURCE_VERSION:=//p' "$MT/Makefile")
 [ "$have" = "$MT76_COMMIT" ] || die "the SDK builds mt76 $have, the patches are for $MT76_COMMIT: review them for the new version first"
@@ -61,14 +62,27 @@ export PATH
 cc=$(ls "$tc"/*-openwrt-linux-musl-gcc | head -n 1)
 [ -n "$("$cc" -print-file-name=include)" ] || die "the SDK's compiler does not run"
 J=$(nproc 2>/dev/null || echo 2)
+# The SDK's top makefile makes this directory before the first package; a
+# package makefile that is run directly only writes into it.
+mkdir -p "$STAGING_DIR/stamp"
+
+# libnl-tiny: the mt76 package also builds a small test tool that is linked
+# against it. The tool does not go into the image, but without it the package
+# with the modules is not made. First, because it takes a minute and
+# mac80211 a quarter of an hour.
+echo "compiling libnl-tiny ..."
+make -C "$NL" TOPDIR="$SDK" compile -j"$J" V=s > "$OUT/libnl-tiny.log" 2>&1 ||
+	echo "libnl-tiny: its makefile ended with an error; checking what mt76 needs"
+[ -f "$STAGING_DIR/usr/include/libnl-tiny/unl.h" ] && ls "$STAGING_DIR"/usr/lib/libnl-tiny.so* > /dev/null 2>&1 ||
+	{ grep -aE '\*\*\*|rror[: ]' "$OUT/libnl-tiny.log" | head -n 20; die "libnl-tiny did not compile"; }
 
 # mac80211: its modules are compiled so that mt76 can be linked against their
 # symbols; none of them goes into the image. After compiling, this step also
-# tries to package every wireless driver, and that part fails here for want of
+# packages every wireless driver, and that part can fail here for want of
 # tools only a full build has. What mt76 needs is checked right below.
 echo "compiling mac80211 ..."
 make -C "$MAC" TOPDIR="$SDK" compile -j"$J" V=s > "$OUT/mac80211.log" 2>&1 ||
-	echo "mac80211: packaging did not finish (expected); checking what mt76 needs"
+	echo "mac80211: its makefile ended with an error after compiling; checking what mt76 needs"
 ls "$SDK"/build_dir/target-*/linux-*/symvers/mac80211.symvers > /dev/null 2>&1 ||
 	{ grep -aE '\*\*\*|rror:' "$OUT/mac80211.log" | head -n 20; die "mac80211 did not compile: no symbol list"; }
 [ -d "$STAGING_DIR/usr/include/mac80211-backport" ] && [ -d "$STAGING_DIR/usr/include/mac80211" ] ||
