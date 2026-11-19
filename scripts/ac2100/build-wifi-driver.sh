@@ -66,31 +66,41 @@ J=$(nproc 2>/dev/null || echo 2)
 # package makefile that is run directly only writes into it.
 mkdir -p "$STAGING_DIR/stamp"
 
+# libnl-tiny and mac80211 are asked only for what mt76 needs from them:
+# compiled, with headers and libraries in the staging directory. Their
+# makefiles write a stamp file when that is done, and the stamp is the target
+# here. A plain "compile" would go on to make packages, and that checks every
+# program's libraries against packages a clean SDK has not built (the C
+# library to begin with).
+staged() {
+	make -C "$1" TOPDIR="$SDK" "$STAGING_DIR/stamp/.$2_installed" -j"$J" V=s > "$OUT/$2.log" 2>&1 ||
+		{ grep -aE '\*\*\*|rror[: ]' "$OUT/$2.log" | head -n 20; die "$2 did not compile"; }
+}
+
 # libnl-tiny: the mt76 package also builds a small test tool that is linked
-# against it. The tool does not go into the image, but without it the package
-# with the modules is not made. First, because it takes a minute and
-# mac80211 a quarter of an hour.
+# against it. First, because it takes a minute and mac80211 a quarter of an
+# hour.
 echo "compiling libnl-tiny ..."
-make -C "$NL" TOPDIR="$SDK" compile -j"$J" V=s > "$OUT/libnl-tiny.log" 2>&1 ||
-	echo "libnl-tiny: its makefile ended with an error; checking what mt76 needs"
+staged "$NL" libnl-tiny
 [ -f "$STAGING_DIR/usr/include/libnl-tiny/unl.h" ] && ls "$STAGING_DIR"/usr/lib/libnl-tiny.so* > /dev/null 2>&1 ||
-	{ grep -aE '\*\*\*|rror[: ]' "$OUT/libnl-tiny.log" | head -n 20; die "libnl-tiny did not compile"; }
+	die "libnl-tiny's headers and library are not in the staging directory"
 
 # mac80211: its modules are compiled so that mt76 can be linked against their
-# symbols; none of them goes into the image. After compiling, this step also
-# packages every wireless driver, and that part can fail here for want of
-# tools only a full build has. What mt76 needs is checked right below.
+# symbols; none of them goes into the image.
 echo "compiling mac80211 ..."
-make -C "$MAC" TOPDIR="$SDK" compile -j"$J" V=s > "$OUT/mac80211.log" 2>&1 ||
-	echo "mac80211: its makefile ended with an error after compiling; checking what mt76 needs"
+staged "$MAC" mac80211
 ls "$SDK"/build_dir/target-*/linux-*/symvers/mac80211.symvers > /dev/null 2>&1 ||
-	{ grep -aE '\*\*\*|rror:' "$OUT/mac80211.log" | head -n 20; die "mac80211 did not compile: no symbol list"; }
+	die "mac80211 left no symbol list"
 [ -d "$STAGING_DIR/usr/include/mac80211-backport" ] && [ -d "$STAGING_DIR/usr/include/mac80211" ] ||
 	die "mac80211's headers are not in the staging directory"
 
+# mt76 is packaged, because the modules are taken from the packages: stripped
+# the way OpenWrt strips them. The package of the test tool fails the library
+# check described above; -k lets make finish the packages of the modules, and
+# what is needed from them is checked below.
 echo "compiling mt76 ..."
-make -C "$MT" TOPDIR="$SDK" compile -j"$J" V=s > "$OUT/mt76.log" 2>&1 ||
-	{ grep -aE '\*\*\*|rror[: ]' "$OUT/mt76.log" | head -n 30; die "mt76 did not compile"; }
+make -C "$MT" TOPDIR="$SDK" compile -k -j"$J" V=s > "$OUT/mt76.log" 2>&1 ||
+	echo "mt76: make ended with an error (expected for the test tool's package)"
 for p in "$PATCHES"/*.patch; do
 	grep -aq "Applying .*$(basename "$p")" "$OUT/mt76.log" || die "$(basename "$p") was not applied"
 done
@@ -101,7 +111,7 @@ rm -rf "$x" "$OUT/lib"
 mkdir -p "$x"
 for k in kmod-mt7615-common kmod-mt7615e; do
 	f=$(ls "$SDK"/bin/targets/*/*/packages/"$k"-[0-9]*.apk 2>/dev/null | head -n 1)
-	[ -n "$f" ] || die "no package $k was built"
+	[ -n "$f" ] || { grep -aE '\*\*\*|rror[: ]' "$OUT/mt76.log" | head -n 30; die "no package $k was built"; }
 	apk extract --allow-untrusted --destination "$x" "$f" > /dev/null 2>&1 || die "cannot unpack $f"
 done
 kver=$(ls "$x/lib/modules" | head -n 1)
