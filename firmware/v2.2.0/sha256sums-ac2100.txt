@@ -1,0 +1,4 @@
+67b2c6045e7f69826b8022ac13d274d1b675d7e935810c06258a9de76fb09fa6  openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-kernel1.bin
+4ecffec39908905aa47218c7a4e78dbcd6f3e98bb3e892583243994e72bafae5  openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-rootfs0.bin
+d1757e1b9a1af92fe52089a36303d853b97005f32836b62c25a0f9e82964fa8d  openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
+89c416736ad5554b18447afc933e56d87d1578d79822b25ed93f1cd2803a1f63  openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100.manifest
