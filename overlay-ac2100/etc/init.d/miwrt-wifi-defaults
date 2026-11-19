@@ -16,9 +16,16 @@
 #     The 2.4 GHz radio is set to choose its channel itself at every start:
 #     it measures how busy 1, 6 and 11 are (the three that do not overlap) and
 #     takes the quietest, which takes about 7 seconds. OpenWrt's fixed default
-#     is channel 1, wherever the router stands. 5 GHz keeps channel 36: the
-#     four channels around it are the only ones at full power without radar
-#     checks in every country, and at 80 MHz they are one channel.
+#     is channel 1, wherever the router stands. 5 GHz goes to channel 44. It
+#     is in the same 80 MHz block as OpenWrt's default 36 (36 to 48, the only
+#     block at full power without radar checks in every country), so range
+#     and width are the same. But 44 is one of the channels Apple devices
+#     meet on for AirDrop, AirPlay and Continuity: while one of those is
+#     active, a Mac or an iPhone leaves its network several times a second
+#     to listen there, and what the router sends meanwhile is lost. With
+#     the network itself on 44 a Mac was away less than half as often, and
+#     a download to it went from about 235 to 305 Mbit/s. With those
+#     services idle the channel made no measurable difference.
 #
 # Fresh install or update? The marker below is kept across updates
 # (etc/sysupgrade.conf). Without it, a network that already has encryption
@@ -92,6 +99,7 @@ boot() {
 				uci -q set wireless.radio$r.channel=auto
 				uci -q set wireless.radio$r.channels='1 6 11'
 			fi
+			[ "$(uci -q get wireless.radio$r.band)" = 5g ] && uci -q set wireless.radio$r.channel=44
 		done
 		uci commit wireless
 		touch "$MARK"

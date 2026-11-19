@@ -51,6 +51,32 @@ Wi-Fi is up but slow for one device
   the open-source driver. Try a 2.4 GHz connection for that device and note
   the device model in the test log.
 
+5 GHz download is slower than upload, or slower than on the stock firmware
+  The open-source driver has no transmit beamforming for the MT7615; the
+  stock firmware's driver has it. The router's four antennas therefore help
+  when it receives, not when it sends two streams: a laptop's frames reached
+  the project's router at the fastest 802.11ac rate (MCS 9) while the
+  router's frames to it got through at MCS 6 and 7; MCS 8 failed for a
+  third to two thirds of them and MCS 9 for nearly all. No OpenWrt release
+  or development version changes this, and the processor is not the limit.
+  - Forbidding the two failing rates (iw dev phy1-ap0 set bitrates vht-mcs-5
+    1:0-9 2:0-7 3:0-9 4:0-9) was tried and is not in the image. In ten
+    pairs of runs it was faster seven times, about 385 against 325 Mbit/s,
+    and twice it collapsed to 107 and 183 Mbit/s; without it every run
+    stayed between 306 and 342. The same command without the rates, or a
+    restart of the router, removes the limit, so it is safe to try.
+  - From the version after 2.1.0 a new install puts 5 GHz on channel 44
+    instead of 36. While AirDrop, AirPlay or Continuity are active, Apple
+    devices leave their network several times a second to listen on 44 and
+    miss what the router sends meanwhile; on 44 they leave less than half
+    as often, and a download to a Mac in that state went from about 235 to
+    305 Mbit/s. With those services idle the channel made no measurable
+    difference. A router that is already set up keeps its channel: change
+    it under Network, Wireless, or
+        uci set wireless.radio1.channel=44
+        uci commit wireless
+        wifi up
+
 The router resets under load
   Known open issues on this SoC: a transmit-queue watchdog in the Ethernet
   driver, and resets when capturing packets on a PPPoE WAN with hardware
@@ -80,6 +106,9 @@ Seen on the project's router, and what it means
     two-stream laptop at a signal of about -60 dBm: on 5 GHz (80 MHz) 200 to
     300 Mbit/s down and 300 to 380 up; on 2.4 GHz (20 MHz, a quiet channel)
     about 45 down and 27 up. The processor was not the limit in either.
+    On channel 44 (see "5 GHz download is slower than upload" above) the
+    same laptop later got 280 to 390 Mbit/s down and 365 to 600 up; both
+    change with the hour.
   - System log, each time the DNS service restarts:
         procd: Got unexpected signal 1
     It comes with the restart and nothing follows from it.
