@@ -1,4 +1,4 @@
-MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: installing from the stock firmware
+MiWRT 2.2.0 for the Xiaomi Redmi Router AC2100: installing from the stock firmware
 
 STATUS: TESTING. The MiWRT project has done this install once, on one router:
 from stock firmware 2.0.23 to MiWRT 2.1.0, on 18 November 2026, with exactly

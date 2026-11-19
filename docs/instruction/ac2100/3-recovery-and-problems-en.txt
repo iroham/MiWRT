@@ -1,4 +1,4 @@
-MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: recovery and problems
+MiWRT 2.2.0 for the Xiaomi Redmi Router AC2100: recovery and problems
 
 STATUS: TESTING. The MiWRT project has installed this image once, on one
 router (stock 2.0.23 to MiWRT 2.1.0, see 1-install-en.txt). That install
@@ -58,7 +58,7 @@ Wi-Fi is up but slow for one device
   project's router at the fastest 802.11ac rate (MCS 9) while the router's
   frames to it got through at MCS 6 and 7; MCS 8 failed for a third to two
   thirds of them and MCS 9 for nearly all. The processor is not the limit.
-  - From the version after 2.1.0 the image has beamforming, switched off.
+  - From 2.2.0 the image has beamforming, switched off.
     The two modules of the 5 GHz driver are built with a patch by Lutfil
     Hadi (scripts/ac2100/mt76-patches in the repository). To switch it on:
         echo "mt7615-common txbf=1" > /etc/modules.d/mt7615-txbf
@@ -88,7 +88,7 @@ Wi-Fi is up but slow for one device
     and twice it collapsed to 107 and 183 Mbit/s; without it every run
     stayed between 306 and 342. The same command without the rates, or a
     restart of the router, removes the limit, so it is safe to try.
-  - From the version after 2.1.0 a new install puts 5 GHz on channel 44
+  - From 2.2.0 a new install puts 5 GHz on channel 44
     instead of 36. While AirDrop, AirPlay or Continuity are active, Apple
     devices leave their network several times a second to listen on 44 and
     miss what the router sends meanwhile; on 44 they leave less than half

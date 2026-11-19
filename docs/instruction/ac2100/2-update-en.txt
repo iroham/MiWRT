@@ -1,4 +1,4 @@
-MiWRT 2.1.0 for the Xiaomi Redmi Router AC2100: updating
+MiWRT 2.2.0 for the Xiaomi Redmi Router AC2100: updating
 
 STATUS: TESTING. On one router (see 1-install-en.txt) the MiWRT project has
 run, from the command line and with test builds of the source after 2.1.0:
