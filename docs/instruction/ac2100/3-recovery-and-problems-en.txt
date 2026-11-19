@@ -52,13 +52,31 @@ Wi-Fi is up but slow for one device
   the device model in the test log.
 
 5 GHz download is slower than upload, or slower than on the stock firmware
-  The open-source driver has no transmit beamforming for the MT7615; the
-  stock firmware's driver has it. The router's four antennas therefore help
-  when it receives, not when it sends two streams: a laptop's frames reached
-  the project's router at the fastest 802.11ac rate (MCS 9) while the
-  router's frames to it got through at MCS 6 and 7; MCS 8 failed for a
-  third to two thirds of them and MCS 9 for nearly all. No OpenWrt release
-  or development version changes this, and the processor is not the limit.
+  OpenWrt's driver has no transmit beamforming for the MT7615; the stock
+  firmware's driver has it. The router's four antennas therefore help when
+  it receives, not when it sends two streams: a laptop's frames reached the
+  project's router at the fastest 802.11ac rate (MCS 9) while the router's
+  frames to it got through at MCS 6 and 7; MCS 8 failed for a third to two
+  thirds of them and MCS 9 for nearly all. The processor is not the limit.
+  - From the version after 2.1.0 the image has beamforming, switched off.
+    The two modules of the 5 GHz driver are built with a patch by Lutfil
+    Hadi (scripts/ac2100/mt76-patches in the repository). To switch it on:
+        echo "mt7615-common txbf=1" > /etc/modules.d/mt7615-txbf
+        reboot
+    To see that it is on (Y), and that the radio says so:
+        cat /sys/module/mt7615_common/parameters/txbf
+        iw phy phy1 info | grep -i beamformer
+    To switch it off, delete the file and restart:
+        rm /etc/modules.d/mt7615-txbf
+        reboot
+    An update keeps the file. At the project's router, with the original
+    and the patched driver in turn, download to a two-stream laptop went
+    from 257 to 404 Mbit/s (median 332) to 472 to 606 (median 526) and
+    repeated frames from 35 in 100 to 5; upload stayed the same. Devices
+    that do not support beamforming are served as before. It is off by
+    default because the patch is young: one author, his router and the
+    project's, one client each. If Wi-Fi misbehaves with it on, switch it
+    off and note the device in the test log.
   - Forbidding the two failing rates (iw dev phy1-ap0 set bitrates vht-mcs-5
     1:0-9 2:0-7 3:0-9 4:0-9) was tried and is not in the image. In ten
     pairs of runs it was faster seven times, about 385 against 325 Mbit/s,

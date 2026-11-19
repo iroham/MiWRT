@@ -1,10 +1,14 @@
 name: ac2100 image
 
 # MiWRT for the Xiaomi Redmi Router AC2100, built with the official OpenWrt
-# ImageBuilder: no toolchain, no kernel patches, every package from the
-# official mipsel_24kc feeds, and the MiWRT files copied in as plain files.
-# About ten minutes. Separate from build.yml on purpose: nothing here touches
-# the BE7000 image.
+# ImageBuilder: every package from the official mipsel_24kc feeds and the
+# MiWRT files copied in as plain files. One thing is compiled here: the two
+# kernel modules of the 5 GHz driver, from OpenWrt's own mt76 source plus
+# scripts/ac2100/mt76-patches (transmit beamforming, off unless switched on),
+# with the official SDK of the same release. They replace the two files the
+# packages bring. About five minutes, fifteen more when the driver has to be
+# compiled. Separate from build.yml on purpose: nothing here touches the
+# BE7000 image.
 #
 # Every run builds, verifies and keeps the image as a workflow artifact. A
 # push of a v* tag, the same tag build.yml releases the BE7000 image for, also
@@ -65,7 +69,8 @@ jobs:
           sudo apt-get update -q
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
             build-essential libncurses-dev zlib1g-dev gawk gettext libssl-dev xsltproc \
-            rsync wget unzip python3 python3-setuptools zstd file
+            rsync wget unzip python3 python3-setuptools zstd file \
+            git flex bison bc libelf-dev swig
 
       - name: Download and verify the ImageBuilder
         run: |
@@ -95,6 +100,48 @@ jobs:
           tar --zstd -xf "$ib" -C ib --strip-components=1
           ls ib
 
+      # The 5 GHz driver (see the top of this file). Its two modules depend on
+      # the OpenWrt release, the patches and the build script and on nothing
+      # else, so a build that changes none of them takes the modules an
+      # earlier run made. A release never does: it compiles them itself.
+      - name: Wi-Fi driver from an earlier run
+        id: wifi-cache
+        if: env.RELEASE_TAG == ''
+        uses: actions/cache@v4
+        with:
+          path: wifi-driver/lib
+          key: ac2100-wifi-driver-${{ env.OPENWRT }}-${{ hashFiles('scripts/ac2100/build-wifi-driver.sh', 'scripts/ac2100/mt76-patches/*.patch') }}
+
+      - name: Build the Wi-Fi driver
+        if: steps.wifi-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eu
+          base="https://downloads.openwrt.org/releases/$OPENWRT/targets/$TARGET"
+          sdk=$(grep -oE 'openwrt-sdk-[^ ]+\.Linux-x86_64\.tar\.zst$' sha256sums | head -n 1)
+          [ -n "$sdk" ] || { echo "::error::no SDK in the release's sha256sums"; exit 1; }
+          curl -fsSL -o "$sdk" "$base/$sdk"
+          grep " \*$sdk\$" sha256sums | sha256sum -c -
+          have=$(sha256sum "$sdk" | cut -d' ' -f1)
+          # pinned like the ImageBuilder above
+          case "$OPENWRT" in
+            25.12.6) pin=e4e3f25962ddf3ed55207fed456ecd1d6e55f3482c976b3183a640df6ef0adf0 ;;
+            *) pin= ;;
+          esac
+          if [ -n "$pin" ]; then
+            [ "$have" = "$pin" ] || { echo "::error::SDK sha256 is $have, expected $pin"; exit 1; }
+            echo "SDK archive matches the pinned hash"
+          else
+            echo "::notice::SDK $sdk sha256 $have (pin it in the workflow once reviewed)"
+          fi
+          mkdir sdk
+          tar --zstd -xf "$sdk" -C sdk --strip-components=1
+          rm "$sdk"
+          scripts/ac2100/build-wifi-driver.sh sdk wifi-driver || {
+            for l in wifi-driver/*.log; do echo "::group::end of $l"; tail -n 60 "$l"; echo "::endgroup::"; done
+            exit 1
+          }
+          rm -rf sdk
+
       - name: Assemble the MiWRT files
         run: |
           set -eu
@@ -108,6 +155,14 @@ jobs:
           fi
           scripts/ac2100/assemble-files.sh ib/files "$VER" "$TAG" "${{ github.run_id }}" "$OPENWRT"
           echo "VER=$VER" >> "$GITHUB_ENV"
+          # the 5 GHz driver built (or restored) above, at the place the packages put theirs
+          kver=$(ls wifi-driver/lib/modules | head -n 1)
+          [ -s "wifi-driver/lib/modules/$kver/mt7615-common.ko" ] && [ -s "wifi-driver/lib/modules/$kver/mt7615e.ko" ] ||
+            { echo "::error::the Wi-Fi driver modules are missing"; exit 1; }
+          mkdir -p "ib/files/lib/modules/$kver"
+          cp "wifi-driver/lib/modules/$kver/mt7615-common.ko" "wifi-driver/lib/modules/$kver/mt7615e.ko" "ib/files/lib/modules/$kver/"
+          chmod 644 "ib/files/lib/modules/$kver/"*.ko
+          (cd wifi-driver && sha256sum lib/modules/"$kver"/*.ko) | tee wifi-driver.sha256
           echo "--- /etc/miwrt-release"; cat ib/files/etc/miwrt-release
           echo "--- files"; (cd ib/files && find . -type f -o -type l | sort)
 
@@ -142,6 +197,18 @@ jobs:
           cd ib
           make image PROFILE="$PROFILE" PACKAGES="$pkgs" FILES="$PWD/files" 2>&1 | tee ../make-image.log | grep -vE '^\s*$' | tail -n 60
           test "${PIPESTATUS[0]}" = 0
+          # The root filesystem that went into the image has the 5 GHz driver
+          # built here, and it is for the same kernel as the modules beside it.
+          root=$(ls -d build_dir/target-*/root-* | head -n 1)
+          kver=$(ls ../wifi-driver/lib/modules | head -n 1)
+          [ -s "$root/lib/modules/$kver/mt76.ko" ] || { echo "::error::the image's kernel is not $kver, the Wi-Fi driver was built for another one"; exit 1; }
+          want=$(strings "$root/lib/modules/$kver/mt76.ko" | sed -n 's/^vermagic=//p' | head -n 1)
+          for m in mt7615-common.ko mt7615e.ko; do
+            cmp "$root/lib/modules/$kver/$m" "../wifi-driver/lib/modules/$kver/$m" || { echo "::error::$m in the image is not the one built here"; exit 1; }
+            have=$(strings "$root/lib/modules/$kver/$m" | sed -n 's/^vermagic=//p' | head -n 1)
+            [ -n "$want" ] && [ "$have" = "$want" ] || { echo "::error::$m is for '$have', the image's modules are for '$want'"; exit 1; }
+          done
+          echo "the image carries the Wi-Fi driver built here ($want)"
 
       - name: Collect the output under the device name
         run: |
@@ -167,6 +234,8 @@ jobs:
             echo "commit=${{ github.sha }}"
             echo "ref=${{ github.ref_name }}"
             echo "run=${{ github.run_id }}"
+            # the 5 GHz driver: mt76 of this release plus scripts/ac2100/mt76-patches
+            sed 's/^\([0-9a-f]*\)  *lib\/modules\/[^/]*\/\(.*\)$/wifi_driver_sha256_\2=\1/' wifi-driver.sha256
           } > out/ac2100-build-metadata.txt
           cat out/ac2100-build-metadata.txt
           # the checksum list names the files a release carries and nothing else

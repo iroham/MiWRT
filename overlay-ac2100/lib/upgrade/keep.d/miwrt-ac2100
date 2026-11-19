@@ -1,0 +1,3 @@
+# The switch for transmit beamforming on 5 GHz (see
+# docs/instruction/ac2100/3-recovery-and-problems-en.txt). An update keeps it.
+/etc/modules.d/mt7615-txbf

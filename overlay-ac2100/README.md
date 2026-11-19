@@ -15,5 +15,6 @@ Status: testing. The project has installed the image once, from the stock firmwa
 | `etc/uci-defaults/91-miwrt-wifi-defaults` | enables the Wi-Fi defaults service after an update |
 | `etc/init.d/miwrt-wifi-defaults`, `etc/rc.d/S99miwrt-wifi-defaults` | on a fresh install: both radios on, SSID `MiWRT`, the serial number as the password (letters and digits only: the label prints it with a slash, the password has none), 2.4 GHz on automatic channel choice between 1, 6 and 11, 5 GHz on channel 44 (same 80 MHz block as 36; Apple devices meet on 44 for AirDrop and Continuity and leave the network less often when it is there), country GB, no group-key renewal on 5 GHz |
 | `etc/sysupgrade.conf` | what an update keeps besides the defaults |
+| `lib/upgrade/keep.d/miwrt-ac2100` | an update also keeps `/etc/modules.d/mt7615-txbf`, the switch for transmit beamforming on 5 GHz |
 
 The release file `/etc/miwrt-release` (version, tag, device, tag prefix, the name of this router's checksum list in a release) is written by the assemble script, not kept here; the workflow adds `/etc/apk/keys/public-key.pem`, the MiWRT signing key, when the secret is available.
