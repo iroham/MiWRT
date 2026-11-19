@@ -15,6 +15,21 @@
 #   - without the marker, a network that has any encryption set was
 #     configured by someone (the generated config never has one) and is left
 #     as it is.
+#
+# A fresh install also gets, on its radios (radio_defaults below):
+#   - a country (GB) where none is set, and no periodic group key renewal on
+#     5 GHz networks. /etc/uci-defaults/95-be7000-country and
+#     97-miwrt-5g-group-rekey set the same, and say why; they do it for a
+#     router that kept its settings through an update. On a fresh install
+#     they run before the radios have started and find nothing to set.
+#   - 5 GHz on channel 44 where OpenWrt put it on 36. Both are in the same
+#     80 MHz block (36 to 48, at full power without radar checks everywhere),
+#     so range and width are the same. But 44 is one of the channels Apple
+#     devices meet on for AirDrop, AirPlay and Continuity: while one of those
+#     is active, a Mac or an iPhone leaves its network several times a second
+#     to listen there, and misses what the router sends meanwhile. With the
+#     network itself on 44 it does not have to leave.
+# A value that is already set stays.
 START=99
 
 MARK=/etc/.be7000_secure_defaults
@@ -30,6 +45,21 @@ default_key() {
 	[ -n "$sn" ] || sn="$(strings "/dev/$(grep '"bdata"' /proc/mtd | cut -d: -f1)ro" 2>/dev/null | sed -n 's/^SN=//p' | head -1 | tr -cd 'A-Za-z0-9')"
 	[ "${#sn}" -ge 8 ] && [ "${#sn}" -le 63 ] && { echo "$sn"; return 0; }
 	echo "$FALLBACK_KEY"
+}
+
+radio_defaults() {
+	local r s dev
+	for r in $(uci -q show wireless | sed -n "s/^wireless\.\([^.]*\)=wifi-device$/\1/p"); do
+		[ -n "$(uci -q get wireless.$r.country)" ] || uci -q set wireless.$r.country=GB
+		[ "$(uci -q get wireless.$r.band)" = 5g ] || continue
+		[ "$(uci -q get wireless.$r.channel)" = 36 ] && uci -q set wireless.$r.channel=44
+	done
+	for s in $(uci -q show wireless | sed -n "s/^wireless\.\([^.]*\)=wifi-iface$/\1/p"); do
+		dev="$(uci -q get wireless.$s.device)" || continue
+		[ "$(uci -q get wireless.$dev.band)" = 5g ] || continue
+		[ -n "$(uci -q get wireless.$s.wpa_group_rekey)" ] || uci -q set wireless.$s.wpa_group_rekey=0
+	done
+	return 0
 }
 
 configured() {
@@ -64,6 +94,8 @@ boot() {
 			done
 			uci commit wireless
 			if /usr/sbin/be7000-stock-import wifi-pending; then
+				radio_defaults
+				uci commit wireless
 				touch "$MARK"
 				wifi reload
 				exit 0
@@ -78,6 +110,7 @@ boot() {
 			uci -q set wireless.default_radio$r.encryption=psk2
 			uci -q set wireless.default_radio$r.key="$KEY"
 		done
+		radio_defaults
 		uci commit wireless
 		touch "$MARK"
 		if [ "$KEY" = "$FALLBACK_KEY" ]; then

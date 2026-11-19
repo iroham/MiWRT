@@ -122,11 +122,15 @@ A boot service (`be7000-board-data`) puts the Xiaomi files back if a package rei
 
 ### Radar channels and 160 MHz work out of the box
 
-OpenWrt only enables radar detection (DFS) when a country is set. Without one, channels 52-144 and every 160 MHz setting are silently unavailable. MiWRT sets a country on first boot for radios that have none (`GB` by default; change it under Network, Wireless).
+OpenWrt only enables radar detection (DFS) when a country is set. Without one, channels 52-144 and every 160 MHz setting are silently unavailable. MiWRT sets a country on first boot for radios that have none (`GB` by default; change it under Network, Wireless). On a fresh install the service that brings Wi-Fi up (`be7000-wifi-defaults`) sets it, once the radios have started.
+
+### 5 GHz starts on channel 44
+
+On a new install the 5 GHz network is on channel 44, not on OpenWrt's 36. Both are in the same 80 MHz block (36 to 48), so width, power and range are the same. But 44 is one of the channels Apple devices meet on for AirDrop, AirPlay and Continuity: while one of those is active, a Mac or an iPhone leaves its network several times a second to listen there and misses what the router sends meanwhile. With the network itself on 44 it does not have to leave. A router that is already set up keeps its channel; set 44 under Network, Wireless (at 160 MHz on channels 36 to 64 it is the same block too). The two-radio 5 GHz mode still starts its lower radio on 36.
 
 ### 5 GHz: no daily group key renewal
 
-hostapd renews the group (broadcast) key every 24 hours. On a test unit that renewal failed for every 5 GHz client, three days running at the same minute: all of them were disconnected at once ("group key handshake failed after 4 tries"), and one phone could not pass traffic again until the radio restarted. MiWRT sets `wpa_group_rekey 0` on 5 GHz networks on first boot (a value set by hand is kept). A restart of the radio still makes a fresh key.
+hostapd renews the group (broadcast) key every 24 hours. On a test unit that renewal failed for every 5 GHz client, three days running at the same minute: all of them were disconnected at once ("group key handshake failed after 4 tries"), and one phone could not pass traffic again until the radio restarted. MiWRT sets `wpa_group_rekey 0` on 5 GHz networks on first boot, on a fresh install once the radios have started (a value set by hand is kept). A restart of the radio still makes a fresh key.
 
 ### Split-mode fix
 
