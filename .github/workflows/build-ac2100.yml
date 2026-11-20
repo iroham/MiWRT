@@ -7,8 +7,10 @@ name: ac2100 image
 # scripts/ac2100/mt76-patches (transmit beamforming, off unless switched on),
 # with the official SDK of the same release. They replace the two files the
 # packages bring. About five minutes, fifteen more when the driver has to be
-# compiled. Separate from build.yml on purpose: nothing here touches the
-# BE7000 image.
+# compiled. The same SDK builds this router's MiWRT package feed from
+# miwrt-feed/ (scripts/ac2100/build-feed.sh: Xray for now), published on
+# GitHub Pages next to the BE7000 feeds. Separate from build.yml on purpose:
+# nothing here touches the BE7000 image.
 #
 # Every run builds, verifies and keeps the image as a workflow artifact. A
 # push of a v* tag, the same tag build.yml releases the BE7000 image for, also
@@ -28,11 +30,16 @@ on:
       release_tag:
         description: "Put the image into the release of this tag (vX.Y.Z); release and tag are created on the built commit if they do not exist. Empty: build only"
         default: ""
+      publish_feed:
+        description: "Publish this router's package feed on GitHub Pages (main only; a release always does)"
+        type: boolean
+        default: false
   push:
     branches: [ main ]
     paths:
       - "overlay-ac2100/**"
       - "scripts/ac2100/**"
+      - "miwrt-feed/miwrt-xray/**"
       - ".github/workflows/build-ac2100.yml"
     tags: [ "v*" ]
 
@@ -112,8 +119,19 @@ jobs:
           path: wifi-driver/lib
           key: ac2100-wifi-driver-${{ env.OPENWRT }}-${{ hashFiles('scripts/ac2100/build-wifi-driver.sh', 'scripts/ac2100/mt76-patches/*.patch') }}
 
-      - name: Build the Wi-Fi driver
-        if: steps.wifi-cache.outputs.cache-hit != 'true'
+      # The feed packages (see the top of this file) are kept the same way
+      # between runs that change nothing they are built from; a release
+      # builds them itself, and so does a run that publishes the feed.
+      - name: Feed packages from an earlier run
+        id: feed-cache
+        if: env.RELEASE_TAG == '' && !inputs.publish_feed
+        uses: actions/cache@v4
+        with:
+          path: ac2100-feed
+          key: ac2100-feed-${{ env.OPENWRT }}-${{ hashFiles('scripts/ac2100/build-feed.sh', 'miwrt-feed/miwrt-xray/**') }}
+
+      - name: Download and verify the SDK
+        if: steps.wifi-cache.outputs.cache-hit != 'true' || steps.feed-cache.outputs.cache-hit != 'true'
         run: |
           set -eu
           base="https://downloads.openwrt.org/releases/$OPENWRT/targets/$TARGET"
@@ -133,14 +151,20 @@ jobs:
           else
             echo "::notice::SDK $sdk sha256 $have (pin it in the workflow once reviewed)"
           fi
-          mkdir sdk
-          tar --zstd -xf "$sdk" -C sdk --strip-components=1
-          rm "$sdk"
-          scripts/ac2100/build-wifi-driver.sh sdk wifi-driver || {
+          # each build below unpacks its own copy: they set up feeds differently
+          mv "$sdk" sdk.tar.zst
+
+      - name: Build the Wi-Fi driver
+        if: steps.wifi-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eu
+          mkdir sdk-wifi
+          tar --zstd -xf sdk.tar.zst -C sdk-wifi --strip-components=1
+          scripts/ac2100/build-wifi-driver.sh sdk-wifi wifi-driver || {
             for l in wifi-driver/*.log; do echo "::group::end of $l"; tail -n 60 "$l"; echo "::endgroup::"; done
             exit 1
           }
-          rm -rf sdk
+          rm -rf sdk-wifi
 
       - name: Assemble the MiWRT files
         run: |
@@ -188,6 +212,39 @@ jobs:
           chmod 644 ib/files/etc/apk/keys/public-key.pem
           echo "public key sha256: $(sha256sum ib/files/etc/apk/keys/public-key.pem | cut -c1-16)"
           echo "SIGNED=1" >> "$GITHUB_ENV"
+
+      # This router's MiWRT package feed. Its index is signed with the key
+      # whose public half the image carries; a run without the key builds an
+      # unsigned feed, which is never published.
+      - name: Build the feed packages
+        if: steps.feed-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eu
+          mkdir sdk-feed
+          tar --zstd -xf sdk.tar.zst -C sdk-feed --strip-components=1
+          key=
+          [ "${SIGNED:-0}" = 1 ] && key="$RUNNER_TEMP/private-key.pem"
+          scripts/ac2100/build-feed.sh sdk-feed ac2100-feed $key || {
+            for l in ac2100-feed/*.log; do echo "::group::end of $l"; tail -n 60 "$l"; echo "::endgroup::"; done
+            exit 1
+          }
+          rm -rf sdk-feed
+          echo "$SIGNED" > ac2100-feed/signed
+
+      - name: Check the feed
+        run: |
+          set -eu
+          rm -f sdk.tar.zst
+          # the image lists the feed under this architecture and release
+          arch=$(cat ac2100-feed/arch)
+          [ "$arch" = mipsel_24kc ] || { echo "::error::feed built for $arch, the image lists mipsel_24kc"; exit 1; }
+          grep -qx "https://iroham.github.io/MiWRT/feed/ac2100/$OPENWRT/$arch/miwrt/packages.adb" ib/files/etc/apk/repositories.d/miwrt.list ||
+            { echo "::error::the image's miwrt.list does not name this feed"; cat ib/files/etc/apk/repositories.d/miwrt.list; exit 1; }
+          [ -s ac2100-feed/miwrt/packages.adb ] || { echo "::error::no index"; exit 1; }
+          # a feed from the cache must have been signed if this run signs
+          [ "${SIGNED:-0}" = 0 ] || [ "$(cat ac2100-feed/signed)" = 1 ] || { echo "::error::the feed packages are unsigned"; exit 1; }
+          ls -la ac2100-feed/miwrt
+          (cd ac2100-feed/miwrt && sha256sum *.apk packages.adb)
 
       - name: Build the image
         run: |
@@ -250,7 +307,10 @@ jobs:
           ls -la out
 
       - name: Verify the image
-        run: scripts/ac2100/verify-image.sh out
+        run: |
+          scripts/ac2100/verify-image.sh out
+          # the feed travels with the artifact for tests; a release publishes it on Pages
+          mkdir -p out/feed && cp ac2100-feed/miwrt/* out/feed/
 
       - name: What is in the image
         run: |
@@ -297,6 +357,35 @@ jobs:
           rm -r out/zip
           echo "ZIP=$ZIP" >> "$GITHUB_ENV"
           sha256sum "out/$ZIP"
+
+      # The feed goes up before the release, so an image never names a feed
+      # that is not there yet. Directory: feed/ac2100/<OpenWrt release>/<arch>/miwrt,
+      # beside the BE7000's feed/<base>/aarch64_cortex-a73 (no overlap).
+      - name: Publish the feed on GitHub Pages
+        if: env.RELEASE_TAG != '' || (inputs.publish_feed && github.ref == 'refs/heads/main')
+        run: |
+          set -eu
+          [ "${SIGNED:-0}" = 1 ] && [ "$(cat ac2100-feed/signed)" = 1 ] || { echo "::error::the feed is published signed only"; exit 1; }
+          arch=$(cat ac2100-feed/arch)
+          dir="feed/ac2100/$OPENWRT/$arch/miwrt"
+          git clone --filter=blob:none --no-checkout --depth 1 --branch gh-pages \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" feedpages
+          cd feedpages
+          git sparse-checkout set --no-cone /feed/ac2100/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            git fetch -q --filter=blob:none --depth 1 origin gh-pages
+            git checkout -q -B gh-pages FETCH_HEAD
+            mkdir -p "$dir"
+            rsync -a --delete ../ac2100-feed/miwrt/ "$dir/"
+            git add -A feed/ac2100
+            git diff --cached --quiet && { echo "feed unchanged"; exit 0; }
+            git commit -q -m "feed: Redmi AC2100 packages, OpenWrt $OPENWRT (${RELEASE_TAG:-${{ github.ref_name }}})"
+            git push -q origin gh-pages && exit 0
+            sleep $((i * 10))
+          done
+          exit 1
 
       # One release per tag holds the files of both routers. It is made by
       # whichever build gets there first, this one or build.yml, with the same

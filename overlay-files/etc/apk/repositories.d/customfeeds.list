@@ -12,6 +12,7 @@ https://iroham.github.io/MiWRT/feed/aarch64_cortex-a73/byedpi/packages.adb
 https://iroham.github.io/MiWRT/feed/aarch64_cortex-a73/netshift/packages.adb
 https://iroham.github.io/MiWRT/feed/aarch64_cortex-a73/zapret/packages.adb
 https://iroham.github.io/MiWRT/feed/aarch64_cortex-a73/zapret2/packages.adb
+https://iroham.github.io/MiWRT/feed/aarch64_cortex-a73/miwrt/packages.adb
 
 # Kernel modules built against the kernel this firmware ships. The mirror's
 # own target feed is built against a newer kernel and cannot satisfy the

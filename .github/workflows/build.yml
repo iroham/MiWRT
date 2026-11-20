@@ -33,6 +33,10 @@ on:
         description: "Build and publish a release under this tag (v2.0.1 or debug-...); the tag is created on the built commit if it does not exist. Empty: as before"
         type: string
         default: ""
+      test_packages:
+        description: "With warm only: also build these feed packages (space-separated) and keep them as a workflow artifact, to try them on a router"
+        type: string
+        default: ""
   push:
     tags: ["v*", "debug-*"]
 
@@ -261,7 +265,16 @@ jobs:
           case "$REL_TAG:${{ inputs.warm }}" in
             debug-*|*:true)
               sed -i '/^CONFIG_PACKAGE_kmod-/!s/^\(CONFIG_PACKAGE_[^=]*\)=m$/# \1 is not set/' .config
+              # a warm run can still build a few packages to test
+              for p in ${{ inputs.warm && inputs.test_packages || '' }}; do
+                case "$p" in *[!A-Za-z0-9._+-]*) echo "::error::bad package name '$p'"; exit 1 ;; esac
+                sed -i "/^# CONFIG_PACKAGE_$p is not set\$/d; /^CONFIG_PACKAGE_$p=/d" .config
+                echo "CONFIG_PACKAGE_$p=m" >> .config
+              done
               make defconfig
+              for p in ${{ inputs.warm && inputs.test_packages || '' }}; do
+                grep -q "^CONFIG_PACKAGE_$p=m" .config || { echo "::error::test package $p did not survive defconfig"; exit 1; }
+              done
               ;;
           esac
           echo "packages as modules: $(grep -c '=m$' .config)"
@@ -363,13 +376,34 @@ jobs:
           # the parts that are newer than the OpenWrt base (patches/tree/019 to 024, patches/feeds)
           grep -E '^(uhttpd|uhttpd-mod-ubus|libubox[0-9]*|libubus[0-9]*|ubusd|rpcd|curl|libcurl[0-9]*|px5g-mbedtls|ca-bundle|libc) ' "bin/targets/$TARGET/$DEVICE.manifest"
 
+      - name: Keep the test packages
+        if: inputs.warm && inputs.test_packages != ''
+        run: |
+          set -eu
+          mkdir -p test-packages
+          for p in ${{ inputs.test_packages }}; do
+            f=$(find owrt/bin/packages/$ARCH -name "$p-[0-9]*.apk" | head -n 1)
+            [ -n "$f" ] || { echo "::error::$p was not built"; exit 1; }
+            cp "$f" test-packages/
+          done
+          ls -la test-packages
+          (cd test-packages && sha256sum *.apk)
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.warm && inputs.test_packages != ''
+        with:
+          name: be7000-test-packages-${{ github.run_id }}
+          path: test-packages/
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Publish the feed
         if: "!startsWith(env.REL_TAG, 'debug-') && !inputs.warm"
         run: |
           git clone --branch gh-pages --single-branch \
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" pages
           cd pages
-          for d in awg awgproto base byedpi luci netshift packages zapret zapret2; do
+          for d in awg awgproto base byedpi luci miwrt netshift packages zapret zapret2; do
             [ -d "../owrt/bin/packages/$ARCH/$d" ] || continue
             mkdir -p "feed/$FEED_BASE/$ARCH/$d"
             rsync -a --delete "../owrt/bin/packages/$ARCH/$d/" "feed/$FEED_BASE/$ARCH/$d/"

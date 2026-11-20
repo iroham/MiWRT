@@ -1,0 +1,243 @@
+From: MiWRT
+Subject: tls: Chromium fingerprints order ChaCha20 first without AES instructions
+
+Chrome's TLS library (BoringSSL) offers ChaCha20-Poly1305 ahead of AES-GCM
+when the processor has no AES instructions. uTLS's Chromium fingerprints are
+taken on machines that have them, so they always put AES-GCM first, and on a
+router without AES instructions the server (with REALITY: the target site)
+then picks AES-GCM. Go has no fast AES-GCM there: on a Redmi AC2100 (MT7621)
+the client spent about 80% of its time in software AES and one download
+through VLESS + REALITY ran at about 8 Mbit/s; with ChaCha20 offered first,
+as Chrome itself does on such a processor, it ran at 18 to 22 Mbit/s.
+
+NewUClient builds the hello of a Chromium-family fingerprint with that order
+when Go has no AES-GCM fast path on the processor (the same test crypto/tls
+makes); XRAY_TLS_CHACHA_FIRST=1 or 0 forces it on or off. Every TLS and
+REALITY client goes through it. Other browsers and randomized fingerprints
+are left as they are.
+
+diff --git a/transport/internet/reality/reality.go b/transport/internet/reality/reality.go
+index 4431a17..a8fd58e 100644
+--- a/transport/internet/reality/reality.go
++++ b/transport/internet/reality/reality.go
+@@ -159,7 +159,7 @@ func UClient(c net.Conn, config *Config, ctx context.Context, dest net.Destinati
+ 	if fingerprint == nil {
+ 		return nil, errors.New("REALITY: failed to get fingerprint")
+ 	}
+-	uConn.UConn = utls.UClient(c, utlsConfig, *fingerprint)
++	uConn.UConn = tls.NewUClient(c, utlsConfig, *fingerprint)
+ 	{
+ 		uConn.BuildHandshakeState()
+ 		hello := uConn.HandshakeState.Hello
+diff --git a/transport/internet/tls/chacha.go b/transport/internet/tls/chacha.go
+new file mode 100644
+index 0000000..f8d78ec
+--- /dev/null
++++ b/transport/internet/tls/chacha.go
+@@ -0,0 +1,125 @@
++package tls
++
++import (
++	"os"
++	"runtime"
++	"slices"
++
++	utls "github.com/refraction-networking/utls"
++	"github.com/xtls/xray-core/common/net"
++	"golang.org/x/sys/cpu"
++)
++
++// Chrome's TLS library (BoringSSL) offers ChaCha20-Poly1305 ahead of AES-GCM
++// when the processor has no AES instructions: TLS 1.3 suites as ChaCha20,
++// AES-128, AES-256, and the TLS 1.2 ChaCha20 suites ahead of the AES-GCM ones.
++// uTLS's Chromium fingerprints are taken on machines with AES instructions, so
++// they always put AES-GCM first. On a client without them (MIPS and 32-bit ARM
++// routers) the server then picks AES-GCM, and with REALITY the cipher is the
++// one the target site picks for that hello. Go has no fast AES-GCM on those
++// processors: the client spends most of its time there, at a quarter of the
++// speed it gets with ChaCha20.
++//
++// ChaChaFirst makes the Chromium fingerprints order their suites the way
++// Chrome itself does on such a processor. The environment variable
++// XRAY_TLS_CHACHA_FIRST sets it: "1" always, "0" never; unset, it is on when
++// Go has no AES-GCM fast path on this processor.
++var ChaChaFirst = chachaFirstDefault()
++
++func chachaFirstDefault() bool {
++	switch os.Getenv("XRAY_TLS_CHACHA_FIRST") {
++	case "1", "true":
++		return true
++	case "0", "false":
++		return false
++	}
++	return !hasAESGCMHardware()
++}
++
++// hasAESGCMHardware is the test Go's own crypto/tls makes before it prefers
++// AES-GCM: the processors for which Go carries an AES-GCM assembly path.
++func hasAESGCMHardware() bool {
++	switch runtime.GOARCH {
++	case "amd64":
++		return cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
++	case "arm64":
++		return cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
++	case "s390x":
++		return cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
++	case "ppc64", "ppc64le":
++		return true
++	}
++	return false
++}
++
++// chromiumFamily are the uTLS fingerprints of browsers built on BoringSSL.
++// Other browsers keep the order of their fingerprint.
++func chromiumFamily(id utls.ClientHelloID) bool {
++	switch id.Client {
++	case "Chrome", "Edge", "Android", "360Browser", "QQBrowser":
++		return true
++	}
++	return false
++}
++
++// NewUClient is utls.UClient that applies ChaChaFirst. A fingerprint without
++// a fixed spec (the randomized ones) or outside the Chromium family is used
++// as it is.
++func NewUClient(c net.Conn, config *utls.Config, id utls.ClientHelloID) *utls.UConn {
++	if ChaChaFirst && chromiumFamily(id) {
++		if spec, err := utls.UTLSIdToSpec(id); err == nil && reorderChaChaFirst(spec.CipherSuites) {
++			// A spec is applied through HelloCustom. uTLS gives every other
++			// fingerprint this resumption setting, so set it the same way.
++			config.PreferSkipResumptionOnNilExtension = true
++			uConn := utls.UClient(c, config, utls.HelloCustom)
++			if uConn.ApplyPreset(&spec) == nil {
++				return uConn
++			}
++		}
++	}
++	return utls.UClient(c, config, id)
++}
++
++// reorderChaChaFirst puts the ChaCha20 suites of cs ahead of the AES-GCM
++// suites of the same TLS version, as BoringSSL does without AES instructions,
++// and reports whether cs changed.
++func reorderChaChaFirst(cs []uint16) bool {
++	tls13 := moveAhead(cs,
++		[]uint16{utls.TLS_CHACHA20_POLY1305_SHA256},
++		[]uint16{utls.TLS_AES_128_GCM_SHA256, utls.TLS_AES_256_GCM_SHA384})
++	tls12 := moveAhead(cs,
++		[]uint16{utls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, utls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256},
++		[]uint16{utls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, utls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++			utls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, utls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384})
++	return tls13 || tls12
++}
++
++// moveAhead moves the suites of cs that are in first, keeping their order,
++// to the place of the earliest suite of cs that is in after.
++func moveAhead(cs, first, after []uint16) bool {
++	at := slices.IndexFunc(cs, func(s uint16) bool { return slices.Contains(after, s) })
++	if at < 0 {
++		return false
++	}
++	var moved []uint16
++	for _, s := range cs {
++		if slices.Contains(first, s) {
++			moved = append(moved, s)
++		}
++	}
++	if len(moved) == 0 {
++		return false
++	}
++	out := make([]uint16, 0, len(cs))
++	for i, s := range cs {
++		if i == at {
++			out = append(out, moved...)
++		}
++		if !slices.Contains(first, s) {
++			out = append(out, s)
++		}
++	}
++	changed := !slices.Equal(out, cs)
++	copy(cs, out)
++	return changed
++}
+diff --git a/transport/internet/tls/chacha_test.go b/transport/internet/tls/chacha_test.go
+new file mode 100644
+index 0000000..859edf7
+--- /dev/null
++++ b/transport/internet/tls/chacha_test.go
+@@ -0,0 +1,62 @@
++package tls
++
++import (
++	"slices"
++	"testing"
++
++	utls "github.com/refraction-networking/utls"
++)
++
++func TestReorderChaChaFirst(t *testing.T) {
++	// Chrome's suites on a processor with AES instructions (GREASE first)
++	cs := []uint16{0x0a0a, 0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f, 0xc02c, 0xc030, 0xcca9, 0xcca8, 0xc013, 0xc014, 0x009c, 0x009d, 0x002f, 0x0035}
++	// and on one without: what BoringSSL sends there
++	want := []uint16{0x0a0a, 0x1303, 0x1301, 0x1302, 0xcca9, 0xcca8, 0xc02b, 0xc02f, 0xc02c, 0xc030, 0xc013, 0xc014, 0x009c, 0x009d, 0x002f, 0x0035}
++	if !reorderChaChaFirst(cs) {
++		t.Fatal("reported no change")
++	}
++	if !slices.Equal(cs, want) {
++		t.Fatalf("got %04x, want %04x", cs, want)
++	}
++	if reorderChaChaFirst(cs) {
++		t.Fatal("a second pass changed the order again")
++	}
++	noChaCha := []uint16{0x1301, 0x1302, 0xc02b}
++	if reorderChaChaFirst(noChaCha) || !slices.Equal(noChaCha, []uint16{0x1301, 0x1302, 0xc02b}) {
++		t.Fatal("a list without ChaCha20 changed")
++	}
++}
++
++func TestNewUClientChaChaFirst(t *testing.T) {
++	saved := ChaChaFirst
++	defer func() { ChaChaFirst = saved }()
++
++	for _, on := range []bool{false, true} {
++		ChaChaFirst = on
++		u := NewUClient(nil, &utls.Config{ServerName: "example.com"}, utls.HelloChrome_Auto)
++		if err := u.BuildHandshakeState(); err != nil {
++			t.Fatal(err)
++		}
++		var tls13 []uint16
++		for _, s := range u.HandshakeState.Hello.CipherSuites {
++			if s>>8 == 0x13 {
++				tls13 = append(tls13, s)
++			}
++		}
++		first := uint16(utls.TLS_AES_128_GCM_SHA256)
++		if on {
++			first = utls.TLS_CHACHA20_POLY1305_SHA256
++		}
++		if len(tls13) == 0 || tls13[0] != first {
++			t.Fatalf("ChaChaFirst %v: TLS 1.3 suites %04x", on, tls13)
++		}
++	}
++
++	// other browsers and randomized hellos keep their own order
++	ChaChaFirst = true
++	for _, id := range []utls.ClientHelloID{utls.HelloFirefox_Auto, utls.HelloSafari_Auto, utls.HelloRandomized} {
++		if u := NewUClient(nil, &utls.Config{ServerName: "example.com"}, id); u.ClientHelloID != id {
++			t.Fatalf("%s %s was replaced", id.Client, id.Version)
++		}
++	}
++}
+diff --git a/transport/internet/tls/tls.go b/transport/internet/tls/tls.go
+index 07c214b..8b157ab 100644
+--- a/transport/internet/tls/tls.go
++++ b/transport/internet/tls/tls.go
+@@ -173,7 +173,7 @@ func (c *UConn) ConnectionState() tls.ConnectionState {
+ }
+ 
+ func UClient(c net.Conn, config *tls.Config, fingerprint *utls.ClientHelloID) net.Conn {
+-	utlsConn := utls.UClient(c, copyConfig(config), *fingerprint)
++	utlsConn := NewUClient(c, copyConfig(config), *fingerprint)
+ 	return &UConn{UConn: utlsConn}
+ }
+ 

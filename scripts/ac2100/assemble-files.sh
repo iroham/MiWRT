@@ -128,6 +128,13 @@ mkdir -p "$OUT/etc"
 	echo "BASE=OpenWrt $OPENWRT"
 } > "$OUT/etc/miwrt-release"
 
+# --- the MiWRT package feed of this router (scripts/ac2100/build-feed.sh), next
+#     to OpenWrt's own; its index is signed with the key the workflow adds as
+#     etc/apk/keys/public-key.pem. Every feed listed has to exist: "apk update"
+#     fails as a whole when one of them answers 404 ---
+mkdir -p "$OUT/etc/apk/repositories.d"
+echo "https://iroham.github.io/MiWRT/feed/ac2100/$OPENWRT/mipsel_24kc/miwrt/packages.adb" > "$OUT/etc/apk/repositories.d/miwrt.list"
+
 # the shared scripts expect to be executable and the app's state directory to be private
 chmod 755 "$OUT"/etc/init.d/* "$OUT"/etc/uci-defaults/* "$OUT"/usr/sbin/* "$OUT"/www/cgi-bin/miwrt "$OUT"/usr/libexec/be7000-* "$OUT"/usr/libexec/miwrt-setup-apply "$OUT"/etc/apk/commit_hooks.d/*
 chmod 700 "$OUT/etc/miwrt"
