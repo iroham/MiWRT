@@ -42,6 +42,10 @@ GO_PKG_TAGS:=ts_include_cli,ts_omit_ace,ts_omit_acme,ts_omit_appconnectors,ts_om
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
 
+# the source's top directory is tailscale-<version>, not the build directory's name: unpacked
+# straight into the build directory instead
+TAR_CMD=$(HOST_TAR) -C $(1) --strip-components=1 $(TAR_OPTIONS)
+
 define Package/miwrt-tailscale
   SECTION:=net
   CATEGORY:=Network
