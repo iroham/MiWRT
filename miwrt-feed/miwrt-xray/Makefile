@@ -52,10 +52,12 @@ define Package/miwrt-xray
   CONFLICTS:=xray-core miwrt-xray-xz
 endef
 
+# xz-utils is named as well: the xz package needs that group package switched
+# on but does not select it itself
 define Package/miwrt-xray-xz
   $(call Package/miwrt-xray/template)
   TITLE:=Xray-core proxy platform (compressed on flash)
-  DEPENDS:=$(GO_ARCH_DEPENDS) +ca-bundle +xz
+  DEPENDS:=$(GO_ARCH_DEPENDS) +ca-bundle +xz-utils +xz
   CONFLICTS:=xray-core miwrt-xray
 endef
 
