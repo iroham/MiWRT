@@ -352,6 +352,13 @@ jobs:
           cd owrt
           img=bin/targets/$TARGET/$DEVICE-squashfs-factory.ubi
           ls -la "$img" bin/targets/$TARGET/$DEVICE-squashfs-sysupgrade.bin
+          # The firmware slot has 296 blocks of 124 KiB for the kernel, the
+          # system and the in-slot settings volume; the image is those two
+          # plus two blocks of volume table. patches/tree/025 makes the build
+          # drop an image that leaves the settings volume under 25 blocks,
+          # so a missing file above is an image that grew too large.
+          pebs=$(( $(stat -c%s "$img") / 131072 ))
+          echo "image: $pebs flash blocks of 128 KiB, $(( 296 - pebs + 2 )) blocks left in the slot for the settings volume"
           test -L build_dir/target-*/root-qualcommbe/etc/rc.d/S99be7000-bootconfirm
           # the parts that are newer than the OpenWrt base (patches/tree/019 to 024, patches/feeds)
           grep -E '^(uhttpd|uhttpd-mod-ubus|libubox[0-9]*|libubus[0-9]*|ubusd|rpcd|curl|libcurl[0-9]*|px5g-mbedtls|ca-bundle|libc) ' "bin/targets/$TARGET/$DEVICE.manifest"
