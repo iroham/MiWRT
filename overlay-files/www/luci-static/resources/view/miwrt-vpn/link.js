@@ -62,16 +62,16 @@ return view.extend({
 			return nodes;
 		}
 		nodes.push(E('div', { 'class': 'mv-big' }, [ E('span', { 'class': 'mv-dot ' + (h.ok ? 'good' : 'bad') }), h.ok ? _('Связь есть') : _('Связи нет') ]));
-		if (h.ok && h.exit_ip) nodes.push(E('div', { 'class': 'mv-text' }, _('Сайты видят адрес %s%s.').format(h.exit_ip, h.country ? ' (' + mv.country(h.country) + ')' : '')));
-		if (h.ok && h.ms != null) nodes.push(E('div', { 'class': 'mv-note' }, _('Ответ за %d мс, проверено %s.').format(h.ms, mv.ago(h.time))));
-		if (!h.ok) nodes.push(E('div', { 'class': 'mv-err' }, h.error || _('Другой роутер не отвечает.')));
+		if (h.ok && h.exit_ip) nodes.push(E('div', { 'class': 'mv-text' }, mv.T(_('Сайты видят адрес %s%s.').format(h.exit_ip, h.country ? ' (' + mv.country(h.country) + ')' : ''))));
+		if (h.ok && h.ms != null) nodes.push(E('div', { 'class': 'mv-note' }, mv.T(_('Ответ за %d мс, проверено %s.').format(h.ms, mv.ago(h.time)))));
+		if (!h.ok) nodes.push(E('div', { 'class': 'mv-err' }, mv.T(h.error || _('Другой роутер не отвечает.'))));
 		return nodes;
 	},
 
 	createCard: function(st) {
 		var self = this;
 		var meet = E('select', { 'class': 'cbi-input-select' }, [
-			E('option', { 'value': 'self', 'disabled': st.wan_public ? null : '' }, st.wan_public ? _('Этот роутер (%s)').format(st.wan_address) : _('Этот роутер (нет публичного адреса)')),
+			E('option', { 'value': 'self', 'disabled': st.wan_public ? null : '' }, mv.T(st.wan_public ? _('Этот роутер (%s)').format(st.wan_address) : _('Этот роутер (нет публичного адреса)'))),
 			E('option', { 'value': 'relay', 'selected': st.wan_public ? null : '' }, _('Арендованный сервер'))
 		]);
 		var host = E('input', { 'type': 'text', 'class': 'cbi-input-text', 'placeholder': st.wan_public ? st.wan_address : 'relay.example.net' });
@@ -84,7 +84,7 @@ return view.extend({
 		meet.addEventListener('change', sync);
 		sync();
 		var port = E('input', { 'type': 'number', 'class': 'cbi-input-text', 'value': '443', 'min': '1', 'max': '65535', 'style': 'width:110px' });
-		var target = E('select', { 'class': 'cbi-input-select' }, (st.targets || []).map(function(t) { return E('option', { 'value': t }, t); }));
+		var target = E('select', { 'class': 'cbi-input-select' }, (st.targets || []).map(function(t) { return E('option', { 'value': t }, mv.T(t)); }));
 		var share = E('input', { 'type': 'checkbox' });
 		var name = E('input', { 'type': 'text', 'class': 'cbi-input-text', 'value': _('Роутер за границей') });
 		return mv.card('', [
@@ -129,7 +129,7 @@ return view.extend({
 		return mv.card('', [
 			E('h4', {}, _('Домашние сети')),
 			mv.check(cb, _('Открыть второму роутеру эту домашнюю сеть'), (l.lans || []).length ? _('Сеть этого дома: %s').format(l.lans.join(', ')) : ''),
-			(l.peer_lans || []).length ? E('div', { 'class': 'mv-text' }, _('Отсюда доступна сеть второго дома: %s').format(l.peer_lans.join(', '))) : ''
+			(l.peer_lans || []).length ? E('div', { 'class': 'mv-text' }, mv.T(_('Отсюда доступна сеть второго дома: %s').format(l.peer_lans.join(', ')))) : ''
 		]);
 	},
 
@@ -153,27 +153,28 @@ return view.extend({
 				E('h3', {}, _('Код для второго роутера')),
 				E('div', { 'class': 'mv-text' }, _('Вставьте этот код на втором роутере: Связь роутеров, «Этот роутер подключается ко второму». Код открывает доступ к вашему интернету, передавайте его только тому, кому доверяете.')),
 				mv.codeBox(l.code),
-				E('div', { 'class': 'mv-note' }, _('Место встречи: %s:%d.').format(l.address, l.port) + (l.meet == 'self' ? ' ' + _('Порт открыт из интернета правилом «MiWRT router link».') : ''))
+				E('div', { 'class': 'mv-note' }, mv.T(_('Место встречи: %s:%d.').format(l.address, l.port) + (l.meet == 'self' ? ' ' + _('Порт открыт из интернета правилом «MiWRT router link».') : '')))
 			])
 		];
 		if (l.meet == 'relay') out.push(this.relayCard(l));
-		if (!(l.peer_lans || []).length)
-			out.push(mv.card('', [
-				E('h4', {}, _('Ответный код')),
-				E('div', { 'class': 'mv-text' }, _('Если второй роутер открыл свою домашнюю сеть, он показывает ответный код. Вставьте его сюда, чтобы устройства этого дома видели его сеть.')),
-				answer,
-				E('div', { 'class': 'mv-act' }, [ mv.button(_('Применить'), function() {
-					return mv.act(mv.callLink({ action: 'answer', code: answer.value })).then(L.bind(self.refresh, self));
-				}, 'primary') ])
-			]));
+		out.push(mv.card('', [
+			E('h4', {}, _('Ответный код')),
+			E('div', { 'class': 'mv-text' }, (l.peer_lans || []).length
+				? _('Если сеть второго дома изменилась, вставьте его новый ответный код.')
+				: _('Если второй роутер открыл свою домашнюю сеть, он показывает ответный код. Вставьте его сюда, чтобы устройства этого дома видели его сеть.')),
+			answer,
+			E('div', { 'class': 'mv-act' }, [ mv.button(_('Применить'), function() {
+				return mv.act(mv.callLink({ action: 'answer', code: answer.value })).then(L.bind(self.refresh, self));
+			}, 'primary') ])
+		]));
 		out.push(this.shareCard(l), this.removeCard());
 		return out;
 	},
 
 	relayCard: function(l) {
 		var box = E('div', {}, E('div', { 'class': 'mv-note' }, _('Загрузка…')));
-		mv.callRelay().then(function(r) {
-			if (!r || r.error) { dom.content(box, E('div', { 'class': 'mv-err' }, (r && r.error) || _('Не удалось получить настройки.'))); return; }
+		L.resolveDefault(mv.callRelay(), null).then(function(r) {
+			if (!r || r.error) { dom.content(box, E('div', { 'class': 'mv-err' }, mv.T((r && r.error) || _('Не удалось получить настройки.')))); return; }
 			var cfg = JSON.stringify(r.config, null, 2);
 			var cmd = 'docker run -d --name miwrt-relay --restart unless-stopped -p ' + l.port + ':' + l.port +
 				' -v "$PWD/config.json:/etc/xray/config.json:ro" ' + r.image + ' run -c /etc/xray/config.json';
@@ -182,7 +183,7 @@ return view.extend({
 				mv.codeBox(cfg),
 				E('div', { 'class': 'mv-text' }, _('2. Запустите Xray в Docker из той же папки:')),
 				mv.codeBox(cmd),
-				E('div', { 'class': 'mv-note' }, _('Порт %d на сервере должен быть открыт. В настройках есть ключи связи: храните файл так же бережно, как пароль.').format(l.port))
+				E('div', { 'class': 'mv-note' }, mv.T(_('Порт %d на сервере должен быть открыт. В настройках есть ключи связи: храните файл так же бережно, как пароль.').format(l.port)))
 			]);
 		});
 		return mv.card('', [ E('h3', {}, _('Сервер для встречи')), box ]);
@@ -197,7 +198,7 @@ return view.extend({
 		var out = [
 			E('div', { 'class': 'mv-card', 'id': 'mv-health' }, this.health(l)),
 			mv.card('', [
-				E('h3', {}, _('Интернет через %s').format(l.peer_name || _('второй роутер'))),
+				E('h3', {}, mv.T(_('Интернет через %s').format(l.peer_name || _('второй роутер')))),
 				mv.check(inet, _('Пользоваться интернетом второго роутера'), _('Тогда он появится среди серверов на странице VPN (Xray) как «%s». Выберите его там и включите VPN.').format(l.peer_name || '')),
 				l.internet ? E('div', { 'class': 'mv-act' }, [ mv.button(_('Выбрать и включить VPN'), function() {
 					return mv.act(mv.callSet({ server: 'link', enabled: true })).then(function(ok) {
@@ -212,6 +213,15 @@ return view.extend({
 				E('div', { 'class': 'mv-text' }, _('Вставьте его на роутере за границей, чтобы его устройства видели сеть этого дома.')),
 				mv.codeBox(l.answer)
 			]));
+		var code = E('textarea', { 'placeholder': 'miwrt-link:…' });
+		out.push(mv.card('', [
+			E('h4', {}, _('Новый код связи')),
+			E('div', { 'class': 'mv-text' }, _('Если на роутере за границей изменили связь (например, открыли его домашнюю сеть), он показывает новый код. Вставьте его сюда: связь сохранится.')),
+			code,
+			E('div', { 'class': 'mv-act' }, [ mv.button(_('Обновить'), function() {
+				return mv.act(mv.callLink({ action: 'join', code: code.value })).then(L.bind(self.refresh, self));
+			}) ])
+		]));
 		out.push(this.shareCard(l), this.removeCard());
 		return out;
 	},

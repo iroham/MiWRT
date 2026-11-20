@@ -24,16 +24,21 @@ return view.extend({
 		});
 	},
 
-	// while something runs in the background the page follows it
+	// an install, a removal, a test, a check or a subscription download changes what the page shows:
+	// it is drawn again when one ends. Otherwise only the status box and the job box follow the
+	// router, so nothing being typed is lost.
+	jobBusy: function(st) {
+		return !!((st.engine && st.engine.job && st.engine.job.state == 'running') || (st.tests && st.tests.running)
+			|| st.subs_updating || (st.status && st.status.checking));
+	},
+
 	tick: function() {
-		var self = this, st = this.st || {};
-		var busy = (st.engine && st.engine.job && st.engine.job.state == 'running') || (st.tests && st.tests.running) ||
-			(st.status && st.status.state == 'starting');
+		var self = this, was = this.jobBusy(this.st || {});
 		return L.resolveDefault(mv.callState(false), null).then(function(n) {
-			if (!n) return;
-			var was = busy, now = (n.engine && n.engine.job && n.engine.job.state == 'running') || (n.tests && n.tests.running);
+			if (!n || !n.engine) return;
+			var installedBefore = !!(self.st && self.st.engine && self.st.engine.installed);
 			self.st = n;
-			if (was && !now) return self.refresh();
+			if ((was && !self.jobBusy(n)) || installedBefore != !!n.engine.installed) return self.refresh();
 			var box = document.getElementById('mv-status');
 			if (box && n.engine && n.engine.installed) {
 				box.className = 'mv-card' + (n.status.state == 'connected' ? ' on' : '');
@@ -59,7 +64,7 @@ return view.extend({
 	build: function() {
 		var st = this.st || {};
 		if (!st.engine) return [ E('p', {}, _('Не удалось получить состояние VPN.')) ];
-		if (!st.engine.installed || (st.engine.job && st.engine.job.state == 'running' && st.engine.job.step != 'remove'))
+		if (!st.engine.installed || (st.engine.job && st.engine.job.state == 'running'))
 			return [ E('div', { 'id': 'mv-job' }, this.installCard(st)) ];
 		return [
 			E('div', { 'class': 'mv-card' + (st.status.state == 'connected' ? ' on' : ''), 'id': 'mv-status' }, this.statusInner(st)),
@@ -73,9 +78,11 @@ return view.extend({
 	installCard: function(st) {
 		var e = st.engine, job = e.job;
 		var steps = [ [ 'download', _('Загрузка списка пакетов') ], [ 'install', _('Установка Xray') ], [ 'check', _('Проверка') ] ];
+		if (job && job.state == 'running' && job.step == 'remove')
+			return mv.card('', [ E('h3', {}, _('Удаляется Xray')), E('div', { 'class': 'mv-note' }, _('VPN и связь роутеров выключаются. Это занимает несколько секунд.')) ]);
 		if (job && job.state == 'running')
 			return mv.card('', [ E('h3', {}, _('Устанавливается Xray')), mv.jobView(job, steps), E('div', { 'class': 'mv-note' }, _('Обычно это занимает меньше минуты.')) ]);
-		var failed = job && job.state == 'failed' && job.age < 3600 ? E('div', { 'class': 'mv-err' }, job.error || _('Установка не удалась.')) : '';
+		var failed = job && job.state == 'failed' && job.step != 'remove' && job.age < 3600 ? E('div', { 'class': 'mv-err' }, mv.T(job.error || _('Установка не удалась.'))) : '';
 		return mv.card('', [
 			E('h3', {}, _('Xray не установлен')),
 			E('div', { 'class': 'mv-text' }, _('Xray работает с протоколами VLESS (в том числе REALITY), VMess, Trojan, Shadowsocks и Hysteria2. Программа ставится из пакетов MiWRT и обновляется без обновления прошивки.')),
@@ -100,25 +107,28 @@ return view.extend({
 		var title = { connected: _('Подключено'), starting: _('Подключение…'), failing: _('Не работает'), off: _('Выключено'), 'no-engine': _('Xray не установлен') }[s.state] || s.state;
 		var stats = [];
 		if (s.state == 'connected' && h.exit_ip)
-			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, h.exit_ip), E('span', {}, mv.country(h.country) ? _('Адрес для сайтов, %s').format(mv.country(h.country)) : _('Адрес для сайтов')) ]));
+			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, mv.T(h.exit_ip)), E('span', {}, mv.T(mv.country(h.country) ? _('Адрес для сайтов, %s').format(mv.country(h.country)) : _('Адрес для сайтов'))) ]));
 		if (s.state == 'connected' && h.ms != null)
-			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, _('%d мс').format(h.ms)), E('span', {}, _('Ответ через VPN')) ]));
+			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, mv.T(_('%d мс').format(h.ms))), E('span', {}, _('Ответ через VPN')) ]));
 		if (s.rate)
-			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, '↓ ' + mv.rate(s.rate.down_bps) + '  ↑ ' + mv.rate(s.rate.up_bps)), E('span', {}, _('Скорость сейчас')) ]));
+			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, mv.T('↓ ' + mv.rate(s.rate.down_bps) + '  ↑ ' + mv.rate(s.rate.up_bps))), E('span', {}, _('Скорость сейчас')) ]));
 		var self = this;
 		return [
 			mv.kicker(_('Состояние')),
-			E('div', { 'class': 'mv-big' }, [ E('span', { 'class': 'mv-dot ' + tone }), title ]),
-			E('div', { 'class': 'mv-text' }, server ? _('Сервер: %s').format(server.name) : _('Сервер не выбран.')),
+			E('div', { 'class': 'mv-big' }, [ E('span', { 'class': 'mv-dot ' + tone }), String(title || '') ]),
+			E('div', { 'class': 'mv-text' }, mv.T(server ? _('Сервер: %s').format(server.name) : _('Сервер не выбран.'))),
 			s.state == 'failing' ? E('div', { 'class': 'mv-err' }, _('Сервер не отвечает. У устройств, которые идут через VPN, нет интернета, пока сервер не ответит или VPN не выключат.')) : '',
 			stats.length ? E('div', { 'class': 'mv-stats' }, stats) : '',
 			E('div', { 'class': 'mv-act' }, [
 				st.enabled
 					? mv.button(_('Выключить VPN'), function() { return mv.act(mv.callSet({ enabled: false })).then(L.bind(self.refresh, self)); })
 					: mv.button(_('Включить VPN'), function() { return mv.act(mv.callSet({ enabled: true })).then(L.bind(self.refresh, self)); }, 'primary'),
-				st.enabled ? mv.button(_('Проверить сейчас'), function() {
-					return L.resolveDefault(mv.callState(true), null).then(L.bind(self.refresh, self));
-				}) : ''
+				!st.enabled ? ''
+					: s.checking ? E('button', { 'class': 'cbi-button cbi-button-neutral', 'disabled': '' }, _('Проверка…'))
+					: mv.button(_('Проверить сейчас'), function() {
+						// the check runs on the router; the page is drawn again when it ends
+						return L.resolveDefault(mv.callState(true), null).then(L.bind(self.refresh, self));
+					})
 			])
 		];
 	},
@@ -134,7 +144,7 @@ return view.extend({
 		});
 		var rows = [];
 		order.forEach(function(g) {
-			rows.push(E('div', { 'class': 'mv-group' }, g));
+			rows.push(E('div', { 'class': 'mv-group' }, mv.T(g)));
 			rows.push(E('div', { 'class': 'mv-list' }, groups[g].map(function(s) { return self.serverRow(st, s); })));
 		});
 		var ta = E('textarea', { 'placeholder': 'vless://…\nhysteria2://…' });
@@ -151,7 +161,7 @@ return view.extend({
 					var msg = _('Добавлено серверов: %d.').format(r.added || 0);
 					if (r.skipped) msg += ' ' + _('Уже были в списке: %d.').format(r.skipped);
 					if (r.errors && r.errors.length) msg += ' ' + _('Не приняты: %d (%s)').format(r.errors.length, r.errors[0]);
-					ui.addNotification(null, E('p', {}, msg), r.errors && r.errors.length ? 'warning' : 'info');
+					ui.addNotification(null, E('p', {}, mv.T(msg)), r.errors && r.errors.length ? 'warning' : 'info');
 					return self.refresh();
 				});
 			}, 'primary') ])
@@ -180,7 +190,7 @@ return view.extend({
 		}
 		return E('div', { 'class': 'mv-item' + (sel ? ' sel' : '') }, [
 			E('span', { 'class': 'mv-dot' + (sel ? ' good' : '') }),
-			E('div', { 'class': 'mv-main' }, [ E('div', {}, s.name), E('div', {}, detail) ]),
+			E('div', { 'class': 'mv-main' }, [ E('div', {}, mv.T(s.name)), E('div', {}, mv.T(detail)) ]),
 			lat,
 			sel ? mv.badge(_('выбран')) : '',
 			E('div', { 'class': 'mv-act' }, acts)
@@ -236,13 +246,17 @@ return view.extend({
 	subsCard: function(st) {
 		var self = this;
 		var url = E('input', { 'type': 'text', 'class': 'cbi-input-text', 'placeholder': 'https://…', 'style': 'width:100%' });
+		var busy = !!st.subs_updating;
 		var rows = (st.subscriptions || []).map(function(s) {
+			var line = s.error ? s.error
+				: (!s.updated && busy) ? _('Загружается…')
+				: _('Обновлена %s, серверов: %d').format(mv.ago(s.updated), s.count || 0);
 			return E('div', { 'class': 'mv-item' }, [
-				E('div', { 'class': 'mv-main' }, [ E('div', {}, s.name), E('div', {}, s.error ? s.error : _('Обновлена %s, серверов: %d').format(mv.ago(s.updated), s.count || 0)) ]),
+				E('div', { 'class': 'mv-main' }, [ E('div', {}, mv.T(s.name || s.host || _('Подписка'))), E('div', {}, mv.T(line)) ]),
 				s.error ? mv.badge(_('ошибка'), 'bad') : '',
 				E('div', { 'class': 'mv-act' }, [
 					E('button', { 'class': 'cbi-button cbi-button-negative', 'click': ui.createHandlerFn(self, function() {
-						if (!window.confirm(_('Удалить подписку «%s» и её серверы?').format(s.name))) return;
+						if (!window.confirm(_('Удалить подписку «%s» и её серверы?').format(s.name || s.host || ''))) return;
 						return mv.act(mv.callSubs({ action: 'delete', id: s.id })).then(L.bind(self.refresh, self));
 					}) }, _('Удалить'))
 				])
@@ -251,9 +265,11 @@ return view.extend({
 		return mv.card('', [
 			E('h3', {}, _('Подписки')),
 			rows.length ? E('div', { 'class': 'mv-list' }, rows) : E('div', { 'class': 'mv-note' }, _('Подписка — адрес, по которому провайдер VPN отдаёт список серверов. Роутер обновляет подписки раз в сутки.')),
-			rows.length ? E('div', { 'class': 'mv-act' }, [ mv.button(_('Обновить все'), function() {
-				return mv.act(mv.callSubs({ action: 'update' })).then(L.bind(self.refresh, self));
-			}) ]) : '',
+			rows.length ? E('div', { 'class': 'mv-act' }, [ busy
+				? E('button', { 'class': 'cbi-button cbi-button-neutral', 'disabled': '' }, _('Загружается…'))
+				: mv.button(_('Обновить все'), function() {
+					return mv.act(mv.callSubs({ action: 'update' })).then(L.bind(self.refresh, self));
+				}) ]) : '',
 			mv.field(_('Добавить подписку'), url),
 			E('div', { 'class': 'mv-act' }, [ mv.button(_('Добавить'), function() {
 				return mv.act(mv.callSubs({ action: 'add', url: url.value })).then(L.bind(self.refresh, self));
@@ -264,7 +280,9 @@ return view.extend({
 	removeCard: function(st) {
 		var self = this;
 		return mv.card('', [
-			E('h4', {}, _('Xray %s').format(st.engine.version || '')),
+			E('h4', {}, mv.T(_('Xray %s').format(st.engine.version || ''))),
+			st.engine.job && st.engine.job.state == 'failed' && st.engine.job.step == 'remove' && st.engine.job.age < 3600
+				? E('div', { 'class': 'mv-err' }, mv.T(st.engine.job.error || _('Удаление не удалось.'))) : '',
 			E('div', { 'class': 'mv-note' }, _('Удаление Xray выключает VPN и связь роутеров. Серверы и подписки сохраняются.')),
 			E('div', { 'class': 'mv-act' }, [ mv.button(_('Удалить Xray'), function() {
 				if (!window.confirm(_('Удалить Xray с роутера? VPN и связь роутеров выключатся.'))) return;

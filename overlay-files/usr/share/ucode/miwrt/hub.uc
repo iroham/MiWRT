@@ -397,6 +397,9 @@ function sync_blocked(reasons) {
 	}
 	system([ 'fw4', '-q', 'reload' ]);
 	writefile(BLOCKED_LIST, want + '\n');
+	// traffic of devices on the VPN goes to Xray on the router itself and never meets the forward
+	// chain: the VPN's rules leave paused devices out
+	if (access('/usr/sbin/miwrt-tunnel')) system('(/usr/sbin/miwrt-tunnel paused) >/dev/null 2>&1 </dev/null &');
 }
 
 // ---------- device list ----------

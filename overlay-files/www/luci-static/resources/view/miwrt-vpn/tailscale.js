@@ -59,7 +59,7 @@ return view.extend({
 	build: function() {
 		var st = this.st || {};
 		if (st.installed == null) return [ E('p', {}, _('Не удалось получить состояние Tailscale.')) ];
-		if (!st.installed || (st.job && st.job.state == 'running' && st.job.step != 'remove'))
+		if (!st.installed || (st.job && st.job.state == 'running'))
 			return [ this.installCard(st) ];
 		var out = [ this.statusCard(st) ];
 		if (st.enabled && st.backend == 'Running') out.push(this.settingsCard(st), this.peersCard(st));
@@ -71,9 +71,11 @@ return view.extend({
 	installCard: function(st) {
 		var self = this, job = st.job;
 		var steps = [ [ 'download', _('Загрузка списка пакетов') ], [ 'install', _('Установка Tailscale') ] ];
+		if (job && job.state == 'running' && job.step == 'remove')
+			return mv.card('', [ E('h3', {}, _('Удаляется Tailscale')), E('div', { 'class': 'mv-note' }, _('Это занимает несколько секунд.')) ]);
 		if (job && job.state == 'running')
 			return mv.card('', [ E('h3', {}, _('Устанавливается Tailscale')), mv.jobView(job, steps), E('div', { 'class': 'mv-note' }, _('Обычно это занимает одну-две минуты.')) ]);
-		var failed = job && job.state == 'failed' && job.age < 3600 ? E('div', { 'class': 'mv-err' }, job.error || _('Установка не удалась.')) : '';
+		var failed = job && job.state == 'failed' && job.step != 'remove' && job.age < 3600 ? E('div', { 'class': 'mv-err' }, mv.T(job.error || _('Установка не удалась.'))) : '';
 		var removed = job && job.state == 'done' && job.step == 'removed' && job.age < 600 ? E('div', { 'class': 'mv-note' }, _('Tailscale удалён.')) : '';
 		return mv.card('', [
 			E('h3', {}, _('Tailscale не установлен')),
@@ -117,11 +119,11 @@ return view.extend({
 
 		if (st.enabled && st.backend == 'Running') {
 			var stats = [];
-			if ((st.addresses || []).length) stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, st.addresses[0]), E('span', {}, _('Адрес роутера в Tailscale')) ]));
-			if (st.name) stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, st.name), E('span', {}, st.tailnet ? _('Имя в сети %s').format(st.tailnet) : _('Имя роутера')) ]));
-			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, _('%d из %d').format(st.peers_online || 0, (st.peers || []).length)), E('span', {}, _('Устройств в сети')) ]));
+			if ((st.addresses || []).length) stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, mv.T(st.addresses[0])), E('span', {}, _('Адрес роутера в Tailscale')) ]));
+			if (st.name) stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, mv.T(st.name)), E('span', {}, mv.T(st.tailnet ? _('Имя в сети %s').format(st.tailnet) : _('Имя роутера'))) ]));
+			stats.push(E('div', { 'class': 'mv-stat' }, [ E('b', {}, mv.T(_('%d из %d').format(Math.min(st.peers_online || 0, (st.peers || []).length), (st.peers || []).length))), E('span', {}, _('Устройств в сети')) ]));
 			body.push(E('div', { 'class': 'mv-stats' }, stats));
-			(st.health || []).forEach(function(h) { body.push(E('div', { 'class': 'mv-note' }, h)); });
+			(st.health || []).forEach(function(h) { body.push(E('div', { 'class': 'mv-note' }, mv.T(h))); });
 		}
 		else if (st.enabled && st.backend == 'NeedsLogin') body.push(this.loginInner(st));
 		else if (st.enabled && st.backend == 'NeedsMachineAuth')
@@ -131,7 +133,7 @@ return view.extend({
 				? _('Tailscale входит в прошивку этого роутера и выключен, пока он не нужен.')
 				: _('Выключенный Tailscale не работает и не занимает оперативную память.')));
 
-		if (st.version) body.push(E('div', { 'class': 'mv-note' }, _('Версия %s').format(st.version)));
+		if (st.version) body.push(E('div', { 'class': 'mv-note' }, mv.T(_('Версия %s').format(st.version))));
 		return E('div', { 'class': 'mv-card' + (st.enabled && st.backend == 'Running' ? ' on' : '') }, body);
 	},
 
@@ -153,8 +155,9 @@ return view.extend({
 			E('div', { 'class': 'mv-row' }, [ key, mv.button(_('Войти с ключом'), function() {
 				if (!key.value.trim()) return;
 				return mv.act(mv.callTsLogin({ auth_key: key.value.trim() })).then(function(ok) {
+					if (!ok) return;
 					key.value = '';
-					if (ok) window.setTimeout(L.bind(self.refresh, self), 4000);
+					window.setTimeout(L.bind(self.refresh, self), 4000);
 				});
 			}) ]),
 			E('div', { 'class': 'mv-note' }, _('Ключ создаётся в панели Tailscale: Settings, Keys. Роутер хранит его только до входа.'))
@@ -171,10 +174,17 @@ return view.extend({
 		var exits = (st.peers || []).filter(function(p) { return p.exit_node_option && (p.addresses || []).length; });
 		var exitSel = E('select', { 'class': 'cbi-input-select' }, [ E('option', { 'value': '' }, _('Нет: роутер выходит в интернет сам')) ].concat(exits.map(function(p) {
 			var v = p.addresses[0];
-			return E('option', { 'value': v, 'selected': (s.exit_node == v || s.exit_node == p.name) ? '' : null }, p.name + (p.online ? '' : ' ' + _('(не в сети)')));
+			return E('option', { 'value': v, 'selected': (s.exit_node == v || s.exit_node == p.name) ? '' : null }, mv.T(p.name + (p.online ? '' : ' ' + _('(не в сети)'))));
 		})));
 		if (s.exit_node && !exits.some(function(p) { return s.exit_node == p.addresses[0] || s.exit_node == p.name; }))
-			exitSel.appendChild(E('option', { 'value': s.exit_node, 'selected': '' }, s.exit_node));
+			exitSel.appendChild(E('option', { 'value': s.exit_node, 'selected': '' }, mv.T(s.exit_node)));
+		// a router that offers itself as the exit cannot use another one (Tailscale refuses both at once)
+		var syncExit = function() {
+			if (exitOffer.checked) exitSel.value = '';
+			exitSel.disabled = exitOffer.checked;
+		};
+		exitOffer.addEventListener('change', syncExit);
+		syncExit();
 
 		return mv.card('', [
 			E('h3', {}, _('Настройки')),
@@ -204,7 +214,7 @@ return view.extend({
 			else if (p.exit_node_option) tags.push(mv.badge(_('может быть выходом'), 'soft'));
 			return E('div', { 'class': 'mv-item' }, [
 				E('span', { 'class': 'mv-dot' + (p.online ? ' good' : '') }),
-				E('div', { 'class': 'mv-main' }, [ E('div', {}, p.name || '—'), E('div', {}, [ (p.addresses || [])[0] || '', p.os ? ' · ' + p.os : '' ].join('')) ]),
+				E('div', { 'class': 'mv-main' }, [ E('div', {}, mv.T(p.name || '—')), E('div', {}, mv.T([ (p.addresses || [])[0] || '', p.os ? ' · ' + p.os : '' ].join(''))) ]),
 				E('div', { 'class': 'mv-row' }, tags)
 			]);
 		})) ];
@@ -230,6 +240,8 @@ return view.extend({
 		var self = this;
 		return mv.card('', [
 			E('h4', {}, _('Удаление')),
+			st.job && st.job.state == 'failed' && st.job.step == 'remove' && st.job.age < 3600
+				? E('div', { 'class': 'mv-err' }, mv.T(st.job.error || _('Удаление не удалось.'))) : '',
 			E('div', { 'class': 'mv-note' }, _('Tailscale будет удалён вместе с тем, что ставилось для него, и место освободится. Поставить его снова можно здесь же.')),
 			E('div', { 'class': 'mv-act' }, [ mv.button(_('Удалить Tailscale'), function() {
 				if (!window.confirm(_('Удалить Tailscale с роутера?'))) return;

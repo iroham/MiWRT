@@ -1704,3 +1704,39 @@ msgstr "error"
 
 msgid "только что"
 msgstr "just now"
+
+msgid "VPN и связь роутеров выключаются. Это занимает несколько секунд."
+msgstr "The VPN and the router link are switching off. This takes a few seconds."
+
+msgid "Если на роутере за границей изменили связь (например, открыли его домашнюю сеть), он показывает новый код. Вставьте его сюда: связь сохранится."
+msgstr "If the link was changed on the router abroad (for example, it now shares its home network), it shows a new code. Paste it here: the link stays."
+
+msgid "Если сеть второго дома изменилась, вставьте его новый ответный код."
+msgstr "If the other home's network changed, paste its new answer code."
+
+msgid "Загружается…"
+msgstr "Downloading…"
+
+msgid "Не удалось скопировать: выделите текст и скопируйте его вручную."
+msgstr "Could not copy: select the text and copy it yourself."
+
+msgid "Новый код связи"
+msgstr "New link code"
+
+msgid "Подписка"
+msgstr "Subscription"
+
+msgid "Проверка…"
+msgstr "Checking…"
+
+msgid "Удаление не удалось."
+msgstr "Removal failed."
+
+msgid "Удаляется Tailscale"
+msgstr "Removing Tailscale"
+
+msgid "Удаляется Xray"
+msgstr "Removing Xray"
+
+msgid "Это занимает несколько секунд."
+msgstr "This takes a few seconds."

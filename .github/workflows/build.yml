@@ -255,6 +255,10 @@ jobs:
           fi
           make defconfig
           grep -E '^CONFIG_VERSION_NUMBER|^# CONFIG_VERSION_FILENAMES' .config || true
+          # packages the image must carry: defconfig drops one silently when a dependency is missing
+          for p in miwrt-tailscale kmod-nft-tproxy kmod-tun; do
+            grep -q "^CONFIG_PACKAGE_$p=y" .config || { echo "::error::$p is not in the image after defconfig"; exit 1; }
+          done
           # A debug-* build only has to produce the image: nothing it builds
           # is published to the feed, and packages built as modules (=m) are
           # never part of the image. Dropping them skips most of "Build

@@ -23,11 +23,16 @@ const JOB = RUN + '/tunnel-job.json';
 const TESTS = RUN + '/tunnel-tests.json';
 const HEALTH = RUN + '/tunnel-health.json';
 const RATE = RUN + '/tunnel-rate.json';
+const SUBS_JOB = RUN + '/tunnel-subs';           // exists while subscriptions are being fetched
+const CHECKING = RUN + '/tunnel-checking';       // exists while a check started from the web page runs
+const APPLIED = RUN + '/tunnel-applied';         // touched by every change that restarts the service
 export const XRAY = '/usr/bin/xray';
 export const TOOL = '/usr/sbin/miwrt-tunnel';
 const INIT = '/etc/init.d/miwrt-tunnel';
 
 export const MARK = '0x4d57';
+// marks what the link opens on behalf of the other router: that may never reach this router itself
+const LINK_MARK = 0x4d58;
 export const TABLE = '157';
 export const TP_PORT = 12370;           // transparent proxy inbound
 export const SOCKS_PORT = 10808;        // local SOCKS for the router itself (only 127.0.0.1)
@@ -38,6 +43,8 @@ export const LINK_LOCAL_PORT = 24443;   // the link's own server when this route
 
 const MAX_SERVERS = 300;
 const MAX_SUBS = 10;
+// the router abroad checks the link with a request for this name; the inside router answers it itself
+const LINK_PING = 'check.miwrt.invalid';
 
 // Never sent through the tunnel and never reachable from the other end of a router link.
 export const PRIVATE_V4 = [ '0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12',
@@ -62,6 +69,12 @@ function rand_hex(n) {
 	let b = f.read(n);
 	f.close();
 	return hexenc(b);
+}
+
+/* Is the file missing or older than secs seconds? */
+function older(path, secs) {
+	let st = stat(path);
+	return !st || time() - st.mtime >= secs;
 }
 
 export function uuid() {
@@ -304,7 +317,7 @@ export function parse_link(link) {
 		} else {
 			// the old form: ss://base64(method:password@host:port)#name
 			let h = index(link, '#');
-			let body = b64any(substr(link, 5, h < 0 ? null : h - 5));
+			let body = b64any(h < 0 ? substr(link, 5) : substr(link, 5, h - 5));
 			let m = match(body ?? '', /^([^:]+):(.*)@([^@:]+|\[[0-9a-fA-F:]+\]):([0-9]+)$/s);
 			if (!m) return 'This Shadowsocks link cannot be read.';
 			s.method = lc(m[1]); s.password = m[2]; s.host = lc(replace(m[3], /[\[\]]/g, '')); s.port = +m[4];
@@ -453,10 +466,15 @@ function find_server(c, id) {
 	return null;
 }
 
+/* Can the VPN use the linked router as its server? */
+function link_usable(c) {
+	return c.link?.role == 'inside' && c.link.internet !== false;
+}
+
 /* Is the VPN on and pointed at something that exists? Returns the outbound tag of the server or null. */
 function vpn_target(c) {
 	if (!c.enabled) return null;
-	if (c.server == 'link') return (c.link?.role == 'inside' && c.link.internet !== false) ? 'link-use' : null;
+	if (c.server == 'link') return link_usable(c) ? 'link-use' : null;
 	return find_server(c, c.server) ? 'proxy' : null;
 }
 
@@ -503,6 +521,11 @@ export function xray_config(c) {
 			if (l.role == 'exit' || l.share_lan) {
 				let o = outbound({ ...ls, uuid: me.rev, reverse: 'link-from-peer' }, 'link-portal');
 				push(outbounds, o);
+				if (l.role == 'inside') {
+					// answered here (HTTP 403 from a blackhole), so the router abroad can tell the link works
+					push(outbounds, { tag: 'link-ping', protocol: 'blackhole', settings: { response: { type: 'http' } } });
+					push(rules, { type: 'field', inboundTag: [ 'link-from-peer' ], domain: [ 'full:' + LINK_PING ], outboundTag: 'link-ping' });
+				}
 				push(rules, { type: 'field', inboundTag: [ 'link-from-peer' ], outboundTag: 'link-out' });
 			}
 			// ... and one that uses the other side
@@ -513,7 +536,7 @@ export function xray_config(c) {
 			if (length(l.peer_lans ?? [])) push(rules, { type: 'field', ip: l.peer_lans, outboundTag: 'link-peer' });
 		} else if (length(l.peer_lans ?? []))
 			push(rules, { type: 'field', ip: l.peer_lans, outboundTag: 'link-use' });
-		push(outbounds, { tag: 'link-out', protocol: 'freedom', settings: { finalRules: link_exit_rules(l) }, streamSettings: { sockopt: { domainStrategy: 'UseIPv4' } } });
+		push(outbounds, { tag: 'link-out', protocol: 'freedom', settings: { finalRules: link_exit_rules(l) }, streamSettings: { sockopt: { domainStrategy: 'UseIPv4', mark: LINK_MARK } } });
 		push(inbounds, { tag: 'link-check', listen: '127.0.0.1', port: LINK_SOCKS, protocol: 'socks', settings: { udp: false } });
 		if (l.role == 'inside') push(rules, { type: 'field', inboundTag: [ 'link-check' ], outboundTag: 'link-use' });
 		else if (l.meet != 'self') push(rules, { type: 'field', inboundTag: [ 'link-check' ], outboundTag: 'link-use' });
@@ -536,6 +559,8 @@ export function xray_config(c) {
 		dns = { tag: 'dns-q', queryStrategy: 'UseIPv4',
 			servers: [ 'https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query' ] };
 		if (COUNTRIES[c.country]) unshift(dns.servers, { address: 'localhost', domains: COUNTRIES[c.country], skipFallback: true });
+		// names in the home network (router.lan, a printer) only this router knows
+		unshift(dns.servers, { address: 'localhost', domains: [ 'domain:lan', 'domain:local', 'domain:home.arpa' ], skipFallback: true });
 	}
 
 	return strip_null({
@@ -561,6 +586,16 @@ function nft_set(name, typ, elems) {
 	return `\tset ${name} { type ${typ}; flags interval; elements = { ${join(', ', elems)} } }\n`;
 }
 
+/* Devices paused from the app (a pause, a schedule, a new device waiting for approval). The app
+   service keeps them in /etc/miwrt/blocked.list for the firewall's forward chain. */
+function paused_macs() {
+	return filter(map(split(readfile(ETC + '/blocked.list') ?? '', '\n'), m => lc(trim(m))), m => hub.is_mac(m));
+}
+
+function mac_set(name, macs) {
+	return `\tset ${name} { type ether_addr; ${length(macs) ? 'elements = { ' + join(', ', macs) + ' }' : ''} }\n`;
+}
+
 /* The rules for the settings c (text for nft -f). */
 export function nft_rules(c) {
 	let target = vpn_target(c), l = c.link, dev = lan_device();
@@ -570,31 +605,59 @@ export function nft_rules(c) {
 	t += nft_set('private4', 'ipv4_addr', PRIVATE_V4);
 	t += nft_set('peer4', 'ipv4_addr', peer);
 	t += nft_set('routerips', 'ipv4_addr', lan_ips());
-	t += `\tset macs { type ether_addr; ${length(macs) ? 'elements = { ' + join(', ', macs) + ' }' : ''} }\n`;
+	t += mac_set('macs', macs);
+	t += mac_set('paused', paused_macs());
 	t += '\tchain pre {\n\t\ttype filter hook prerouting priority mangle; policy accept;\n';
 	t += `\t\tiifname != "${dev}" return\n`;
+	// the transparent proxy takes redirected traffic only, never a connection made to it directly
+	t += `\t\tmeta l4proto { tcp, udp } th dport ${TP_PORT} fib daddr type local drop\n`;
+	// a paused device goes on to the firewall's forward chain, which rejects it; through Xray its
+	// traffic would never pass that chain
+	t += '\t\tether saddr @paused return\n';
 	t += `\t\tmeta l4proto { tcp, udp } ip daddr @peer4 meta mark set ${MARK} tproxy ip to :${TP_PORT} accept\n`;
 	if (target) {
 		if (c.who == 'selected') t += '\t\tether saddr != @macs return\n';
 		if (c.who == 'except') t += '\t\tether saddr @macs return\n';
-		if (c.dns) t += `\t\tip daddr @routerips meta l4proto { tcp, udp } th dport 53 meta mark set ${MARK} tproxy ip to :${TP_PORT} accept\n`;
+		if (c.dns) {
+			t += `\t\tip daddr @routerips meta l4proto { tcp, udp } th dport 53 meta mark set ${MARK} tproxy ip to :${TP_PORT} accept\n`;
+			// a lookup over IPv6 (the router's own IPv6 address answers too) would pass beside the
+			// tunnel: dropped, so the device asks over IPv4
+			t += '\t\tmeta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop\n';
+		}
 		t += '\t\tip daddr @private4 return\n';
 		t += `\t\tmeta nfproto ipv4 meta l4proto { tcp, udp } meta mark set ${MARK} tproxy ip to :${TP_PORT} accept\n`;
 		// IPv6 would pass beside the tunnel
 		t += `\t\tmeta nfproto ipv6 ip6 daddr != { ${join(', ', PRIVATE_V6)} } drop\n`;
 	}
-	t += '\t}\n}\n';
+	t += '\t}\n';
+	if (l) {
+		// what the other router opens through the link never reaches this router itself, at any of its
+		// addresses, the public one included (Xray marks those connections: see link-out)
+		t += '\tchain out {\n\t\ttype filter hook output priority filter; policy accept;\n';
+		t += `\t\tmeta mark ${sprintf('0x%x', LINK_MARK)} fib daddr type local reject\n`;
+		t += '\t}\n';
+	}
+	t += '}\n';
 	return t;
 }
 
 export function nft_apply(c) {
 	mkdir(DIR);
-	let f = DIR + '/rules.nft';
+	// a name of its own: the service and a network change can write at the same moment
+	let f = DIR + `/rules.${rand_hex(4)}.nft`;
 	writefile(f, 'table inet miwrt_tunnel\ndelete table inet miwrt_tunnel\n' + nft_rules(c));
 	let out = hub.run(`nft -f ${f} 2>&1; echo "__RC:$?"`);
+	unlink(f);
 	let m = match(out, /__RC:([0-9]+)\s*$/);
 	if (!m || m[1] != '0') return trim(replace(out, /__RC:[0-9]+\s*$/, ''));
 	return null;
+}
+
+/* After the paused devices change: the rules are written again when they are in place. */
+export function paused_changed() {
+	if (system('nft list table inet miwrt_tunnel >/dev/null 2>&1') != 0) return;
+	let err = nft_apply(conf());
+	if (err) warn(`miwrt-tunnel: firewall rules: ${err}\n`);
 }
 
 export function nft_clear() {
@@ -628,6 +691,11 @@ function free_kb() {
 
 export function engine_installed() {
 	return access(XRAY) == true;
+}
+
+/* Is the VPN installed and switched on (whether or not it works right now)? */
+export function vpn_on() {
+	return engine_installed() && !!vpn_target(conf());
 }
 
 /* null when it can be installed, else 'storage'. */
@@ -695,7 +763,8 @@ export function write_config(c) {
 	system([ 'chmod', '700', DIR ]);
 	let cfg = xray_config(c);
 	if (type(cfg) == 'string') return cfg;
-	let tmp = DIR + '/config.new.json';
+	// a name of its own: two changes in quick succession must not write into one file
+	let tmp = DIR + `/config.${rand_hex(4)}.json`;
 	writefile(tmp, '');
 	system([ 'chmod', '600', tmp ]);
 	writefile(tmp, sprintf('%J', cfg));
@@ -716,7 +785,10 @@ export function write_config(c) {
 export function apply() {
 	unlink(HEALTH);
 	unlink(RATE);
-	system(`(${INIT} enabled || ${INIT} enable; ${INIT} restart) >/dev/null 2>&1 </dev/null &`);
+	mkdir(RUN);
+	writefile(APPLIED, '');
+	// Tailscale set to reach its servers through the VPN follows the VPN coming or going
+	system(`(${INIT} enabled || ${INIT} enable; ${INIT} restart; [ -x /usr/sbin/miwrt-tailscale ] && /usr/sbin/miwrt-tailscale follow) >/dev/null 2>&1 </dev/null &`);
 }
 
 // ---------- state for the app and the web page ----------
@@ -737,7 +809,8 @@ function service_running() {
 function rates(target) {
 	if (!target || !service_running()) return null;
 	let prev = hub.load(RATE, null), now = time();
-	if (prev && now - prev.t < 3) return prev.rate;
+	// each query starts the Xray program once more: not more often than every 10 seconds
+	if (prev && now - prev.t < 10) return prev.rate;
 	let out = hub.run(`${XRAY} api statsquery --server=127.0.0.1:${API_PORT} -pattern 'outbound>>>${target}>>>' 2>/dev/null`);
 	let up = 0, down = 0;
 	try {
@@ -771,6 +844,28 @@ export function health(fresh) {
 	return h;
 }
 
+/* A check in the background (for the web page: the router's web service may not wait 12 seconds). */
+export function check_bg() {
+	if (!vpn_target(conf()) || !service_running() || !older(CHECKING, 20)) return;
+	mkdir(RUN);
+	writefile(CHECKING, '');
+	system(`(${TOOL} check) >/dev/null 2>&1 </dev/null &`);
+}
+
+/* For miwrt-tunnel check. */
+export function check_now() {
+	health(true);
+	unlink(CHECKING);
+}
+
+function subs_running() {
+	return !older(SUBS_JOB, 600);
+}
+
+function uptime() {
+	return +(split(readfile('/proc/uptime') ?? '0', ' ')[0]);
+}
+
 export function state(fresh) {
 	let c = conf(), target = vpn_target(c), tests = hub.load(TESTS, null), running = service_running();
 	let st = 'off';
@@ -778,19 +873,23 @@ export function state(fresh) {
 		// a check takes up to 12 seconds, so only an explicit request waits for one; otherwise the
 		// 30 s pass keeps the answer fresh
 		let h = running ? (fresh ? health(true) : hub.load(HEALTH, null)) : null;
-		st = !engine_installed() ? 'no-engine' : !running ? 'starting' : (h == null ? 'starting' : (h.ok ? 'connected' : 'failing'));
+		// still not running a minute after the last change (two minutes after a boot): it does not start
+		let stuck = !running && older(APPLIED, 60) && uptime() > 120;
+		st = !engine_installed() ? 'no-engine' : stuck ? 'failing' : !running ? 'starting' : (h == null ? 'starting' : (h.ok ? 'connected' : 'failing'));
 	}
 	let servers = map(c.servers, s => public_server(s, tests));
-	if (c.link?.role == 'inside' && c.link.internet !== false)
+	if (link_usable(c))
 		unshift(servers, { id: 'link', name: c.link.peer_name ?? 'Linked router', protocol: 'link', address: c.link.peer?.host, port: c.link.peer?.port, source: 'link' });
 	return {
 		engine: { installed: engine_installed(), version: engine_version(), package: engine_package(), blocker: engine_blocker(), job: job() },
 		enabled: !!c.enabled, server: c.server, who: c.who, devices: c.devices, country: c.country, dns: !!c.dns,
 		countries: keys(COUNTRIES),
-		status: { state: st, running, health: target ? hub.load(HEALTH, null) : null, rate: rates(target) },
+		status: { state: st, running, health: target ? hub.load(HEALTH, null) : null, rate: rates(target), checking: !older(CHECKING, 20) },
 		servers,
 		subscriptions: map(c.subscriptions, s => ({ id: s.id, name: s.name, host: match(s.url, /^https?:\/\/([^\/:?#]+)/)?.[1], updated: s.updated, count: s.count, error: s.error })),
-		tests: tests ? { running: !!tests.running, time: tests.time } : null,
+		// a test whose program died (out of memory) does not count as running for ever
+		tests: tests ? { running: !!tests.running && time() - (tests.time ?? 0) < 180, time: tests.time } : null,
+		subs_updating: subs_running(),
 		link: !!c.link
 	};
 }
@@ -816,12 +915,12 @@ export function set(b) {
 		}
 		if ('dns' in b) c.dns = !!b.dns;
 		if ('server' in b) {
-			if (b.server == 'link' ? !(c.link?.role == 'inside') : !find_server(c, b.server)) return 'That server is not in the list.';
+			if (b.server == 'link' ? !link_usable(c) : !find_server(c, b.server)) return 'That server is not in the list.';
 			c.server = b.server;
 		}
 		if ('enabled' in b) {
 			if (b.enabled && !engine_installed()) return 'Install Xray first.';
-			if (b.enabled && !(c.server == 'link' ? c.link?.role == 'inside' : find_server(c, c.server))) return 'Choose a server first.';
+			if (b.enabled && !(c.server == 'link' ? link_usable(c) : find_server(c, c.server))) return 'Choose a server first.';
 			c.enabled = !!b.enabled;
 		}
 		if (c.enabled && c.who == 'selected' && !length(c.devices)) return 'Choose at least one device, or let all devices use the VPN.';
@@ -883,7 +982,7 @@ export function servers_action(b) {
 
 function fetch_text(url, via_tunnel) {
 	mkdir(DIR);
-	let f = DIR + '/fetch.tmp';
+	let f = DIR + `/fetch.${rand_hex(4)}.tmp`;
 	let proxy = via_tunnel ? `-x socks5h://127.0.0.1:${SOCKS_PORT}` : '';
 	let rc = system(`curl -s -f -L -m 25 --max-filesize 1048576 -A MiWRT ${proxy} -o ${f} ${q(url)} >/dev/null 2>&1`);
 	let text = rc == 0 ? readfile(f) : null;
@@ -914,18 +1013,68 @@ function sub_refresh(c, sub) {
 	return null;
 }
 
+function subs_start(id) {
+	mkdir(RUN);
+	writefile(SUBS_JOB, '');
+	system(`(${TOOL} subs-update ${id ? q(id) : ''}) >/dev/null 2>&1 </dev/null &`);
+}
+
+/* Fetches the subscriptions again (all, or the one with the given id) and puts their servers in
+   place. For miwrt-tunnel subs-update. Returns an error text or null. */
+export function subs_update_now(id) {
+	let c = conf(), errs = [], done = {};
+	for (let sub in c.subscriptions) if (!id || sub.id == id) {
+		let e = sub_refresh(c, sub);
+		if (e) push(errs, `${sub.name ?? sub.id}: ${e}`);
+		done[sub.id] = sub;
+	}
+	return hub.locked(() => {
+		let now = conf(), was = conf();
+		// the downloads ran outside the lock: only the subscriptions fetched here change, and one
+		// deleted meanwhile stays deleted (another download may have finished in between)
+		let alive = {};
+		for (let sub in now.subscriptions) alive[sub.id] = true;
+		now.servers = [ ...filter(now.servers, s => !done[s.source ?? '']), ...filter(c.servers, s => done[s.source ?? ''] && alive[s.source]) ];
+		for (let i, sub in now.subscriptions) if (done[sub.id]) now.subscriptions[i] = done[sub.id];
+		if (now.server && now.server != 'link' && !find_server(now, now.server)) {
+			now.server = length(now.servers) ? now.servers[0].id : null;
+			if (!now.server) now.enabled = false;
+		}
+		if (!now.server && length(now.servers)) now.server = now.servers[0].id;
+		store(now);
+		// the VPN restarts only when the server it uses changed or went away
+		let changed = now.server != was.server || sprintf('%J', find_server(now, now.server)) != sprintf('%J', find_server(was, was.server));
+		if ((was.enabled && !now.enabled) || (now.enabled && changed)) apply();
+		return length(errs) ? join('\n', errs) : null;
+	});
+}
+
+/* add (in the background with b.background: the download can take half a minute, longer than the
+   web page waits), update (always in the background), delete. */
 export function subs_action(b) {
 	if (b.action == 'add') {
 		let url = trim(b.url ?? '');
 		if (!match(url, /^https?:\/\/[^\s'"]+$/) || length(url) > 1024) return 'Enter the subscription address (https://…).';
 		let c = conf();
 		if (length(c.subscriptions) >= MAX_SUBS) return 'The router keeps up to 10 subscriptions.';
+		if (length(filter(c.subscriptions, s => s.url == url))) return 'This subscription is already in the list.';
 		let sub = { id: 'sub-' + rand_hex(3), name: clean_name(b.name, match(url, /^https?:\/\/([^\/:?#]+)/)?.[1]), url, updated: null, count: 0 };
+		if (b.background) {
+			return hub.locked(() => {
+				let now = conf();
+				if (length(now.subscriptions) >= MAX_SUBS) return 'The router keeps up to 10 subscriptions.';
+				push(now.subscriptions, sub);
+				store(now);
+				subs_start(sub.id);
+				return null;
+			});
+		}
 		// the download runs outside the lock: it can take half a minute
 		let err = sub_refresh(c, sub);
 		if (err) return err;
 		return hub.locked(() => {
 			let now = conf();
+			if (length(now.subscriptions) >= MAX_SUBS) return 'The router keeps up to 10 subscriptions.';
 			now.servers = [ ...filter(now.servers, s => s.source != sub.id), ...filter(c.servers, s => s.source == sub.id) ];
 			push(now.subscriptions, sub);
 			if (!now.server && length(now.servers)) now.server = now.servers[0].id;
@@ -934,31 +1083,44 @@ export function subs_action(b) {
 		});
 	}
 	if (b.action == 'update') {
-		let c = conf(), errs = [];
-		for (let sub in c.subscriptions) if (!b.id || sub.id == b.id) { let e = sub_refresh(c, sub); if (e) push(errs, `${sub.name}: ${e}`); }
-		return hub.locked(() => {
-			let now = conf();
-			now.servers = [ ...filter(now.servers, s => !match(s.source ?? '', /^sub-/)), ...filter(c.servers, s => match(s.source ?? '', /^sub-/)) ];
-			for (let i, sub in now.subscriptions) for (let n in c.subscriptions) if (n.id == sub.id) now.subscriptions[i] = n;
-			let before = now.server;
-			if (now.server && now.server != 'link' && !find_server(now, now.server)) { now.server = null; now.enabled = false; }
-			store(now);
-			if (now.enabled || before != now.server) { write_config(now); apply(); }
-			return length(errs) ? join('\n', errs) : null;
-		});
+		let c = conf();
+		if (b.id && !length(filter(c.subscriptions, s => s.id == b.id))) return 'That subscription is not in the list.';
+		if (!length(c.subscriptions)) return 'There is no subscription to update.';
+		if (!subs_running()) subs_start(b.id);
+		return null;
 	}
 	if (b.action == 'delete') {
 		return hub.locked(() => {
-			let c = conf();
+			let c = conf(), restart = false;
 			if (!length(filter(c.subscriptions, s => s.id == b.id))) return 'That subscription is not in the list.';
 			c.subscriptions = filter(c.subscriptions, s => s.id != b.id);
 			c.servers = filter(c.servers, s => s.source != b.id);
-			if (c.server && c.server != 'link' && !find_server(c, c.server)) { c.server = length(c.servers) ? c.servers[0].id : null; if (!c.server) c.enabled = false; apply(); }
+			if (c.server && c.server != 'link' && !find_server(c, c.server)) {
+				c.server = length(c.servers) ? c.servers[0].id : null;
+				if (!c.server) c.enabled = false;
+				restart = true;
+			}
 			store(c);
+			// after the settings are stored: the restart reads them
+			if (restart) apply();
 			return null;
 		});
 	}
 	return 'Unknown action.';
+}
+
+/* For miwrt-tunnel subs-update: marks the attempt, fetches, says it is done. */
+export function subs_update_job(id) {
+	mkdir(RUN);
+	writefile(SUBS_JOB, '');
+	hub.locked(() => {
+		let now = conf();
+		for (let s in now.subscriptions) if (!id || s.id == id) s.tried = time();
+		store(now);
+	});
+	let err = subs_update_now(id);
+	unlink(SUBS_JOB);
+	return err;
 }
 
 /* Daily refresh of subscriptions, from the 30 s pass. */
@@ -999,8 +1161,14 @@ export function run_tests(ids) {
 		writefile(f, '');
 		system([ 'chmod', '600', f ]);
 		writefile(f, sprintf('%J', cfg));
-		let pid = trim(hub.run(`${XRAY} run -c ${f} >/dev/null 2>&1 </dev/null & echo $!`));
-		system('sleep 2');
+		let env = mem < 200 * 1048576 ? 'GOMEMLIMIT=40MiB GOGC=50 ' : '';
+		let pid = trim(hub.run(`${env}${XRAY} run -c ${f} >/dev/null 2>&1 </dev/null & echo $!`));
+		// ready when the last test port listens (the BE7000 first unpacks Xray), at most 15 seconds
+		let last = sprintf(':%04X ', 20100 + length(list) - 1);
+		for (let i = 0; i < 30; i++) {
+			if (index(readfile('/proc/net/tcp') ?? '', last) >= 0) break;
+			system('sleep 0.5');
+		}
 		let cmd = '';
 		for (let i, s in list)
 			cmd += `(curl -s -o /dev/null -m 10 -x socks5h://127.0.0.1:${20100 + i} -w '${i} %{http_code} %{time_total}\\n' https://www.gstatic.com/generate_204 || echo '${i} 000 0') &\n`;
@@ -1105,10 +1273,38 @@ export function link_state() {
 		targets: REALITY_TARGETS };
 }
 
+/* The port forward from the internet to the link's own server (only when this router is the
+   meeting point). null port removes it. */
+function link_firewall(port) {
+	let cur = cursor();
+	if (port == null) {
+		cur.delete('firewall', 'miwrt_link');
+		cur.commit('firewall');
+		system('(/etc/init.d/firewall reload) >/dev/null 2>&1 </dev/null &');
+		return null;
+	}
+	let clash = null;
+	cur.foreach('firewall', 'redirect', r => {
+		if (r['.name'] != 'miwrt_link' && r.src == 'wan' && `${r.src_dport}` == `${port}`) clash = r.name ?? 'another port forward';
+	});
+	if (clash) return `Port ${port} is already forwarded (${clash}). Choose another port.`;
+	cur.set('firewall', 'miwrt_link', 'redirect');
+	cur.set('firewall', 'miwrt_link', 'name', 'MiWRT router link');
+	cur.set('firewall', 'miwrt_link', 'src', 'wan');
+	cur.set('firewall', 'miwrt_link', 'proto', 'tcp');
+	cur.set('firewall', 'miwrt_link', 'src_dport', `${port}`);
+	cur.set('firewall', 'miwrt_link', 'dest_port', `${LINK_LOCAL_PORT}`);
+	cur.set('firewall', 'miwrt_link', 'target', 'DNAT');
+	cur.commit('firewall');
+	system('(/etc/init.d/firewall reload) >/dev/null 2>&1 </dev/null &');
+	return null;
+}
+
 /* create (this router is the exit), join (with the exit's code), answer (the inside's answer at the
    exit), set (share the home network or not; use for internet), remove. */
 export function link_action(b) {
-	if (!engine_installed()) return 'Install Xray first: the router link runs on it.';
+	// a link can always be removed, also after Xray was
+	if (!engine_installed() && b.action != 'remove') return 'Install Xray first: the router link runs on it.';
 	return hub.locked(() => {
 		let c = conf(), l = c.link;
 		if (b.action == 'create') {
@@ -1147,11 +1343,23 @@ export function link_action(b) {
 			return null;
 		}
 		if (b.action == 'join') {
-			if (l) return 'This router already has a link. Remove it first.';
 			let o = decode_code(b.code, 'miwrt-link:');
 			if (!o || o.v != 1 || !host_ok(o.h) || !port_ok(o.p) || !match(o.pbk ?? '', /^[A-Za-z0-9_-]{43}$/) || !match(o.r ?? '', /^[0-9a-f-]{36}$/) || !match(o.u ?? '', /^[0-9a-f-]{36}$/))
 				return 'This is not a valid router link code.';
 			let peer_lans = filter(type(o.lans) == 'array' ? o.lans : [], cidr_ok);
+			if (l) {
+				// the same link's code again (the router abroad shares its network now, or moved): taken over
+				if (l.role != 'inside' || l.ids?.in_rev != o.r || l.ids?.in_use != o.u) return 'This router already has a link. Remove it first.';
+				if (length(peer_lans) && l.share_lan) { let e = check_overlap(lan_cidrs(), peer_lans); if (e) return e; }
+				l.peer = { host: o.h, port: +o.p, sni: o.sni, pbk: o.pbk, sid: o.sid ?? '' };
+				l.peer_name = clean_name(o.n, l.peer_name ?? 'Router abroad');
+				l.peer_lans = check_overlap(lan_cidrs(), peer_lans) ? [] : peer_lans;
+				let err = write_config(c);
+				if (err) return err;
+				store(c);
+				apply();
+				return null;
+			}
 			let lans = lan_cidrs();
 			if (length(peer_lans) && b.share_lan) { let e = check_overlap(lans, peer_lans); if (e) return e; }
 			l = { role: 'inside', meet: null, name: clean_name(b.name, 'Router at home'), peer_name: clean_name(o.n, 'Router abroad'),
@@ -1191,6 +1399,7 @@ export function link_action(b) {
 			if (l.role == 'exit' && l.meet == 'self') link_firewall(null);
 			c.link = null;
 			if (c.server == 'link') { c.enabled = false; c.server = length(c.servers) ? c.servers[0].id : null; }
+			if (engine_installed() && wanted(c)) { let err = write_config(c); if (err) return err; }
 			store(c);
 			unlink(RUN + '/link-health.json');
 			hub.add_alert('internet', 'Router link removed', '', 'info');
@@ -1205,33 +1414,6 @@ export function link_action(b) {
 	});
 }
 
-/* The port forward from the internet to the link's own server (only when this router is the
-   meeting point). null port removes it. */
-function link_firewall(port) {
-	let cur = cursor();
-	if (port == null) {
-		cur.delete('firewall', 'miwrt_link');
-		cur.commit('firewall');
-		system('(/etc/init.d/firewall reload) >/dev/null 2>&1 </dev/null &');
-		return null;
-	}
-	let clash = null;
-	cur.foreach('firewall', 'redirect', r => {
-		if (r['.name'] != 'miwrt_link' && r.src == 'wan' && `${r.src_dport}` == `${port}`) clash = r.name ?? 'another port forward';
-	});
-	if (clash) return `Port ${port} is already forwarded (${clash}). Choose another port.`;
-	cur.set('firewall', 'miwrt_link', 'redirect');
-	cur.set('firewall', 'miwrt_link', 'name', 'MiWRT router link');
-	cur.set('firewall', 'miwrt_link', 'src', 'wan');
-	cur.set('firewall', 'miwrt_link', 'proto', 'tcp');
-	cur.set('firewall', 'miwrt_link', 'src_dport', `${port}`);
-	cur.set('firewall', 'miwrt_link', 'dest_port', `${LINK_LOCAL_PORT}`);
-	cur.set('firewall', 'miwrt_link', 'target', 'DNAT');
-	cur.commit('firewall');
-	system('(/etc/init.d/firewall reload) >/dev/null 2>&1 </dev/null &');
-	return null;
-}
-
 /* Is the other router reachable through the link? From the 30 s pass, every two minutes. */
 export function link_check() {
 	let c = conf();
@@ -1241,9 +1423,8 @@ export function link_check() {
 	let r;
 	if (c.link.role == 'inside') r = check(LINK_SOCKS);
 	else if (length(c.link.peer_lans ?? [])) {
-		// the inside router's own web page answers when its side is up
-		let gw = int2ip(cidr_net(c.link.peer_lans[0]).net + 1);
-		let out = hub.run(`curl -s -m 10 -o /dev/null -w '%{http_code} %{time_total}' -x socks5h://127.0.0.1:${LINK_SOCKS} http://${gw}/ 2>/dev/null`);
+		// the inside router answers this name itself when its side is up (see link-ping)
+		let out = hub.run(`curl -s -m 10 -o /dev/null -w '%{http_code} %{time_total}' -x socks5h://127.0.0.1:${LINK_SOCKS} http://${LINK_PING}/ 2>/dev/null`);
 		let m = match(out, /^([0-9]{3}) ([0-9.]+)/);
 		r = (m && m[1] != '000') ? { ok: true, time: time(), ms: int(+m[2] * 1000) } : { ok: false, time: time(), error: 'The other router does not answer.' };
 	}
@@ -1253,11 +1434,6 @@ export function link_check() {
 	if (was != null && r.ok != null && was != r.ok)
 		hub.locked(() => hub.add_alert('internet', r.ok ? 'Router link is back' : 'Router link is down', r.ok ? '' : 'The other router cannot be reached through the link.', r.ok ? 'info' : 'warning'));
 	return r;
-}
-
-function older(path, secs) {
-	let st = stat(path);
-	return !st || time() - st.mtime >= secs;
 }
 
 /* From the 30 s pass: when a check is due, it runs in the background (it can take a few seconds). */
@@ -1287,5 +1463,5 @@ export function watch() {
 			hub.locked(() => hub.add_alert('internet', h.ok ? 'VPN works again' : 'VPN is not working', h.ok ? `Sites see ${h.exit_ip}.` : 'The VPN server does not answer. Devices that use the VPN have no internet until it answers or the VPN is switched off.', h.ok ? 'info' : 'warning'));
 	}
 	link_check();
-	if (subs_due()) system(`(${TOOL} subs-update) >/dev/null 2>&1 </dev/null &`);
+	if (subs_due() && !subs_running()) subs_start(null);
 }

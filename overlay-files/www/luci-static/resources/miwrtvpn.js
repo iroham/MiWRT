@@ -5,9 +5,19 @@
 
 // Shared parts of the VPN pages (views miwrt-vpn/xray, link, tailscale): the calls to the rpcd object
 // miwrt-vpn, the look (the same cards as the other MiWRT pages, in the theme's colours) and small helpers.
+//
+// Text from the router (server and subscription names, peer names, error messages) is never given to
+// E() as a bare string: LuCI's dom.append sets a bare string as innerHTML. Wrapped in an array it
+// becomes a text node. The helpers below wrap whatever they are given; the views wrap the rest (T()).
+
+function T(v) {
+	return [ v == null ? '' : String(v) ];
+}
 
 function declare(method, params) {
-	return rpc.declare({ object: 'miwrt-vpn', method: method, params: params || [] });
+	// reject: a call that fails in rpcd (a ubus status instead of an answer) rejects, so act() and
+	// L.resolveDefault() see it as a failure instead of taking the status number for a reply
+	return rpc.declare({ object: 'miwrt-vpn', method: method, params: params || [], reject: true });
 }
 
 var CSS = `
@@ -72,6 +82,8 @@ return baseclass.extend({
 	callTsLogout: declare('ts_logout', [ 'data' ]),
 	callHints: rpc.declare({ object: 'luci-rpc', method: 'getHostHints', expect: { '': {} } }),
 
+	T: T,
+
 	style: function() {
 		return E('style', {}, CSS);
 	},
@@ -81,29 +93,29 @@ return baseclass.extend({
 	},
 
 	badge: function(text, tone) {
-		return E('span', { 'class': 'mv-badge' + (tone ? ' ' + tone : '') }, text);
+		return E('span', { 'class': 'mv-badge' + (tone ? ' ' + tone : '') }, T(text));
 	},
 
 	kicker: function(text) {
-		return E('div', { 'class': 'mv-kicker' }, text);
+		return E('div', { 'class': 'mv-kicker' }, T(text));
 	},
 
 	button: function(label, fn, kind) {
 		var cls = kind == 'primary' ? 'cbi-button cbi-button-action important'
 			: kind == 'danger' ? 'cbi-button cbi-button-negative' : 'cbi-button cbi-button-neutral';
-		return E('button', { 'class': cls, 'click': ui.createHandlerFn(this, fn) }, label);
+		return E('button', { 'class': cls, 'click': ui.createHandlerFn(this, fn) }, T(label));
 	},
 
 	/* Runs a call; on { error } shows it and resolves false, otherwise true. */
 	act: function(promise) {
 		return Promise.resolve(promise).then(function(r) {
 			if (r && r.error) {
-				ui.addNotification(null, E('p', {}, r.error), 'danger');
+				ui.addNotification(null, E('p', {}, T(r.error)), 'danger');
 				return false;
 			}
 			return r || true;
 		}).catch(function(e) {
-			ui.addNotification(null, E('p', {}, e.message || String(e)), 'danger');
+			ui.addNotification(null, E('p', {}, T(e.message || String(e))), 'danger');
 			return false;
 		});
 	},
@@ -131,35 +143,39 @@ return baseclass.extend({
 		steps.forEach(function(s, i) { if (s[0] == job.step) at = i; });
 		return E('ul', { 'class': 'mv-steps' }, steps.map(function(s, i) {
 			var mark = i < at || job.state == 'done' ? '✓' : (i == at ? '…' : '○');
-			return E('li', {}, [ E('span', { 'style': 'width:16px;text-align:center;font-weight:700' }, mark), s[1] ]);
+			return E('li', {}, [ E('span', { 'style': 'width:16px;text-align:center;font-weight:700' }, T(mark)), s[1] ]);
 		}));
 	},
 
 	copy: function(text) {
-		var done = function() { ui.addNotification(null, E('p', {}, _('Скопировано.')), 'info'); };
+		var done = function() { ui.addNotification(null, E('p', {}, T(_('Скопировано.'))), 'info'); };
+		var fail = function() { ui.addNotification(null, E('p', {}, T(_('Не удалось скопировать: выделите текст и скопируйте его вручную.'))), 'warning'); };
 		if (navigator.clipboard && window.isSecureContext)
-			return navigator.clipboard.writeText(text).then(done);
-		var ta = E('textarea', { 'style': 'position:fixed;opacity:0' }, text);
+			return navigator.clipboard.writeText(text).then(done, fail);
+		var ta = E('textarea', { 'style': 'position:fixed;opacity:0' });
+		ta.value = text;
 		document.body.appendChild(ta);
 		ta.select();
-		try { document.execCommand('copy'); done(); } catch (e) {}
+		var ok = false;
+		try { ok = document.execCommand('copy'); } catch (e) {}
 		document.body.removeChild(ta);
+		ok ? done() : fail();
 	},
 
 	codeBox: function(text) {
 		var self = this;
 		return E('div', { 'class': 'mv-field' }, [
-			E('div', { 'class': 'mv-code' }, text),
+			E('div', { 'class': 'mv-code' }, T(text)),
 			E('div', { 'class': 'mv-act' }, [ E('button', { 'class': 'cbi-button cbi-button-neutral', 'click': function() { self.copy(text); } }, _('Копировать')) ])
 		]);
 	},
 
 	field: function(label, input, note) {
-		return E('div', { 'class': 'mv-field' }, [ E('label', {}, label), input, note ? E('div', { 'class': 'mv-note' }, note) : '' ]);
+		return E('div', { 'class': 'mv-field' }, [ E('label', {}, T(label)), input, note ? E('div', { 'class': 'mv-note' }, T(note)) : '' ]);
 	},
 
 	check: function(input, label, note) {
-		return E('label', { 'class': 'mv-check' }, [ input, E('span', {}, [ label, note ? E('div', { 'class': 'mv-note' }, note) : '' ]) ]);
+		return E('label', { 'class': 'mv-check' }, [ input, E('span', {}, [ String(label), note ? E('div', { 'class': 'mv-note' }, T(note)) : '' ]) ]);
 	},
 
 	country: function(cc) {

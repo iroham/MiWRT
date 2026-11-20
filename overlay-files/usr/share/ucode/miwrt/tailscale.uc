@@ -140,6 +140,8 @@ export function set_args(c) {
 	}
 	let exitn = opt(c, 'exit_node', '');
 	if (!match(exitn, /^[A-Za-z0-9.:-]*$/)) exitn = '';
+	// Tailscale refuses to offer an exit node and use one at once, and then applies nothing at all
+	if (opt(c, 'advertise_exit', '0') == '1') exitn = '';
 	let args = [ '--accept-dns=false', `--advertise-routes=${join(',', lan)}`,
 		`--advertise-exit-node=${opt(c, 'advertise_exit', '0') == '1'}`, `--accept-routes=${opt(c, 'accept_routes', '0') == '1'}`,
 		`--exit-node=${exitn}` ];
@@ -153,21 +155,25 @@ export function set_args(c) {
 export function firewall(on, c) {
 	c = c ?? cursor();
 	let changed = false;
+	// lists are compared by their text: two arrays are never == in ucode
+	let same = (a, b) => (type(a) == 'array' ? join(' ', a) : a) == (type(b) == 'array' ? join(' ', b) : b);
 	let set = (conf, sec, typ, vals) => {
 		if (c.get(conf, sec) != typ) { c.set(conf, sec, typ); changed = true; }
-		for (let k, v in vals) if (c.get(conf, sec, k) != v) { c.set(conf, sec, k, v); changed = true; }
+		for (let k, v in vals) if (!same(c.get(conf, sec, k), v)) { c.set(conf, sec, k, v); changed = true; }
 	};
 	let del = (conf, sec) => { if (c.get(conf, sec)) { c.delete(conf, sec); changed = true; } };
 	if (on) {
-		set('network', 'tailscale', 'interface', { proto: 'none', device: 'tailscale0' });
-		set('firewall', 'miwrt_ts_zone', 'zone', { name: 'tailscale', input: 'ACCEPT', output: 'ACCEPT', forward: 'REJECT', network: [ 'tailscale' ], mtu_fix: '1' });
-		set('firewall', 'miwrt_ts_lan', 'forwarding', { src: 'tailscale', dest: 'lan' });
-		set('firewall', 'miwrt_lan_ts', 'forwarding', { src: 'lan', dest: 'tailscale' });
-		if (opt(c, 'advertise_exit', '0') == '1') set('firewall', 'miwrt_ts_wan', 'forwarding', { src: 'tailscale', dest: 'wan' });
+		// names of their own: an interface or zone called "tailscale" that the user made by hand, or
+		// that another Tailscale page made, is left alone
+		set('network', 'miwrt_ts', 'interface', { proto: 'none', device: 'tailscale0' });
+		set('firewall', 'miwrt_ts_zone', 'zone', { name: 'miwrt_ts', input: 'ACCEPT', output: 'ACCEPT', forward: 'REJECT', network: [ 'miwrt_ts' ], mtu_fix: '1' });
+		set('firewall', 'miwrt_ts_lan', 'forwarding', { src: 'miwrt_ts', dest: 'lan' });
+		set('firewall', 'miwrt_lan_ts', 'forwarding', { src: 'lan', dest: 'miwrt_ts' });
+		if (opt(c, 'advertise_exit', '0') == '1') set('firewall', 'miwrt_ts_wan', 'forwarding', { src: 'miwrt_ts', dest: 'wan' });
 		else del('firewall', 'miwrt_ts_wan');
 	} else {
 		for (let s in [ 'miwrt_ts_zone', 'miwrt_ts_lan', 'miwrt_lan_ts', 'miwrt_ts_wan' ]) del('firewall', s);
-		del('network', 'tailscale');
+		del('network', 'miwrt_ts');
 	}
 	if (changed) {
 		c.commit('network');
@@ -181,6 +187,9 @@ export function set(b) {
 	if (!installed()) return 'Install Tailscale first.';
 	let c = cursor();
 	if ('exit_node' in b && !(b.exit_node == '' || match(b.exit_node ?? '', /^[A-Za-z0-9.:-]{1,100}$/))) return 'That exit node is not valid.';
+	let offer = 'advertise_exit' in b ? !!b.advertise_exit : opt(c, 'advertise_exit', '0') == '1';
+	let use = 'exit_node' in b ? length(b.exit_node ?? '') > 0 : length(opt(c, 'exit_node', '')) > 0;
+	if (offer && use) return 'The router cannot offer itself as an exit node and use another one at the same time. Switch one of them off.';
 	let restart = false;
 	for (let k in [ 'via_vpn', 'advertise_lan', 'advertise_exit', 'accept_routes' ])
 		if (k in b) { let v = b[k] ? '1' : '0'; if (opt(c, k, '0') != v) { c.set('tailscale', 'settings', k, v); if (k == 'via_vpn') restart = true; } }
@@ -191,7 +200,8 @@ export function set(b) {
 	let now = opt(c, 'enabled', '0') == '1';
 	firewall(now, c);
 	if (now && !was) {
-		system(`(${INIT} enable; ${INIT} start) >/dev/null 2>&1 </dev/null &`);
+		// settings changed while it was off take effect once it runs
+		system(`(${INIT} enable; ${INIT} start; sleep 3; ${TOOL} apply) >/dev/null 2>&1 </dev/null &`);
 		hub.locked(() => hub.add_alert('router', 'Tailscale switched on', '', 'info'));
 	} else if (!now && was) {
 		system(`(${INIT} stop; ${INIT} disable) >/dev/null 2>&1 </dev/null &`);
@@ -213,7 +223,8 @@ export function login(b) {
 	let f = '';
 	if (length(key)) {
 		mkdir(RUN);
-		f = RUN + '/ts-key';
+		// a name of its own per sign-in: two at once do not take each other's key
+		f = sprintf('%s/ts-key-%d-%04x', RUN, time(), int(clock(true)?.[1] ?? 0) % 65536);
 		writefile(f, '');
 		system([ 'chmod', '600', f ]);
 		writefile(f, key);

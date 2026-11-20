@@ -22,12 +22,14 @@ function call(fn) {
 
 return {
 	'miwrt-vpn': {
-		state: { args: { check: false }, call: function(req) { return tunnel.state(!!req.args?.check); } },
+		// rpcd answers one call at a time and the page waits 20 seconds at most: a check (up to 12 s)
+		// and a subscription download (up to a minute) run in the background, the page asks again
+		state: { args: { check: false }, call: function(req) { if (req.args?.check) tunnel.check_bg(); return tunnel.state(false); } },
 		set: call(d => tunnel.set(d)),
 		install: call(d => tunnel.engine_install()),
 		remove: call(d => tunnel.engine_remove()),
 		servers: call(d => tunnel.servers_action(d)),
-		subscriptions: call(d => tunnel.subs_action(d)),
+		subscriptions: call(d => tunnel.subs_action({ ...d, background: true })),
 		test: call(d => tunnel.test(d)),
 		link_state: { call: function() { return tunnel.link_state(); } },
 		link: call(d => tunnel.link_action(d)),

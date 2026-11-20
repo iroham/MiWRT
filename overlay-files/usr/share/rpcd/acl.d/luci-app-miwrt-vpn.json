@@ -3,13 +3,13 @@
 		"description": "MiWRT VPN (Xray), router link and Tailscale",
 		"read": {
 			"ubus": {
-				"miwrt-vpn": [ "state", "link_state", "relay", "ts_state" ],
+				"miwrt-vpn": [ "state", "link_state", "ts_state" ],
 				"luci-rpc": [ "getHostHints" ]
 			}
 		},
 		"write": {
 			"ubus": {
-				"miwrt-vpn": [ "set", "install", "remove", "servers", "subscriptions", "test", "link", "ts_set", "ts_install", "ts_remove", "ts_login", "ts_logout" ]
+				"miwrt-vpn": [ "relay", "set", "install", "remove", "servers", "subscriptions", "test", "link", "ts_set", "ts_install", "ts_remove", "ts_login", "ts_logout" ]
 			}
 		}
 	}
