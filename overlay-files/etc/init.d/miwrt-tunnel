@@ -1,0 +1,32 @@
+#!/bin/sh /etc/rc.common
+# The MiWRT VPN and router link: one Xray process, its firewall rules and its local route.
+# The settings are /etc/miwrt/tunnel.json; /usr/sbin/miwrt-tunnel turns them into Xray's
+# configuration (see /usr/share/ucode/miwrt/tunnel.uc). Nothing runs until a VPN server is
+# switched on or a router link is set up.
+
+START=95
+STOP=10
+USE_PROCD=1
+
+CONF=/tmp/miwrt/tunnel/config.json
+
+start_service() {
+	/usr/sbin/miwrt-tunnel prepare || return 0
+	local mem
+	mem=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)
+	procd_open_instance xray
+	procd_set_param command /usr/bin/xray run -c "$CONF"
+	# a router with little memory: Go returns memory sooner and collects garbage more often
+	if [ "${mem:-0}" -lt 204800 ]; then
+		procd_set_param env GOMEMLIMIT=40MiB GOGC=50
+	fi
+	procd_set_param limits nofile="16384 16384"
+	procd_set_param respawn 3600 5 0
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_close_instance
+}
+
+stop_service() {
+	/usr/sbin/miwrt-tunnel cleanup
+}

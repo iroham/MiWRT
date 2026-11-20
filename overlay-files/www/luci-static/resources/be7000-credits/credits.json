@@ -87,6 +87,22 @@
 					"ru": "Сторонние пакеты в фиде, собранные по OpenWrt-рецептам их авторов (remittor, 1andrevich, DPITrickster, yandexru45).",
 					"en": "Third-party packages in the feed, built from their authors' OpenWrt recipes (remittor, 1andrevich, DPITrickster, yandexru45).",
 					"zh": "软件源中的第三方软件包，按其作者的 OpenWrt 构建配方编译（remittor、1andrevich、DPITrickster、yandexru45）。"
+				},
+				{
+					"name": "Project X",
+					"site": "Xray-core",
+					"url": "https://github.com/XTLS/Xray-core",
+					"ru": "Xray-core, на котором работают VPN и связь роутеров. Рецепт пакета следует пакету xray-core из OpenWrt (Tianling Shen).",
+					"en": "Xray-core, which the VPN and the router link run on. The package recipe follows OpenWrt's xray-core package (Tianling Shen).",
+					"zh": "Xray-core，VPN 和路由器互联基于它运行。软件包配方参照 OpenWrt 的 xray-core 软件包（Tianling Shen）。"
+				},
+				{
+					"name": "Tailscale",
+					"site": "tailscale",
+					"url": "https://github.com/tailscale/tailscale",
+					"ru": "Клиент Tailscale (BSD-3-Clause), собранный без частей, которые не нужны роутеру. Рецепт пакета следует пакету tailscale из OpenWrt.",
+					"en": "The Tailscale client (BSD-3-Clause), built without the parts a router does not use. The package recipe follows OpenWrt's tailscale package.",
+					"zh": "Tailscale 客户端（BSD-3-Clause），去掉了路由器用不到的部分。软件包配方参照 OpenWrt 的 tailscale 软件包。"
 				}
 			]
 		},

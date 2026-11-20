@@ -1,0 +1,155 @@
+#!/usr/bin/ucode
+// The work behind the MiWRT VPN and the router link (see /usr/share/ucode/miwrt/tunnel.uc).
+//
+//   miwrt-tunnel prepare          for the service: writes Xray's configuration, the firewall rules and
+//                                 the local route; exits 1 when there is nothing to run
+//   miwrt-tunnel cleanup          for the service: removes the rules and the route
+//   miwrt-tunnel net              after a network change: puts the route and the rules back if the
+//                                 service runs (/etc/hotplug.d/iface/95-miwrt-tunnel)
+//   miwrt-tunnel engine-install   installs Xray from the MiWRT feed (progress in /tmp/miwrt/tunnel-job.json)
+//   miwrt-tunnel engine-remove    stops the VPN and the link and removes Xray
+//   miwrt-tunnel test [ids]       tests servers (all, or the comma-separated ids)
+//   miwrt-tunnel subs-update      fetches every subscription again
+//   miwrt-tunnel watch            checks the tunnel and the link (started by the 30 s pass when due)
+//   miwrt-tunnel relay-config     prints the configuration for the relay server of a router link
+//   miwrt-tunnel status           prints the state as JSON
+'use strict';
+
+import { readfile, access, unlink } from 'fs';
+import * as hub from 'miwrt.hub';
+import * as tunnel from 'miwrt.tunnel';
+
+function sh(cmd) {
+	return system(cmd) == 0;
+}
+
+function prepare() {
+	let c = tunnel.conf();
+	if (!tunnel.engine_installed() || !tunnel.wanted(c)) {
+		tunnel.nft_clear();
+		tunnel.route_off();
+		return 1;
+	}
+	let err = tunnel.write_config(c);
+	if (err) {
+		warn(`miwrt-tunnel: ${err}\n`);
+		hub.locked(() => hub.add_alert('internet', 'VPN could not start', err, 'warning'));
+		tunnel.nft_clear();
+		tunnel.route_off();
+		return 1;
+	}
+	tunnel.route_on();
+	err = tunnel.nft_apply(c);
+	if (err) {
+		warn(`miwrt-tunnel: firewall rules: ${err}\n`);
+		hub.locked(() => hub.add_alert('internet', 'VPN could not start', 'The router could not set up the firewall rules for the VPN.', 'warning'));
+		tunnel.nft_clear();
+		tunnel.route_off();
+		return 1;
+	}
+	return 0;
+}
+
+function cleanup() {
+	tunnel.nft_clear();
+	tunnel.route_off();
+	return 0;
+}
+
+function net() {
+	let r = connect_running();
+	if (!r) return 0;
+	tunnel.route_on();
+	let err = tunnel.nft_apply(tunnel.conf());
+	if (err) warn(`miwrt-tunnel: firewall rules: ${err}\n`);
+	return 0;
+}
+
+function connect_running() {
+	return match(hub.run('/etc/init.d/miwrt-tunnel running >/dev/null 2>&1 && echo yes'), /yes/) != null;
+}
+
+function engine_install() {
+	let pkg = tunnel.engine_package();
+	let log = '/tmp/miwrt/tunnel-install.log';
+	tunnel.job_step('running', 'download');
+	// "apk update" fails as a whole when one feed does not answer; the others are still read
+	sh(`apk update >${log} 2>&1`);
+	let extra = access('/lib/modules') && !length(hub.run('ls /lib/modules/*/nft_tproxy.ko 2>/dev/null')) ? ' kmod-nft-tproxy' : '';
+	tunnel.job_step('running', 'install');
+	if (!sh(`apk add ${pkg}${extra} >>${log} 2>&1`) || !tunnel.engine_installed()) {
+		let tail = trim(hub.run(`tail -n 3 ${log}`));
+		let why = match(tail, /(unable to select|no such package|UNTRUSTED|network|DNS|timed out|Connection|HTTP)/i)
+			? 'The router could not download Xray. Check the internet connection, or install the package file by hand under System, Software.'
+			: (match(tail, /No space|disk full/i) ? 'There is not enough free storage for Xray.' : 'Xray could not be installed.');
+		tunnel.job_step('failed', 'install', why);
+		hub.locked(() => hub.add_alert('internet', 'Xray was not installed', why, 'warning'));
+		return 1;
+	}
+	tunnel.job_step('running', 'check');
+	// the first start unpacks the compressed copy on the BE7000; do it now rather than at the first connection
+	let v = tunnel.engine_version();
+	if (!v) {
+		tunnel.job_step('failed', 'check', 'Xray was installed but does not start.');
+		return 1;
+	}
+	sh('/etc/init.d/miwrt-tunnel enable >/dev/null 2>&1');
+	tunnel.job_step('done', 'done');
+	hub.locked(() => hub.add_alert('internet', 'Xray installed', `Version ${v}. Add a VPN server to use it.`, 'info'));
+	if (tunnel.wanted(tunnel.conf())) tunnel.apply();
+	return 0;
+}
+
+function engine_remove() {
+	tunnel.job_step('running', 'remove');
+	sh('/etc/init.d/miwrt-tunnel stop >/dev/null 2>&1');
+	cleanup();
+	let pkgs = filter([ 'miwrt-xray', 'miwrt-xray-xz' ], p => sh(`apk info -e ${p} >/dev/null 2>&1`));
+	if (length(pkgs) && !sh(`apk del ${join(' ', pkgs)} >/tmp/miwrt/tunnel-install.log 2>&1`)) {
+		tunnel.job_step('failed', 'remove', 'Xray could not be removed.');
+		return 1;
+	}
+	// "apk del xz" leaves BusyBox's stand-ins for the xz tools behind; this BusyBox may have no xz
+	for (let f in [ 'xz', 'xzcat', 'unxz', 'lzma', 'lzcat', 'unlzma' ]) {
+		let p = `/usr/bin/${f}`;
+		if (!access(`/rom${p}`) && trim(hub.run(`readlink ${p} 2>/dev/null`)) == '/bin/busybox' && !sh(`busybox ${f} --help >/dev/null 2>&1`))
+			unlink(p);
+	}
+	sh('rm -rf /tmp/miwrt-xray /tmp/miwrt/tunnel');
+	let c = tunnel.conf();
+	if (c.enabled) { c.enabled = false; tunnel.store(c); }
+	tunnel.job_step('done', 'removed');
+	hub.locked(() => hub.add_alert('internet', 'Xray removed', 'The VPN and the router link are off.', 'info'));
+	return 0;
+}
+
+function subs_update() {
+	let c = tunnel.conf();
+	for (let s in c.subscriptions) s.tried = time();
+	hub.locked(() => {
+		let now = tunnel.conf();
+		for (let s in now.subscriptions) s.tried = time();
+		tunnel.store(now);
+	});
+	let err = tunnel.subs_action({ action: 'update' });
+	if (err) warn(`miwrt-tunnel: ${err}\n`);
+	return 0;
+}
+
+let cmd = ARGV[0];
+let rc = 0;
+if (cmd == 'prepare') rc = prepare();
+else if (cmd == 'cleanup') rc = cleanup();
+else if (cmd == 'net') rc = net();
+else if (cmd == 'engine-install') rc = engine_install();
+else if (cmd == 'engine-remove') rc = engine_remove();
+else if (cmd == 'test') { tunnel.run_tests(length(ARGV[1] ?? '') ? split(ARGV[1], ',') : null); }
+else if (cmd == 'subs-update') rc = subs_update();
+else if (cmd == 'watch') tunnel.watch();
+else if (cmd == 'relay-config') { let r = tunnel.relay_config(); if (r) print(sprintf('%.J', r), '\n'); else rc = 1; }
+else if (cmd == 'status') print(sprintf('%.J', tunnel.state(true)), '\n');
+else {
+	warn('usage: miwrt-tunnel prepare|cleanup|net|engine-install|engine-remove|test [ids]|subs-update|relay-config|status\n');
+	rc = 2;
+}
+exit(rc);

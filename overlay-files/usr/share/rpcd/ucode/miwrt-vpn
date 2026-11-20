@@ -1,0 +1,42 @@
+'use strict';
+
+// The web interface's calls for the VPN, the router link and Tailscale (views miwrt-vpn/*).
+// The work is in /usr/share/ucode/miwrt/tunnel.uc and tailscale.uc, the same code the app uses.
+
+import * as tunnel from 'miwrt.tunnel';
+import * as ts from 'miwrt.tailscale';
+
+function result(r) {
+	if (type(r) == 'string') return { error: r };
+	return r ?? { ok: true };
+}
+
+function data(req) {
+	let d = req.args?.data;
+	return type(d) == 'object' ? d : {};
+}
+
+function call(fn) {
+	return { args: { data: {} }, call: function(req) { return result(fn(data(req))); } };
+}
+
+return {
+	'miwrt-vpn': {
+		state: { args: { check: false }, call: function(req) { return tunnel.state(!!req.args?.check); } },
+		set: call(d => tunnel.set(d)),
+		install: call(d => tunnel.engine_install()),
+		remove: call(d => tunnel.engine_remove()),
+		servers: call(d => tunnel.servers_action(d)),
+		subscriptions: call(d => tunnel.subs_action(d)),
+		test: call(d => tunnel.test(d)),
+		link_state: { call: function() { return tunnel.link_state(); } },
+		link: call(d => tunnel.link_action(d)),
+		relay: { call: function() { let r = tunnel.relay_config(); return r ? { config: r, image: 'ghcr.io/xtls/xray-core:26.11.9' } : { error: 'This router does not use a relay server.' }; } },
+		ts_state: { call: function() { return ts.state(); } },
+		ts_set: call(d => ts.set(d)),
+		ts_install: call(d => ts.install()),
+		ts_remove: call(d => ts.remove()),
+		ts_login: call(d => ts.login(d)),
+		ts_logout: call(d => ts.logout())
+	}
+};

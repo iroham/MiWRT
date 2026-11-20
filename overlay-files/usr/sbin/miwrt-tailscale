@@ -1,0 +1,115 @@
+#!/usr/bin/ucode
+// The slow parts of Tailscale on a MiWRT router (see /usr/share/ucode/miwrt/tailscale.uc).
+//
+//   miwrt-tailscale install        installs the MiWRT build of Tailscale from the MiWRT feed, with
+//                                  kmod-tun and, on a router with little memory, compressed swap
+//   miwrt-tailscale remove         switches it off and removes what install added
+//   miwrt-tailscale apply          puts the saved settings into effect (tailscale set ...)
+//   miwrt-tailscale login [file]   signs in, with the auth key in the file (removed after) or
+//                                  interactively (the address appears in tailscale status)
+// Progress of install and remove goes to /tmp/miwrt/tailscale-job.json.
+'use strict';
+
+import { readfile, writefile, unlink, access } from 'fs';
+import { cursor } from 'uci';
+import * as hub from 'miwrt.hub';
+import * as ts from 'miwrt.tailscale';
+
+const LOG = '/tmp/miwrt/tailscale-install.log';
+
+function sh(cmd) {
+	return system(cmd) == 0;
+}
+
+function alert(title, body, severity) {
+	hub.locked(() => hub.add_alert('router', title, body, severity));
+}
+
+function argv_str(args) {
+	return join(' ', map(args, a => "'" + replace(a, /'/g, "'\\''") + "'"));
+}
+
+function wait_running(secs) {
+	for (let i = 0; i < secs; i++) {
+		if (sh('/usr/sbin/tailscale status --json >/dev/null 2>&1')) return true;
+		system('sleep 1');
+	}
+	return false;
+}
+
+function install() {
+	ts.job_step('running', 'download');
+	sh(`apk update >${LOG} 2>&1`);
+	let mem = +(match(readfile('/proc/meminfo') ?? '', /MemTotal:\s+([0-9]+)/)?.[1] ?? 0);
+	let pkgs = [ 'miwrt-tailscale', 'kmod-tun' ];
+	if (mem < 204800 && !sh('apk info -e zram-swap >/dev/null 2>&1')) push(pkgs, 'zram-swap');
+	let fresh = filter(pkgs, p => !sh(`apk info -e ${p} >/dev/null 2>&1`));
+	ts.job_step('running', 'install');
+	if (!sh(`apk add ${join(' ', pkgs)} >>${LOG} 2>&1`) || !ts.installed()) {
+		let tail = trim(hub.run(`tail -n 3 ${LOG}`));
+		let why = match(tail, /No space|disk full/i) ? 'There is not enough free storage for Tailscale.'
+			: 'The router could not download Tailscale. Check the internet connection and try again.';
+		ts.job_step('failed', 'install', why);
+		alert('Tailscale was not installed', why, 'warning');
+		return 1;
+	}
+	writefile(ts.ADDED, join('\n', fresh) + '\n');
+	// the package's service is off until switched on; make sure nothing started it
+	sh('/etc/init.d/tailscale stop >/dev/null 2>&1');
+	if (index(fresh, 'zram-swap') >= 0) sh('/etc/init.d/zram start >/dev/null 2>&1');
+	ts.job_step('done', 'done');
+	alert('Tailscale installed', 'Switch it on and sign in.', 'info');
+	return 0;
+}
+
+function remove() {
+	ts.job_step('running', 'remove');
+	let c = cursor();
+	c.set('tailscale', 'settings', 'enabled', '0');
+	c.commit('tailscale');
+	sh('/etc/init.d/tailscale stop >/dev/null 2>&1; /etc/init.d/tailscale disable >/dev/null 2>&1');
+	ts.firewall(false);
+	let added = filter(split(readfile(ts.ADDED) ?? 'miwrt-tailscale', '\n'), p => match(p, /^[a-z0-9-]+$/));
+	if (index(added, 'miwrt-tailscale') < 0) push(added, 'miwrt-tailscale');
+	if (index(added, 'zram-swap') >= 0) sh('/etc/init.d/zram stop >/dev/null 2>&1');
+	if (!sh(`apk del ${join(' ', added)} >${LOG} 2>&1`)) {
+		ts.job_step('failed', 'remove', 'Tailscale could not be removed.');
+		return 1;
+	}
+	unlink(ts.ADDED);
+	sh('rm -rf /etc/tailscale /var/lib/tailscale');
+	ts.job_step('done', 'removed');
+	alert('Tailscale removed', '', 'info');
+	return 0;
+}
+
+function apply() {
+	if (!ts.enabled() || !wait_running(20)) return 0;
+	let out = hub.run(`/usr/sbin/tailscale set ${argv_str(ts.set_args())} 2>&1`);
+	if (length(trim(out))) warn(`miwrt-tailscale: ${out}\n`);
+	return 0;
+}
+
+function login(file) {
+	if (!wait_running(20)) return 1;
+	let args = ts.set_args();
+	let key = (file && match(file, /^\/tmp\/miwrt\/ts-key$/)) ? `--auth-key=file:${file}` : null;
+	let up = `/usr/sbin/tailscale up --reset ${argv_str(args)}${key ? " '" + key + "'" : ''} --timeout=600s`;
+	if (key) {
+		let out = hub.run(`${up} 2>&1`);
+		unlink(file);
+		if (!sh('/usr/sbin/tailscale status >/dev/null 2>&1')) alert('Tailscale sign-in failed', trim(out) ?? '', 'warning');
+		return 0;
+	}
+	// interactive: "tailscale up" waits for the sign-in in a browser; the address is in the status meanwhile
+	system(`${up} >/dev/null 2>&1`);
+	return 0;
+}
+
+let cmd = ARGV[0], rc = 0;
+if (cmd == 'install') rc = install();
+else if (cmd == 'remove') rc = remove();
+else if (cmd == 'apply') rc = apply();
+else if (cmd == 'login') rc = login(ARGV[1]);
+else { warn('usage: miwrt-tailscale install|remove|apply|login [keyfile]\n'); rc = 2; }
+exit(rc);

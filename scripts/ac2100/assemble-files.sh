@@ -45,10 +45,10 @@ take overlay-files/www/cgi-bin/miwrt                     www/cgi-bin/miwrt
 take overlay-files/usr/share/miwrt/api.uc                usr/share/miwrt/api.uc
 take overlay-files/usr/share/miwrt/tick.uc               usr/share/miwrt/tick.uc
 take overlay-files/etc/apk/commit_hooks.d/miwrt-compiled etc/apk/commit_hooks.d/miwrt-compiled
-for f in extras hub power; do
+for f in extras hub power tunnel tailscale; do
 	take overlay-files/usr/share/ucode/miwrt/$f.uc       usr/share/ucode/miwrt/$f.uc
 done
-for f in ctl discovery-relay hubd mdns-reflector push tuya upload wol; do
+for f in ctl discovery-relay hubd mdns-reflector push tuya upload wol tunnel tailscale; do
 	take overlay-files/usr/sbin/miwrt-$f                 usr/sbin/miwrt-$f
 done
 
@@ -87,6 +87,17 @@ take overlay-files/usr/share/rpcd/acl.d/luci-app-miwrt-setup.json               
 take overlay-files/usr/share/luci/menu.d/luci-app-miwrt-setup.json              usr/share/luci/menu.d/luci-app-miwrt-setup.json
 take overlay-files/www/luci-static/resources/view/miwrt-setup                   www/luci-static/resources/view/miwrt-setup
 take overlay-files/www/luci-static/resources/miwrt-setup                        www/luci-static/resources/miwrt-setup
+
+# --- VPN: the Xray client and the router link (Xray itself installs from the MiWRT feed when
+#     asked for), and the Tailscale page (Tailscale is not in this image: the page installs it
+#     from the MiWRT feed and removes it again) ---
+take overlay-files/etc/init.d/miwrt-tunnel                                      etc/init.d/miwrt-tunnel
+take overlay-files/etc/hotplug.d/iface/95-miwrt-tunnel                          etc/hotplug.d/iface/95-miwrt-tunnel
+take overlay-files/usr/share/rpcd/ucode/miwrt-vpn                               usr/share/rpcd/ucode/miwrt-vpn
+take overlay-files/usr/share/rpcd/acl.d/luci-app-miwrt-vpn.json                 usr/share/rpcd/acl.d/luci-app-miwrt-vpn.json
+take overlay-files/usr/share/luci/menu.d/luci-app-miwrt-vpn.json                usr/share/luci/menu.d/luci-app-miwrt-vpn.json
+take overlay-files/www/luci-static/resources/miwrtvpn.js                        www/luci-static/resources/miwrtvpn.js
+take overlay-files/www/luci-static/resources/view/miwrt-vpn                     www/luci-static/resources/view/miwrt-vpn
 
 # --- the LuCI translations of every MiWRT page (the sources are Russian) ---
 for l in en zh-cn; do
@@ -136,7 +147,7 @@ mkdir -p "$OUT/etc/apk/repositories.d"
 echo "https://iroham.github.io/MiWRT/feed/ac2100/$OPENWRT/mipsel_24kc/miwrt/packages.adb" > "$OUT/etc/apk/repositories.d/miwrt.list"
 
 # the shared scripts expect to be executable and the app's state directory to be private
-chmod 755 "$OUT"/etc/init.d/* "$OUT"/etc/uci-defaults/* "$OUT"/usr/sbin/* "$OUT"/www/cgi-bin/miwrt "$OUT"/usr/libexec/be7000-* "$OUT"/usr/libexec/miwrt-setup-apply "$OUT"/etc/apk/commit_hooks.d/*
+chmod 755 "$OUT"/etc/init.d/* "$OUT"/etc/uci-defaults/* "$OUT"/usr/sbin/* "$OUT"/www/cgi-bin/miwrt "$OUT"/usr/libexec/be7000-* "$OUT"/usr/libexec/miwrt-setup-apply "$OUT"/etc/apk/commit_hooks.d/* "$OUT"/etc/hotplug.d/iface/95-miwrt-tunnel
 chmod 700 "$OUT/etc/miwrt"
 
 echo "assembled $(find "$OUT" -type f | wc -l) files and $(find "$OUT" -type l | wc -l) links into $OUT"

@@ -7,6 +7,8 @@ import { stdin } from 'fs';
 import * as hub from 'miwrt.hub';
 import * as extras from 'miwrt.extras';
 import * as power from 'miwrt.power';
+import * as tunnel from 'miwrt.tunnel';
+import * as ts from 'miwrt.tailscale';
 
 function reply(code, obj) {
 	const reason = { '200': 'OK', '400': 'Bad Request', '401': 'Unauthorized', '403': 'Forbidden', '404': 'Not Found', '429': 'Too Many Requests' };
@@ -14,14 +16,20 @@ function reply(code, obj) {
 	exit(0);
 }
 
-function body() {
+function body(limit) {
 	let n = +getenv('CONTENT_LENGTH') || 0;
-	if (n <= 0 || n > 8192) return {};
+	if (n <= 0 || n > (limit ?? 8192)) return {};
 	try { return json(stdin.read(n)) ?? {}; } catch (e) { return {}; }
 }
 
 function done(err) {
 	reply(err ? 400 : 200, err ? { error: err } : { ok: true });
+}
+
+// an error text, or an object that is the answer
+function answer(r) {
+	if (type(r) == 'string') reply(400, { error: r });
+	reply(200, r ?? { ok: true });
 }
 
 function main() {
@@ -90,6 +98,10 @@ function main() {
 		if (path == '/v1/protection/lists') reply(200, hub.protection_lists());
 		if (path == '/v1/protection/log') reply(200, hub.protection_log(query.filter, query.search));
 		if (path == '/v1/protection/check') reply(200, hub.protection_check(query.domain));
+		if (path == '/v1/vpn') reply(200, tunnel.state(query.check == '1'));
+		if (path == '/v1/link') reply(200, tunnel.link_state());
+		if (path == '/v1/link/relay') { let r = tunnel.relay_config(); r ? reply(200, { config: r, image: 'ghcr.io/xtls/xray-core:26.11.9' }) : reply(404, { error: 'This router does not use a relay server.' }); }
+		if (path == '/v1/tailscale') reply(200, ts.state());
 		let pm = match(path, /^\/v1\/devices\/([0-9a-f:]{17})\/power(\/plug|\/usage)?$/);
 		if (pm) reply(200, pm[2] == '/plug' ? power.plug_status(pm[1]) : pm[2] == '/usage' ? power.usage(pm[1]) : power.status(pm[1]));
 		reply(404, { error: 'not found' });
@@ -119,6 +131,19 @@ function main() {
 		if (path == '/v1/protection/lists') done(hub.protection_list_action(body()));
 		if (path == '/v1/protection/rules') done(hub.protection_rule_action(body()));
 		if (path == '/v1/speedtest') reply(200, extras.speedtest());
+		if (path == '/v1/vpn') done(tunnel.set(body()));
+		if (path == '/v1/vpn/install') done(tunnel.engine_install());
+		if (path == '/v1/vpn/remove') done(tunnel.engine_remove());
+		// pasted links and subscriptions can be long
+		if (path == '/v1/vpn/servers') answer(tunnel.servers_action(body(262144)));
+		if (path == '/v1/vpn/subscriptions') answer(tunnel.subs_action(body()));
+		if (path == '/v1/vpn/test') done(tunnel.test(body()));
+		if (path == '/v1/link') done(tunnel.link_action(body()));
+		if (path == '/v1/tailscale') done(ts.set(body()));
+		if (path == '/v1/tailscale/install') done(ts.install());
+		if (path == '/v1/tailscale/remove') done(ts.remove());
+		if (path == '/v1/tailscale/login') done(ts.login(body()));
+		if (path == '/v1/tailscale/logout') done(ts.logout());
 		if (path == '/v1/shaping') done(extras.shaping_set(body()));
 		if (path == '/v1/firmware/install') done(extras.firmware_install());
 		if (path == '/v1/push/register') done(hub.push_register(substr(auth, 7), body()));

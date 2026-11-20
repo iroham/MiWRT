@@ -1,0 +1,8 @@
+#!/bin/sh
+# After the home network comes up again (a network restart takes the local route down with the
+# loopback interface), the VPN's route and firewall rules are put back if the VPN runs.
+[ "$ACTION" = ifup ] || exit 0
+[ "$INTERFACE" = lan ] || [ "$INTERFACE" = loopback ] || exit 0
+[ -x /usr/sbin/miwrt-tunnel ] || exit 0
+/usr/sbin/miwrt-tunnel net
+exit 0

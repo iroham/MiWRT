@@ -1035,3 +1035,672 @@ msgstr "The browser will ask about the certificate: it has to be accepted once m
 
 msgid "Роутер отвечает по адресу %s, открываю страницу там…"
 msgstr "The router answers at %s, opening the page there…"
+
+msgid "%.1f Гбит/с"
+msgstr "%.1f Gbit/s"
+
+msgid "%.1f Мбит/с"
+msgstr "%.1f Mbit/s"
+
+msgid "%d бит/с"
+msgstr "%d bit/s"
+
+msgid "%d дн назад"
+msgstr "%d d ago"
+
+msgid "%d из %d"
+msgstr "%d of %d"
+
+msgid "%d кбит/с"
+msgstr "%d kbit/s"
+
+msgid "%d мин назад"
+msgstr "%d min ago"
+
+msgid "%d мс"
+msgstr "%d ms"
+
+msgid "%d ч назад"
+msgstr "%d h ago"
+
+msgid "(не в сети)"
+msgstr "(offline)"
+
+msgid "1. Сохраните эти настройки на сервере в файл config.json:"
+msgstr "1. Save these settings on the server as config.json:"
+
+msgid "2. Запустите Xray в Docker из той же папки:"
+msgstr "2. Start Xray in Docker from the same folder:"
+
+msgid "Tailscale будет удалён вместе с тем, что ставилось для него, и место освободится. Поставить его снова можно здесь же."
+msgstr "Tailscale is removed together with what was installed for it, and the space is freed. You can install it again here."
+
+msgid "Tailscale входит в прошивку этого роутера и выключен, пока он не нужен."
+msgstr "Tailscale is part of this router's firmware and stays off until you need it."
+
+msgid "Tailscale не установлен"
+msgstr "Tailscale is not installed"
+
+msgid "Tailscale удалён."
+msgstr "Tailscale removed."
+
+msgid "VPN включён через второй роутер."
+msgstr "VPN is on through the other router."
+
+msgid "Xray не установлен"
+msgstr "Xray is not installed"
+
+msgid "Xray работает с протоколами VLESS (в том числе REALITY), VMess, Trojan, Shadowsocks и Hysteria2. Программа ставится из пакетов MiWRT и обновляется без обновления прошивки."
+msgstr "Xray works with VLESS (including REALITY), VMess, Trojan, Shadowsocks and Hysteria2. It is installed from the MiWRT packages and updates without a firmware update."
+
+msgid "Адрес"
+msgstr "Address"
+
+msgid "Адрес для сайтов"
+msgstr "Address websites see"
+
+msgid "Адрес для сайтов, %s"
+msgstr "Address websites see, %s"
+
+msgid "Адрес роутера в Tailscale"
+msgstr "Router address in Tailscale"
+
+msgid "Адрес сервера за границей. На нём должен работать Xray с настройками, которые роутер покажет после создания."
+msgstr "The address of the server abroad. It must run Xray with the settings the router shows after the link is created."
+
+msgid "Адреса сайтов узнаются через VPN-сервер. Блокировщик рекламы на роутере эти запросы не видит."
+msgstr "Website addresses are looked up through the VPN server. The router's ad blocker does not see these lookups."
+
+msgid "Арендованный сервер"
+msgstr "A server you rent"
+
+msgid "В сети пока нет устройств, предлагающих себя как выход."
+msgstr "No device in the network offers itself as an exit node yet."
+
+msgid "Великобритания"
+msgstr "United Kingdom"
+
+msgid "Версия %s"
+msgstr "Version %s"
+
+msgid "Включите, если в вашей сети есть другие subnet router и их сети нужны отсюда."
+msgstr "Turn on if your network has other subnet routers and you need their networks from here."
+
+msgid "Включить VPN"
+msgstr "Turn VPN on"
+
+msgid "Включён"
+msgstr "On"
+
+msgid "Войдите в свою учётную запись Tailscale, чтобы добавить роутер в сеть."
+msgstr "Sign in to your Tailscale account to add the router to your network."
+
+msgid "Войти в Tailscale"
+msgstr "Sign in to Tailscale"
+
+msgid "Войти с ключом"
+msgstr "Sign in with key"
+
+msgid "Все устройства домашней сети"
+msgstr "All devices on the home network"
+
+msgid "Все, кроме выбранных"
+msgstr "All except the selected"
+
+msgid "Вставьте его на роутере за границей, чтобы его устройства видели сеть этого дома."
+msgstr "Paste it on the router abroad so that its devices can reach this home network."
+
+msgid "Вставьте этот код на втором роутере: Связь роутеров, «Этот роутер подключается ко второму». Код открывает доступ к вашему интернету, передавайте его только тому, кому доверяете."
+msgstr "Paste this code on the other router: Router link, “This router connects to the other one”. The code gives access to your internet; share it only with people you trust."
+
+msgid "Выбрать"
+msgstr "Use"
+
+msgid "Выбрать и включить VPN"
+msgstr "Use it and turn VPN on"
+
+msgid "Выйти из Tailscale"
+msgstr "Sign out of Tailscale"
+
+msgid "Выйти из Tailscale на этом роутере?"
+msgstr "Sign out of Tailscale on this router?"
+
+msgid "Выключен"
+msgstr "Off"
+
+msgid "Выключенный Tailscale не работает и не занимает оперативную память."
+msgstr "While off, Tailscale does not run and uses no memory."
+
+msgid "Выключено"
+msgstr "Off"
+
+msgid "Выключить VPN"
+msgstr "Turn VPN off"
+
+msgid "Выход в интернет для самого роутера"
+msgstr "Exit node for the router itself"
+
+msgid "Германия"
+msgstr "Germany"
+
+msgid "Гостевая сеть и сеть умного дома через VPN не идут. У устройств, которые идут через VPN, выключается IPv6, чтобы ничего не шло в обход."
+msgstr "The guest and smart-home networks do not use the VPN. Devices that use the VPN have IPv6 turned off so that nothing goes around it."
+
+msgid "Два роутера MiWRT соединяются между собой: роутер в другой стране отдаёт свой интернет, и при желании каждая сторона открывает другой свою домашнюю сеть. Соединение выглядит как обычное обращение к сайту по HTTPS."
+msgstr "Two MiWRT routers connect to each other: the router in another country shares its internet, and each side may open its home network to the other. The connection looks like an ordinary HTTPS visit to a website."
+
+msgid "Добавить"
+msgstr "Add"
+
+msgid "Добавить подписку"
+msgstr "Add subscription"
+
+msgid "Добавить серверы"
+msgstr "Add servers"
+
+msgid "Добавлено серверов: %d."
+msgstr "Servers added: %d."
+
+msgid "Добавлены вручную"
+msgstr "Added by hand"
+
+msgid "Домашние сети"
+msgstr "Home networks"
+
+msgid "Доступно после установки Xray на странице VPN (Xray)."
+msgstr "Available after installing Xray on the VPN (Xray) page."
+
+msgid "Других устройств в сети пока нет."
+msgstr "No other devices in the network yet."
+
+msgid "Другой роутер не отвечает."
+msgstr "The other router does not answer."
+
+msgid "Если второй роутер открыл свою домашнюю сеть, он показывает ответный код. Вставьте его сюда, чтобы устройства этого дома видели его сеть."
+msgstr "If the other router opened its home network, it shows a reply code. Paste it here so that devices in this home can reach its network."
+
+msgid "Если роутер не может скачать пакет, его можно загрузить вручную в разделе Система, Программное обеспечение."
+msgstr "If the router cannot download the package, you can upload it by hand under System, Software."
+
+msgid "Если серверы Tailscale недоступны напрямую, роутер обращается к ним через VPN. Само соединение между устройствами остаётся прямым, когда это возможно."
+msgstr "If the Tailscale servers cannot be reached directly, the router reaches them through the VPN. Connections between devices stay direct whenever possible."
+
+msgid "Ждёт второй роутер"
+msgstr "Waiting for the other router"
+
+msgid "Ждёт одобрения"
+msgstr "Waiting for approval"
+
+msgid "Загрузка списка пакетов"
+msgstr "Downloading the package list"
+
+msgid "Загрузка…"
+msgstr "Loading…"
+
+msgid "Займёт около 14 МБ флеш-памяти."
+msgstr "Takes about 14 MB of flash storage."
+
+msgid "Займёт около 8 МБ памяти настроек: программа хранится сжатой и распаковывается в оперативную память при запуске."
+msgstr "Takes about 8 MB of settings storage: the program is stored compressed and unpacked into memory when it starts."
+
+msgid "Запросы имён через VPN"
+msgstr "Name lookups through the VPN"
+
+msgid "Запускается…"
+msgstr "Starting…"
+
+msgid "Или ключом авторизации"
+msgstr "Or with an auth key"
+
+msgid "Имя в сети %s"
+msgstr "Name in network %s"
+
+msgid "Имя роутера"
+msgstr "Router name"
+
+msgid "Имя этого роутера"
+msgstr "Name of this router"
+
+msgid "Интернет через %s"
+msgstr "Internet through %s"
+
+msgid "Иран"
+msgstr "Iran"
+
+msgid "Иран (.ir)"
+msgstr "Iran (.ir)"
+
+msgid "Какой сайт изображать"
+msgstr "Website to look like"
+
+msgid "Китай"
+msgstr "China"
+
+msgid "Китай (.cn)"
+msgstr "China (.cn)"
+
+msgid "Ключ создаётся в панели Tailscale: Settings, Keys. Роутер хранит его только до входа."
+msgstr "Create the key in the Tailscale admin console: Settings, Keys. The router keeps it only until it has signed in."
+
+msgid "Код для второго роутера"
+msgstr "Code for the other router"
+
+msgid "Код связи"
+msgstr "Link code"
+
+msgid "Копировать"
+msgstr "Copy"
+
+msgid "Копировать ссылку"
+msgstr "Copy link"
+
+msgid "Кто идёт через VPN"
+msgstr "Who uses the VPN"
+
+msgid "Место встречи"
+msgstr "Meeting point"
+
+msgid "Место встречи: %s:%d."
+msgstr "Meeting point: %s:%d."
+
+msgid "Можно указать имя (DDNS) вместо адреса. Роутер откроет выбранный порт из интернета."
+msgstr "You can enter a name (DDNS) instead of the address. The router opens the chosen port to the internet."
+
+msgid "На этом роутере Tailscale ставится только по желанию: он занимает место и оперативную память. Чтобы ему хватало памяти, вместе с ним включается сжатый файл подкачки в оперативной памяти (zram)."
+msgstr "On this router Tailscale is installed only on request: it takes storage and memory. So that it has enough memory, compressed swap in memory (zram) is turned on with it."
+
+msgid "Настройки"
+msgstr "Settings"
+
+msgid "Настройки сохранены."
+msgstr "Settings saved."
+
+msgid "Не приняты: %d (%s)"
+msgstr "Not accepted: %d (%s)"
+
+msgid "Не работает"
+msgstr "Not working"
+
+msgid "Не удалось получить настройки."
+msgstr "Could not get the settings."
+
+msgid "Не удалось получить состояние Tailscale."
+msgstr "Could not get the Tailscale state."
+
+msgid "Не удалось получить состояние VPN."
+msgstr "Could not get the VPN state."
+
+msgid "Не хватает свободного места. Освободите место в разделе Система, Программное обеспечение."
+msgstr "Not enough free storage. Free some space under System, Software."
+
+msgid "Нет: всё через VPN"
+msgstr "None: everything through the VPN"
+
+msgid "Нет: роутер выходит в интернет сам"
+msgstr "None: the router uses its own internet"
+
+msgid "Нидерланды"
+msgstr "Netherlands"
+
+msgid "Новое имя сервера"
+msgstr "New server name"
+
+msgid "Нужен Xray"
+msgstr "Xray is needed"
+
+msgid "Нужно войти"
+msgstr "Sign-in needed"
+
+msgid "Нужно не меньше 24 МБ свободного места. Удалить Tailscale можно здесь же, роутер вернётся к прежнему состоянию."
+msgstr "Needs at least 24 MB of free storage. You can remove Tailscale here, and the router returns to how it was."
+
+msgid "ОАЭ"
+msgstr "UAE"
+
+msgid "Обновить все"
+msgstr "Update all"
+
+msgid "Обновлена %s, серверов: %d"
+msgstr "Updated %s, servers: %d"
+
+msgid "Обычно это занимает меньше минуты."
+msgstr "This usually takes less than a minute."
+
+msgid "Обычно это занимает одну-две минуты."
+msgstr "This usually takes a minute or two."
+
+msgid "Одна ссылка на строку. Можно вставить и содержимое подписки в base64."
+msgstr "One link per line. You can also paste a subscription's base64 content."
+
+msgid "Он будет выходом в интернет для второго роутера. После создания роутер покажет код для второго роутера."
+msgstr "It will be the internet exit for the other router. After the link is created, the router shows a code for the other router."
+
+msgid "Он будет пользоваться интернетом второго роутера. Вставьте код, который показал тот роутер."
+msgstr "It will use the other router's internet. Paste the code that router showed."
+
+msgid "Остановлен"
+msgstr "Stopped"
+
+msgid "Ответ за %d мс, проверено %s."
+msgstr "Answered in %d ms, checked %s."
+
+msgid "Ответ через VPN"
+msgstr "Response through the VPN"
+
+msgid "Ответный код"
+msgstr "Reply code"
+
+msgid "Открыть VPN (Xray)"
+msgstr "Open VPN (Xray)"
+
+msgid "Открыть второму роутеру эту домашнюю сеть"
+msgstr "Open this home network to the other router"
+
+msgid "Открыть домашнюю сеть устройствам Tailscale"
+msgstr "Open the home network to Tailscale devices"
+
+msgid "Отсюда видно только, работает ли домашняя сеть другой стороны. Пока другая сторона её не открыла, состояние здесь не показывается; проверяйте на втором роутере."
+msgstr "From here the router can only check whether the other side's home network answers. Until the other side opens it, no state is shown here; check on the other router."
+
+msgid "Отсюда доступна сеть второго дома: %s"
+msgstr "The other home's network reachable from here: %s"
+
+msgid "Переименовать"
+msgstr "Rename"
+
+msgid "Подключаться к Tailscale через VPN (Xray)"
+msgstr "Reach Tailscale through the VPN (Xray)"
+
+msgid "Подключение…"
+msgstr "Connecting…"
+
+msgid "Подключено"
+msgstr "Connected"
+
+msgid "Подключиться"
+msgstr "Connect"
+
+msgid "Подключён"
+msgstr "Connected"
+
+msgid "Подписка — адрес, по которому провайдер VPN отдаёт список серверов. Роутер обновляет подписки раз в сутки."
+msgstr "A subscription is an address where the VPN provider publishes its server list. The router updates subscriptions once a day."
+
+msgid "Подписка: %s"
+msgstr "Subscription: %s"
+
+msgid "Подписки"
+msgstr "Subscriptions"
+
+msgid "Получить ссылку для входа"
+msgstr "Get a sign-in link"
+
+msgid "Пользоваться интернетом второго роутера"
+msgstr "Use the other router's internet"
+
+msgid "Порт"
+msgstr "Port"
+
+msgid "Порт %d на сервере должен быть открыт. В настройках есть ключи связи: храните файл так же бережно, как пароль."
+msgstr "Port %d must be open on the server. The settings contain the link keys: keep the file as safe as a password."
+
+msgid "Порт открыт из интернета правилом «MiWRT router link»."
+msgstr "The port is open to the internet by the rule “MiWRT router link”."
+
+msgid "После выхода роутер пропадёт из сети Tailscale, пока вы не войдёте снова."
+msgstr "After signing out, the router leaves the Tailscale network until you sign in again."
+
+msgid "После удаления второй роутер не сможет подключиться. Чтобы соединиться снова, нужна новая связь и новый код."
+msgstr "After removal the other router cannot connect. To connect again you need a new link and a new code."
+
+msgid "Предлагать роутер как выход в интернет"
+msgstr "Offer the router as an exit node"
+
+msgid "Применить"
+msgstr "Apply"
+
+msgid "Принимать маршруты других роутеров"
+msgstr "Accept routes from other routers"
+
+msgid "Проверить все"
+msgstr "Test all"
+
+msgid "Проверить сейчас"
+msgstr "Check now"
+
+msgid "Проверка"
+msgstr "Checking"
+
+msgid "Проверяется…"
+msgstr "Checking…"
+
+msgid "Россия"
+msgstr "Russia"
+
+msgid "Россия (.ru, .su, .рф)"
+msgstr "Russia (.ru, .su, .рф)"
+
+msgid "Роутер вошёл в сеть, но администратор сети должен одобрить его в панели Tailscale (Machines)."
+msgstr "The router has signed in, but the network admin must approve it in the Tailscale admin console (Machines)."
+
+msgid "Роутер входит в вашу сеть Tailscale: к нему и к домашней сети можно подключаться из любого места, и он может стать выходом в интернет для ваших устройств. Те же настройки есть в приложении MiWRT."
+msgstr "The router joins your Tailscale network: you can reach it and the home network from anywhere, and it can be an exit node for your devices. The same settings are in the MiWRT app."
+
+msgid "Роутер дома"
+msgstr "Home router"
+
+msgid "Роутер за границей"
+msgstr "Router abroad"
+
+msgid "Роутер объявляет свою сеть (subnet router). Маршрут нужно один раз одобрить в панели Tailscale."
+msgstr "The router advertises its network (subnet router). Approve the route once in the Tailscale admin console."
+
+msgid "Роутер подключается к VPN-серверу на Xray и пропускает через него трафик выбранных устройств. Серверы добавляются ссылками vless://, vmess://, trojan://, ss://, hysteria2:// или подпиской. Те же настройки есть в приложении MiWRT."
+msgstr "The router connects to a VPN server with Xray and sends the chosen devices' traffic through it. Add servers with vless://, vmess://, trojan://, ss://, hysteria2:// links or a subscription. The same settings are in the MiWRT app."
+
+msgid "Роутер-партнёр"
+msgstr "Partner router"
+
+msgid "США"
+msgstr "United States"
+
+msgid "Сайты в зоне страны открываются без VPN: банки и госуслуги часто не пускают зарубежные адреса."
+msgstr "Websites in the country's domain open without the VPN: banks and government services often refuse foreign addresses."
+
+msgid "Сайты видят адрес %s%s."
+msgstr "Websites see the address %s%s."
+
+msgid "Сайты страны напрямую"
+msgstr "Country's websites directly"
+
+msgid "Связи нет"
+msgstr "Not connected"
+
+msgid "Связь есть"
+msgstr "Connected"
+
+msgid "Связь роутеров"
+msgstr "Router link"
+
+msgid "Связь роутеров работает на Xray. Установите его на странице VPN (Xray)."
+msgstr "The router link runs on Xray. Install it on the VPN (Xray) page."
+
+msgid "Сервер для встречи"
+msgstr "Meeting server"
+
+msgid "Сервер не выбран."
+msgstr "No server chosen."
+
+msgid "Сервер не отвечает. У устройств, которые идут через VPN, нет интернета, пока сервер не ответит или VPN не выключат."
+msgstr "The server does not answer. Devices that use the VPN have no internet until the server answers or the VPN is turned off."
+
+msgid "Сервер: %s"
+msgstr "Server: %s"
+
+msgid "Серверов пока нет. Вставьте ссылки ниже или добавьте подписку."
+msgstr "No servers yet. Paste links below or add a subscription."
+
+msgid "Серверы"
+msgstr "Servers"
+
+msgid "Сеть этого дома: %s"
+msgstr "This home's network: %s"
+
+msgid "Сингапур"
+msgstr "Singapore"
+
+msgid "Скопировано."
+msgstr "Copied."
+
+msgid "Скорость сейчас"
+msgstr "Current speed"
+
+msgid "Соединение выглядит как обращение к этому сайту."
+msgstr "The connection looks like a visit to this website."
+
+msgid "Создать связь"
+msgstr "Create link"
+
+msgid "Сохранено."
+msgstr "Saved."
+
+msgid "Ссылку можно открыть на любом устройстве, например на телефоне. Страница обновится сама, когда роутер войдёт."
+msgstr "You can open the link on any device, for example your phone. This page updates by itself once the router has signed in."
+
+msgid "Тогда он появится среди серверов на странице VPN (Xray) как «%s». Выберите его там и включите VPN."
+msgstr "It then appears among the servers on the VPN (Xray) page as “%s”. Choose it there and turn the VPN on."
+
+msgid "Тогда роутер покажет ответный код: его нужно вставить на роутере за границей."
+msgstr "The router then shows a reply code: paste it on the router abroad."
+
+msgid "Только выбранные устройства"
+msgstr "Only the selected devices"
+
+msgid "Трафик роутера пойдёт через выбранное устройство. Домашняя сеть остаётся доступной."
+msgstr "The router's traffic goes through the chosen device. The home network stays reachable."
+
+msgid "Турция"
+msgstr "Turkey"
+
+msgid "Удаление"
+msgstr "Removal"
+
+msgid "Удаление Xray выключает VPN и связь роутеров. Серверы и подписки сохраняются."
+msgstr "Removing Xray turns off the VPN and the router link. Servers and subscriptions are kept."
+
+msgid "Удалить Tailscale"
+msgstr "Remove Tailscale"
+
+msgid "Удалить Tailscale с роутера?"
+msgstr "Remove Tailscale from the router?"
+
+msgid "Удалить Xray"
+msgstr "Remove Xray"
+
+msgid "Удалить Xray с роутера? VPN и связь роутеров выключатся."
+msgstr "Remove Xray from the router? The VPN and the router link will turn off."
+
+msgid "Удалить подписку «%s» и её серверы?"
+msgstr "Delete subscription “%s” and its servers?"
+
+msgid "Удалить связь"
+msgstr "Remove link"
+
+msgid "Удалить связь роутеров?"
+msgstr "Remove the router link?"
+
+msgid "Удалить сервер «%s»?"
+msgstr "Delete server “%s”?"
+
+msgid "Уже были в списке: %d."
+msgstr "Already in the list: %d."
+
+msgid "Устанавливается Tailscale"
+msgstr "Installing Tailscale"
+
+msgid "Устанавливается Xray"
+msgstr "Installing Xray"
+
+msgid "Установить Tailscale"
+msgstr "Install Tailscale"
+
+msgid "Установить Xray"
+msgstr "Install Xray"
+
+msgid "Установка Tailscale"
+msgstr "Installing Tailscale"
+
+msgid "Установка Xray"
+msgstr "Installing Xray"
+
+msgid "Установка не удалась."
+msgstr "The installation failed."
+
+msgid "Устройств в сети"
+msgstr "Devices online"
+
+msgid "Устройства"
+msgstr "Devices"
+
+msgid "Устройства Tailscale смогут выходить в интернет через этот дом (exit node). Тоже одобряется в панели Tailscale."
+msgstr "Tailscale devices can use this home's internet (exit node). This is also approved in the Tailscale admin console."
+
+msgid "Устройства в сети"
+msgstr "Devices in the network"
+
+msgid "Устройства второго дома смогут обращаться к устройствам этого дома. Сам роутер и его настройки остаются закрыты."
+msgstr "Devices in the other home can reach devices in this home. The router itself and its settings stay closed."
+
+msgid "Учётная запись"
+msgstr "Account"
+
+msgid "Финляндия"
+msgstr "Finland"
+
+msgid "Франция"
+msgstr "France"
+
+msgid "Швеция"
+msgstr "Sweden"
+
+msgid "Этот роутер (%s)"
+msgstr "This router (%s)"
+
+msgid "Этот роутер (нет публичного адреса)"
+msgstr "This router (no public address)"
+
+msgid "Этот роутер за границей"
+msgstr "This router is abroad"
+
+msgid "Этот роутер подключается ко второму"
+msgstr "This router connects to the other one"
+
+msgid "Япония"
+msgstr "Japan"
+
+msgid "второй роутер"
+msgstr "the other router"
+
+msgid "выбран"
+msgstr "in use"
+
+msgid "выход роутера"
+msgstr "router's exit node"
+
+msgid "ещё не обновлялась"
+msgstr "not updated yet"
+
+msgid "идёт проверка"
+msgstr "testing"
+
+msgid "может быть выходом"
+msgstr "can be an exit node"
+
+msgid "нет ответа"
+msgstr "no answer"
+
+msgid "ошибка"
+msgstr "error"
+
+msgid "только что"
+msgstr "just now"

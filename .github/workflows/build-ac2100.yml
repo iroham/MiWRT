@@ -8,7 +8,7 @@ name: ac2100 image
 # with the official SDK of the same release. They replace the two files the
 # packages bring. About five minutes, fifteen more when the driver has to be
 # compiled. The same SDK builds this router's MiWRT package feed from
-# miwrt-feed/ (scripts/ac2100/build-feed.sh: Xray for now), published on
+# miwrt-feed/ (scripts/ac2100/build-feed.sh: Xray and Tailscale), published on
 # GitHub Pages next to the BE7000 feeds. Separate from build.yml on purpose:
 # nothing here touches the BE7000 image.
 #
@@ -40,6 +40,7 @@ on:
       - "overlay-ac2100/**"
       - "scripts/ac2100/**"
       - "miwrt-feed/miwrt-xray/**"
+      - "miwrt-feed/miwrt-tailscale/**"
       - ".github/workflows/build-ac2100.yml"
     tags: [ "v*" ]
 
@@ -128,7 +129,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ac2100-feed
-          key: ac2100-feed-${{ env.OPENWRT }}-${{ hashFiles('scripts/ac2100/build-feed.sh', 'miwrt-feed/miwrt-xray/**') }}
+          key: ac2100-feed-${{ env.OPENWRT }}-${{ hashFiles('scripts/ac2100/build-feed.sh', 'miwrt-feed/miwrt-xray/**', 'miwrt-feed/miwrt-tailscale/**') }}
 
       - name: Download and verify the SDK
         if: steps.wifi-cache.outputs.cache-hit != 'true' || steps.feed-cache.outputs.cache-hit != 'true'

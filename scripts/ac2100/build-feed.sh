@@ -12,7 +12,7 @@
 # The packages built are the ones listed in PACKAGES below.
 set -eu
 
-PACKAGES="miwrt-xray miwrt-xray-xz"
+PACKAGES="miwrt-xray miwrt-xray-xz miwrt-tailscale"
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
@@ -31,7 +31,7 @@ grep -E '^src-git( --root=[^ ]+)? (base|packages) ' feeds.conf.default > feeds.c
 echo "src-link miwrt $REPO/miwrt-feed" >> feeds.conf
 cat feeds.conf
 ./scripts/feeds update base packages miwrt > "$OUT/feeds.log" 2>&1 || { tail -n 20 "$OUT/feeds.log"; die "feed update failed"; }
-# with their build and run dependencies (Go, ca-bundle, xz) from the other two
+# with their build and run dependencies (Go, ca-bundle, xz, kmod-tun) from the other two
 ./scripts/feeds install -p miwrt $PACKAGES >> "$OUT/feeds.log" 2>&1 || { tail -n 20 "$OUT/feeds.log"; die "feed install failed"; }
 
 if [ -n "$KEY" ]; then
@@ -54,8 +54,10 @@ for p in $PACKAGES; do
 	grep -q "^CONFIG_PACKAGE_$p=m" .config || die "$p did not survive defconfig (a dependency missing?)"
 done
 
-# one source package makes all of them
-make package/miwrt-xray/compile -j"$(nproc)" V=s > "$OUT/compile.log" 2>&1 || { tail -n 80 "$OUT/compile.log"; die "compile failed"; }
+# one source package makes both Xray packages; Tailscale is a source package of its own
+for s in miwrt-xray miwrt-tailscale; do
+	make package/$s/compile -j"$(nproc)" V=s >> "$OUT/compile.log" 2>&1 || { tail -n 80 "$OUT/compile.log"; die "compile of $s failed"; }
+done
 
 arch=$(sed -n 's/^CONFIG_TARGET_ARCH_PACKAGES="\(.*\)"/\1/p' .config)
 [ -n "$arch" ] || die "no package architecture in .config"

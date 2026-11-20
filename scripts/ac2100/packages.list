@@ -47,6 +47,9 @@ luci-app-sqm
 # diagnostics
 tcpdump-mini
 
+# the VPN's transparent proxy (Xray itself installs from the MiWRT feed when asked for)
+kmod-nft-tproxy
+
 # Not in this image, on purpose: banip (128 MB of RAM is too little for the
 # usual block lists; it installs from the official feed when wanted), Docker,
 # anything USB (the router has no port), the BE7000 slot and radio tools.

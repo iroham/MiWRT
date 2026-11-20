@@ -1,0 +1,35 @@
+{
+	"admin/vpn/miwrt-xray": {
+		"title": "VPN (Xray)",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "miwrt-vpn/xray"
+		},
+		"depends": {
+			"acl": [ "luci-app-miwrt-vpn" ]
+		}
+	},
+	"admin/vpn/miwrt-link": {
+		"title": "Связь роутеров",
+		"order": 11,
+		"action": {
+			"type": "view",
+			"path": "miwrt-vpn/link"
+		},
+		"depends": {
+			"acl": [ "luci-app-miwrt-vpn" ]
+		}
+	},
+	"admin/vpn/miwrt-tailscale": {
+		"title": "Tailscale",
+		"order": 12,
+		"action": {
+			"type": "view",
+			"path": "miwrt-vpn/tailscale"
+		},
+		"depends": {
+			"acl": [ "luci-app-miwrt-vpn" ]
+		}
+	}
+}
