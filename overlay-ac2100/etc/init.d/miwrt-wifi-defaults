@@ -5,12 +5,12 @@
 # OpenWrt generates both networks disabled and without a password, and it
 # generates /etc/config/wireless only some 30 to 40 seconds into the first
 # boot, after the uci-defaults scripts have run. So this runs last (S99),
-# waits for both radios, and then:
+# waits for both radios, and then, on a fresh install only:
 #   - sets the country on radios that have none (GB, the build's home market;
 #     without a country the radar channels on 5 GHz stay unavailable),
 #   - switches the daily group-key renewal off on 5 GHz networks that do not
 #     set it themselves, as the BE7000 image does, so both routers behave alike,
-#   - on a fresh install only: enables both radios with the SSID below and
+#   - enables both radios with the SSID below and
 #     this unit's serial number as the password. The serial is printed on the
 #     label, different on every router, and not something the radio gives away.
 #     The 2.4 GHz radio is set to choose its channel itself at every start:
@@ -28,8 +28,13 @@
 #     services idle the channel made no measurable difference.
 #
 # Fresh install or update? The marker below is kept across updates
-# (etc/sysupgrade.conf). Without it, a network that already has encryption
-# set was configured by someone and is left alone.
+# (lib/upgrade/keep.d/miwrt-ac2100: a list in the image, which the settings
+# of another OpenWrt cannot replace, as they can replace /etc/sysupgrade.conf).
+# Without it, a router somebody has set up is left exactly as it is, Wi-Fi
+# settings, country and all: one that came from another OpenWrt with its
+# settings kept has a root password, or a network with a password, or a network
+# switched on (OpenWrt's own first start leaves them off and open). Only a
+# router with none of these gets the defaults.
 START=99
 
 MARK=/etc/.miwrt_wifi_defaults
@@ -51,9 +56,11 @@ default_key() {
 
 configured() {
 	local s enc
+	grep -q '^root:[^:!*]' /etc/shadow && return 0
 	for s in $(uci -q show wireless | sed -n 's/^wireless\.\([^.]*\)=wifi-iface$/\1/p'); do
 		enc="$(uci -q get wireless.$s.encryption)"
 		[ -n "$enc" ] && [ "$enc" != "none" ] && return 0
+		[ "$(uci -q get wireless.$s.disabled)" = 1 ] || return 0
 	done
 	return 1
 }
@@ -79,14 +86,12 @@ boot() {
 			i=$((i+1)); sleep 1
 		done
 		uci -q get wireless.radio0 >/dev/null || { logger -t miwrt-wifi-defaults "no radios after 120 s, giving up for this boot"; exit 0; }
-		radio_settings
 		if configured; then
-			uci commit wireless
 			touch "$MARK"
-			logger -t miwrt-wifi-defaults "wireless already configured, left as is"
-			wifi reload
+			logger -t miwrt-wifi-defaults "this router was set up before (root password or Wi-Fi), Wi-Fi left as it is"
 			exit 0
 		fi
+		radio_settings
 		KEY="$(default_key)"
 		for r in 0 1; do
 			uci -q get wireless.radio$r >/dev/null || continue

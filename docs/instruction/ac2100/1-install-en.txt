@@ -118,7 +118,21 @@ Step 6. Run the hardware report and keep it
   transfer method) and attach the report to an issue.
 
 Coming from another OpenWrt instead of from stock
-  OpenWrt 21.02 or newer upgrades with the sysupgrade image (2-update-en.txt).
+  OpenWrt 21.02 or newer upgrades with the sysupgrade image, as for an
+  official OpenWrt release: in LuCI under System, Backup / Flash firmware, or
+  with sysupgrade over SSH (2-update-en.txt).
+  - Settings kept (the default): the address, passwords, Wi-Fi and the rest of
+    the settings stay as they were, and so does the choice of software flow
+    offloading. MiWRT changes only what is its own: the MiWRT look of the web
+    interface, the host name when it was still "OpenWrt", and its pages and
+    app service. Packages you added to the old firmware are not in the image:
+    add them again with apk. With a root password set the setup assistant does
+    not open. A router that had neither a root password nor any Wi-Fi network
+    switched on counts as new: its Wi-Fi comes up as after an install from
+    stock (step 5).
+  - Settings not kept (sysupgrade -n, or the box unticked in LuCI): the router
+    starts as after an install from stock, Wi-Fi "MiWRT" with the serial
+    number as the password (step 5).
   OpenWrt 19.07 or older used swconfig; this image uses DSA, so settings cannot
   carry over: flash with
       sysupgrade -F -n openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin

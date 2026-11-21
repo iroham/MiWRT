@@ -1,3 +1,17 @@
 # The switch for transmit beamforming on 5 GHz (see
 # docs/instruction/ac2100/3-recovery-and-problems-en.txt). An update keeps it.
 /etc/modules.d/mt7615-txbf
+
+# Which services are enabled. OpenWrt stores that as symlinks here, and they
+# are not part of the default keep list, so without this line everything the
+# user enabled by hand comes back disabled after an upgrade.
+/etc/rc.d/
+
+# Says this router is past its first start (Wi-Fi defaults, network defaults).
+# Without it an update would look like a fresh install.
+#
+# Both lines used to be in /etc/sysupgrade.conf. That file is a setting itself:
+# a router that came from another OpenWrt with its own edited sysupgrade.conf
+# kept that one, and the next update then lost both. This list is part of the
+# image and cannot be replaced that way.
+/etc/.miwrt_wifi_defaults

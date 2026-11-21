@@ -22,8 +22,11 @@
 # and LuCI switches offloading off by removing the option, which looks the
 # same as never set. A router that has been through its first start carries
 # /etc/.miwrt_wifi_defaults (left by the Wi-Fi defaults, kept by updates) and
-# is past this default: what is set there now is the owner's choice.
+# is past this default: what is set there now is the owner's choice. So is a
+# router that came from another OpenWrt with its settings kept: it has a root
+# password (see /etc/init.d/miwrt-wifi-defaults).
 [ -e /etc/.miwrt_wifi_defaults ] && exit 0
+grep -q '^root:[^:!*]' /etc/shadow && exit 0
 [ -n "$(uci -q get firewall.@defaults[0].flow_offloading)" ] || uci set firewall.@defaults[0].flow_offloading='1'
 uci commit firewall
 exit 0
