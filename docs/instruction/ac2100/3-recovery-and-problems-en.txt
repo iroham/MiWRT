@@ -1,4 +1,4 @@
-MiWRT 2.3.0 for the Xiaomi Redmi Router AC2100: recovery and problems
+MiWRT 2.3.1 for the Xiaomi Redmi Router AC2100: recovery and problems
 
 STATUS: TESTING. The MiWRT project has installed this image once, on one
 router (stock 2.0.23 to MiWRT 2.1.0, see 1-install-en.txt). That install
