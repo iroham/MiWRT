@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "architecture": "aarch64_cortex-a73",
+  "packages": {
+    "miwrt-tailscale": "1.104.1-r1",
+    "miwrt-xray": "26.11.9-r1",
+    "miwrt-xray-xz": "26.11.9-r1"
+  }
+}
