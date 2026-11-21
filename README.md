@@ -264,7 +264,7 @@ Base: `https://<router>/cgi-bin/miwrt`. `GET /health`, `POST /pair/start` and `P
 
 - The 30 s pass writes only to memory. Flash is written when something changes (a rename, a new device, an alert) and once a day for traffic totals.
 - Every value that reaches a shell command is a constant or checked against a strict pattern; request bodies go through files.
-- One writer at a time: the background pass and API requests share a file lock.
+- One writer at a time: the background pass and API requests share a file lock. Whoever holds it never calls rpcd (session login, device names, Wi-Fi status are read before taking it): rpcd answers one call at a time, and the web interface's VPN calls take the same lock inside rpcd. Those calls wait at most 15 seconds for it and then answer that the router is busy.
 - If the pause-list file is missing or malformed the firewall ignores it and still starts.
 - Notifications: Apple only delivers a push signed with the key of the app's publisher. That key is a secret and is not in this repository or in the images: anything shipped in firmware can be read out by anyone. So there are two ways, and the router picks by itself:
   - **Direct.** `miwrt-ctl apns AuthKey_XXXXXXXXXX.p8 <key id> <team id>` stores a key under `/etc/miwrt/apns/` (root only, kept across sysupgrade, never served by the API). The router then talks to Apple itself and nothing else is involved. This is for whoever publishes the app build the phone runs: the key must belong to that app.

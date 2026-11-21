@@ -206,11 +206,24 @@ return view.extend({
 		]);
 		var chosen = {};
 		(st.devices || []).forEach(function(m) { chosen[m.toLowerCase()] = true; });
-		var macs = Object.keys(hints).map(function(m) { return m.toLowerCase(); });
+		var hint = function(m) { return hints[m.toUpperCase()] || hints[m] || {}; };
+		var v4 = function(m) { var h = hint(m); return (h.ipaddrs || h.ipv4 || [])[0]; };
+		// the hints cover every interface: only devices in the home network can use the VPN (the
+		// router itself and neighbours on the provider's side cannot); chosen ones always stay listed
+		var num = function(a) { var p = String(a).split('.'); return p.length == 4 ? ((+p[0] << 24) | (+p[1] << 16) | (+p[2] << 8) | +p[3]) >>> 0 : null; };
+		var inLan = function(ip) {
+			var n = num(ip);
+			if (n == null || (st.router_ips || []).indexOf(ip) >= 0) return false;
+			return (st.lans || []).some(function(c) {
+				var p = c.split('/'), net = num(p[0]), bits = +p[1];
+				var mask = bits ? (0xffffffff << (32 - bits)) >>> 0 : 0;
+				return net != null && ((n & mask) >>> 0) == ((net & mask) >>> 0);
+			});
+		};
+		var macs = Object.keys(hints).map(function(m) { return m.toLowerCase(); }).filter(function(m) { return chosen[m] || inLan(v4(m)); });
 		(st.devices || []).forEach(function(m) { if (macs.indexOf(m) < 0) macs.push(m); });
 		var label = function(m) {
-			var h = hints[m.toUpperCase()] || hints[m] || {};
-			var ip = (h.ipaddrs || h.ipv4 || [])[0];
+			var h = hint(m), ip = v4(m);
 			return (h.name || m) + (ip ? ' (' + ip + ')' : '');
 		};
 		macs.sort(function(a, b) { return label(a).localeCompare(label(b)); });

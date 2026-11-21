@@ -5,6 +5,11 @@
 
 import * as tunnel from 'miwrt.tunnel';
 import * as ts from 'miwrt.tailscale';
+import * as hub from 'miwrt.hub';
+
+// rpcd answers one call at a time: a call that waits for the app service's lock holds up every
+// other call, so it waits 15 seconds at most and then says the router is busy
+hub.set_lock_patience(15);
 
 function result(r) {
 	if (type(r) == 'string') return { error: r };

@@ -111,7 +111,8 @@ function b64url(s) {
 }
 
 function clean_name(s, fallback) {
-	s = trim(replace(s ?? '', /[\x00-\x1f\x7f]/g, ' '));
+	// ucode hands a pattern to the C library as text: no \x00 in it, and \s or \d mean nothing inside [ ]
+	s = trim(replace(s ?? '', /[[:cntrl:]]/g, ' '));
 	if (length(s) > 64) s = substr(s, 0, 64);
 	return length(s) ? s : fallback;
 }
@@ -320,7 +321,7 @@ export function parse_link(link) {
 			let body = b64any(h < 0 ? substr(link, 5) : substr(link, 5, h - 5));
 			let m = match(body ?? '', /^([^:]+):(.*)@([^@:]+|\[[0-9a-fA-F:]+\]):([0-9]+)$/s);
 			if (!m) return 'This Shadowsocks link cannot be read.';
-			s.method = lc(m[1]); s.password = m[2]; s.host = lc(replace(m[3], /[\[\]]/g, '')); s.port = +m[4];
+			s.method = lc(m[1]); s.password = m[2]; s.host = lc(replace(m[3], /^\[|\]$/g, '')); s.port = +m[4];
 			s.name = clean_name(h < 0 ? '' : urldec(substr(link, h + 1)), null);
 		}
 		if (!match(s.method, /^(aes-(128|256)-gcm|chacha20-(ietf-)?poly1305|xchacha20-(ietf-)?poly1305|2022-blake3-(aes-128-gcm|aes-256-gcm|chacha20-poly1305)|none|plain)$/))
@@ -890,7 +891,9 @@ export function state(fresh) {
 		// a test whose program died (out of memory) does not count as running for ever
 		tests: tests ? { running: !!tests.running && time() - (tests.time ?? 0) < 180, time: tests.time } : null,
 		subs_updating: subs_running(),
-		link: !!c.link
+		link: !!c.link,
+		// for the web page's device list: only devices in the home network, not the router itself
+		lans: lan_cidrs(), router_ips: lan_ips()
 	};
 }
 
@@ -1054,7 +1057,7 @@ export function subs_update_now(id) {
 export function subs_action(b) {
 	if (b.action == 'add') {
 		let url = trim(b.url ?? '');
-		if (!match(url, /^https?:\/\/[^\s'"]+$/) || length(url) > 1024) return 'Enter the subscription address (https://…).';
+		if (!match(url, /^https?:\/\/[^[:space:]'"]+$/) || length(url) > 1024) return 'Enter the subscription address (https://…).';
 		let c = conf();
 		if (length(c.subscriptions) >= MAX_SUBS) return 'The router keeps up to 10 subscriptions.';
 		if (length(filter(c.subscriptions, s => s.url == url))) return 'This subscription is already in the list.';
@@ -1163,11 +1166,13 @@ export function run_tests(ids) {
 		writefile(f, sprintf('%J', cfg));
 		let env = mem < 200 * 1048576 ? 'GOMEMLIMIT=40MiB GOGC=50 ' : '';
 		let pid = trim(hub.run(`${env}${XRAY} run -c ${f} >/dev/null 2>&1 </dev/null & echo $!`));
-		// ready when the last test port listens (the BE7000 first unpacks Xray), at most 15 seconds
-		let last = sprintf(':%04X ', 20100 + length(list) - 1);
-		for (let i = 0; i < 30; i++) {
+		// ready when the last test port listens (the BE7000 first unpacks Xray), at most 15 seconds; only a
+		// listening socket counts (local port, no remote end, state 0A), not an old connection to that port
+		let last = sprintf(':%04X 00000000:0000 0A ', 20100 + length(list) - 1);
+		// (BusyBox's sleep on both routers takes whole seconds only)
+		for (let i = 0; i < 15; i++) {
 			if (index(readfile('/proc/net/tcp') ?? '', last) >= 0) break;
-			system('sleep 0.5');
+			system('sleep 1');
 		}
 		let cmd = '';
 		for (let i, s in list)

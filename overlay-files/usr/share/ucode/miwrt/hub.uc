@@ -88,12 +88,27 @@ function plain_device(d) {
 }
 
 // One writer at a time: the 30 s pass and requests from the app both change the same files.
-let lock_held = false;
+// Nothing may ask rpcd (luci-rpc, iwinfo, session) while it holds the lock: the web interface's own
+// calls (rpcd plugin miwrt-vpn) take the lock inside rpcd, which answers one call at a time, so the
+// two would wait for each other until rpcd's calls time out. collect() runs before the lock.
+let lock_held = false, lock_patience = null;
+
+/* For code that runs inside rpcd: wait at most this many seconds for the lock, then give up with an
+   error text instead of holding up rpcd. */
+export function set_lock_patience(seconds) {
+	lock_patience = seconds;
+};
+
 export function locked(fn) {
 	if (lock_held) return fn();
 	mkdir(RUN);
 	let f = open(RUN + '/lock', 'w');
-	if (f) f.lock('x');
+	if (f && lock_patience == null) f.lock('x');
+	else if (f) {
+		let got = f.lock('xn');
+		for (let i = 0; !got && i < lock_patience; i++) { system('sleep 1'); got = f.lock('xn'); }
+		if (!got) { f.close(); return 'The router is busy. Try again in a moment.'; }
+	}
 	lock_held = true;
 	let out, err = null;
 	try { out = fn(); } catch (e) { err = e; }
@@ -666,10 +681,9 @@ export function set_leds(on) {
 };
 
 // One pass: collect, detect changes, refresh the cached answers the app reads.
-function tick_unlocked() {
+/* s: what collect() saw, taken before the lock (see locked()). */
+function tick_unlocked(s) {
 	mkdir(ETC); mkdir(RUN);
-	let conn = connect();
-	let s = collect(conn);
 	let rt = load(RUN + '/runtime.json', {});
 	let first = !stat(DEVICES);
 	let db = load(DEVICES, {});
@@ -741,7 +755,8 @@ function tick_unlocked() {
 }
 
 export function tick() {
-	return locked(tick_unlocked);
+	let s = collect(connect());
+	return locked(() => tick_unlocked(s));
 };
 
 export function cached(name) {
@@ -786,7 +801,7 @@ function apply_hosts(db) {
 }
 
 
-function update_device_unlocked(mac, b) {
+function update_device_unlocked(mac, b, s) {
 	let db = load(DEVICES, {}), d = db[mac];
 	if (!d) return 'unknown device';
 	let hosts = false, block = false;
@@ -836,12 +851,13 @@ function update_device_unlocked(mac, b) {
 	}
 	save(DEVICES, db);
 	if (hosts) apply_hosts(db);
-	tick_unlocked();
+	tick_unlocked(s);
 	return null;
 }
 
 export function update_device(mac, b) {
-	return locked(() => update_device_unlocked(mac, b));
+	let s = collect(connect());
+	return locked(() => update_device_unlocked(mac, b, s));
 };
 
 export function random_bytes(n) {
@@ -878,6 +894,7 @@ export function groups_list() {
 };
 
 export function groups_action(b) {
+	let s = collect(connect());
 	return locked(() => {
 		let all = load(GROUPS, []), db = load(DEVICES, {});
 		if (b.action == 'save') {
@@ -905,7 +922,7 @@ export function groups_action(b) {
 			add_alert('device', b.paused ? 'Group paused' : 'Group resumed', all[i].name + (m > 0 ? `, for ${m >= 60 ? int(m / 60) + ' h' : m + ' min'}` : ''), 'info');
 		} else return 'unknown action';
 		save(GROUPS, all);
-		tick_unlocked();
+		tick_unlocked(s);
 		return null;
 	});
 };
@@ -916,6 +933,7 @@ export function schedules_list() {
 };
 
 export function schedules_action(b) {
+	let s = collect(connect());
 	return locked(() => {
 		let all = load(SCHEDULES, []), db = load(DEVICES, {}), gids = map(load(GROUPS, []), g => g.id);
 		if (b.action == 'save') {
@@ -934,12 +952,13 @@ export function schedules_action(b) {
 			all = filter(all, x => x.id != b.id);
 		} else return 'unknown action';
 		save(SCHEDULES, all);
-		tick_unlocked();
+		tick_unlocked(s);
 		return null;
 	});
 };
 
 export function set_setting(b) {
+	let s = collect(connect());
 	return locked(() => {
 		let c = load(SETTINGS, {});
 		if ('approve_new' in b) c.approve_new = !!b.approve_new;
@@ -969,7 +988,7 @@ export function set_setting(b) {
 			c.night = n;
 		}
 		save(SETTINGS, c);
-		tick_unlocked();
+		tick_unlocked(s);
 		return null;
 	});
 };
@@ -1258,7 +1277,7 @@ export function protection_list_action(b) {
 	if (b.action == 'refresh') {
 		r = ag_call(cfg, '/control/filtering/refresh', { whitelist: false });
 	} else {
-		if (type(b.url) != 'string' || !match(b.url, /^https?:\/\/[^\s'"<>]{4,500}$/)) return 'A list needs a web address that starts with http:// or https://.';
+		if (type(b.url) != 'string' || length(b.url) > 508 || !match(b.url, /^https?:\/\/[^[:space:]'"<>]{4,}$/)) return 'A list needs a web address that starts with http:// or https://.';
 		if (b.action == 'add')
 			r = ag_call(cfg, '/control/filtering/add_url', { name: substr(trim(b.name ?? '') || 'Custom list', 0, 80), url: b.url, whitelist: false });
 		else if (b.action == 'remove')
@@ -1434,18 +1453,19 @@ const WRONG = { code: 403, error: 'That is not the router\'s administrator passw
 
 /* Is this the router's administrator password? Returns null when it is, else { code, error }. */
 export function check_password(password, ip) {
-	return locked(() => {
-		let f = fails_now(ip);
-		if (f.blocked) return TOO_MANY;
-		let conn = connect();
-		let ses = (type(password) == 'string' && length(password)) ? conn.call('session', 'login', { username: 'root', password, timeout: 5 }) : null;
-		if (!ses?.ubus_rpc_session) {
+	if (locked(() => fails_now(ip).blocked)) return TOO_MANY;
+	// the login asks rpcd: outside the lock (see locked())
+	let conn = connect();
+	let ses = (type(password) == 'string' && length(password)) ? conn.call('session', 'login', { username: 'root', password, timeout: 5 }) : null;
+	if (!ses?.ubus_rpc_session) {
+		return locked(() => {
+			let f = fails_now(ip);
 			fails_add(f);
-			return WRONG;
-		}
-		conn.call('session', 'destroy', { ubus_rpc_session: ses.ubus_rpc_session });
-		return null;
-	});
+			return f.blocked ? TOO_MANY : WRONG;
+		});
+	}
+	conn.call('session', 'destroy', { ubus_rpc_session: ses.ubus_rpc_session });
+	return null;
 };
 
 // ---------- pairing without sending the password ----------

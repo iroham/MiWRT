@@ -170,8 +170,10 @@ return baseclass.extend({
 		]);
 	},
 
+	// note: a text, or an element of its own (one whose text changes, e.g. with a choice above it)
 	field: function(label, input, note) {
-		return E('div', { 'class': 'mv-field' }, [ E('label', {}, T(label)), input, note ? E('div', { 'class': 'mv-note' }, T(note)) : '' ]);
+		return E('div', { 'class': 'mv-field' }, [ E('label', {}, T(label)), input,
+			note ? (note instanceof Node ? note : E('div', { 'class': 'mv-note' }, T(note))) : '' ]);
 	},
 
 	check: function(input, label, note) {
