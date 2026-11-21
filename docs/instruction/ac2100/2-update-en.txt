@@ -1,4 +1,4 @@
-MiWRT 2.2.0 for the Xiaomi Redmi Router AC2100: updating
+MiWRT 2.3.0 for the Xiaomi Redmi Router AC2100: updating
 
 STATUS: TESTING. On one router (see 1-install-en.txt) the MiWRT project has
 run, from the command line and with test builds of the source after 2.1.0:
@@ -44,7 +44,7 @@ By hand
   is slow:
       cd /tmp
       F=openwrt-ramips-mt7621-xiaomi_redmi-router-ac2100-squashfs-sysupgrade.bin
-      B=https://iroham.github.io/MiWRT/firmware/v2.2.0
+      B=https://iroham.github.io/MiWRT/firmware/v2.3.0
       wget -O $F $B/$F
       wget -O sha256sums-ac2100.txt $B/sha256sums-ac2100.txt
       grep sysupgrade.bin sha256sums-ac2100.txt | sha256sum -c -
